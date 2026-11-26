@@ -2,6 +2,13 @@
 
 Read CLAUDE.md (rules and the agreed plan), TODO.md (open items) and CODE-MAP.md (where everything is) first.
 
+## FOR THE PC CHAT - from the phone chat (2026-11-26): your office moves onto the Grand Hall window
+The owner wants a clean view over the Grand Hall from his office, a render of how it should look (done:
+Blueprints/Terminal/Office/YourOffice-*.png, Tools/render_owner_office.py, all its furniture modelled there), and the
+visitor's chair with called-in staff who knock, come in and sit facing him as top-quality MetaHumans. Everything is in
+TODO.md: "Your office moves onto the Grand Hall window" - after the buses / remote stands work of 2026-11-23 if that is
+under way. Keep the dog's bed and the rest of the pet's things with the office when it moves.
+
 ## The passenger and crew chain in a real career (PC chat, 2026-11-23)
 `docs/Passenger-Crew-Chain.md` is the table of every step. The player buys / leases A320s and makes the timetable in the Overview
 (Fleet, Market, Routes, Schedule: `sim-schedule.ts` -> `UADPBridge::Sim`); `Sim/ADPSchedule` makes the planned legs, sells them and

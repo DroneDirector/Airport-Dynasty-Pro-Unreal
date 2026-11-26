@@ -251,6 +251,28 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       model (`*_Livery_Body`, `*_Livery_Main`, the name panels `*_Livery_Name_*`). Default: YELLOW body (the apron bus
       first, owner 2026-11-23) with a dark navy band. The airport's name is written at run time from Data/airfield.json
       (never baked), as on the coach. Private vehicles (taxi bus, coach, cars) keep their own colours.
+- [ ] **Your office moves onto the Grand Hall window, furnished as the owner's render** (owner, 2026-11-26: "I want a clean view
+      over the Grand Hall"; renders in Blueprints/Terminal/Office/, made by Tools/render_owner_office.py):
+      - [ ] **The move:** your office F2-OFFICE-1 from x 118.7..131 to x 114..126.3 (same size, 12.3 x 9 m, z 0..9), its west
+            wall the Grand Hall window itself (3 of its 10 panes, floor to ceiling) and its south wall the forecourt windows;
+            the walkway's dead-end stretch F2-STAFF-WALK (x 114..118.7, z 0..9) goes into it (the walkway north of the
+            corridor, z 12..30, stays); Office 2 grows west to x 126.3 (126.3..139.1). Its door from the staff corridor at
+            x 124.5 (near the east end), glass partition to the corridor as now. Data/terminal-plan.json, terminal-cuts,
+            Art/TerminalAnnex/make_offices_f2.py, Offices.cpp (the pet, phone, wardrobe move with it), the holomap's plan.
+      - [ ] **Furnished as the render:** your desk facing the Grand Hall (walnut, black steel sled legs, drawer pedestal), your
+            ergonomic chair, the visitor's chair facing you across the desk, a modern laptop (no brand) showing the game,
+            desk lamp, desk phone, the radio (to-do of 2026-11-12), notebook, mug, a small plant; a rug; two linear pendants;
+            a round meeting table with four chairs by the window; a low sideboard under the forecourt windows (books, a
+            model aircraft, a photo); the sofa corner with an armchair and a coffee table; the wardrobe; two pictures; tall
+            plants; the dog's (or cat's) bed, bowls and football by the forecourt window. Real, good models (Fab / Quixel
+            with a licence for a paid game, or ours from the Blender pieces in the script).
+      - [ ] **The visitor's chair - called-in staff** (owner): when you call someone in (for a conduct talk, praise, etc.)
+            they come to your door, KNOCK (sound + you hear it), wait for you to say "come in" (a button / key), open the
+            door, walk in, close it, sit down on the visitor's chair facing you and look at you (eyes and head on you, look-at
+            IK) while you talk; then stand, push the chair in and leave. Whoever sits on that chair is a MetaHuman at the
+            HIGHEST quality (owner: "max quality ... because it's only one of them in the room"): LOD 0 forced, strand (groom)
+            hair, the highest texture set, full facial rig with blinking, breathing and talk / listen animation - only while
+            in your office, back to the normal crowd LODs outside.
 - [ ] **The apron bus is APPROVED (owner, 2026-11-23)** - its model (`Tools/make_apron_bus.py`: the airport's yellow livery
       with the airport's name on both sides, photo-scanned paint, thin clear glass) and its sounds. It must be drivable by
       BOTH the airport's own drivers and the owner himself (his avatar from the creator), through the same IK rig as the
