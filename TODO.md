@@ -653,6 +653,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       streamers flutter freely. Build: cloth physics (heavy, stiff settings) only while it is carried, fitted or
       taken off; a fixed mesh the rest of the time.
 
+- [ ] **Airport hotel** (owner, 2026-11-26: "We should build a hotel for the airport"). A hotel next to the terminal,
+      owned by the airport and part of its economy (rooms, staff, income), a short walk or a shuttle from the
+      terminal. Crews on night stops and passengers stay there. Later, when flights are cancelled or held overnight,
+      passengers get hotel and meal vouchers and go there instead of queueing or sleeping in the hall (no camp beds:
+      the terminal has no room for them). Placement on the site to be agreed with the owner first.
+
 ## 7. One shared world with Android (batch 4)
 - [ ] The bridge: the timetable screens and passengers from the world's real flights; airport mode writes back
 - [ ] The automatic one-day check that both setups give exactly the same world
@@ -685,6 +691,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **Load sheet** (2026-11-26): load control works out each departure's weight and balance (passengers, bags,
       cargo, fuel) and issues the load sheet to the crew. A last-minute change - a late passenger, a bag offloaded,
       extra cargo - means a new sheet and can hold the departure a few minutes (and gives it its delay code).
+- [ ] **Baggage tracing desk** (2026-11-26): bags that miss their flight are traced, sent on the next flight as
+      "rush bags" and delivered to the passenger; passengers without their bag come to the desk in the arrivals hall.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
