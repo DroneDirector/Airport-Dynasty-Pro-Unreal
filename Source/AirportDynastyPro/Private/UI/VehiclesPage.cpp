@@ -92,15 +92,15 @@ private:
 		return EActiveTimerReturnType::Continue;
 	}
 
-	void Buy(const FString& Key, const FString& Label)
+	void Buy(const FString& Key, const FString& KindName)
 	{
 		AADPHUD* H = Hud.Get(); UADPSim* S = H ? UADPSim::Get(H) : nullptr;
 		if (!S || !S->IsRunning()) { Say = TEXT("No career is running."); bSayBad = true; SayLeft = 8.f; return; }
 		FString Why; const bool bOk = ADPGround::BuyVehicle(S->World, UADPSim::Me(), Key, S->Now(), Why, H->GetWorld());
 		bSayBad = !bOk; SayLeft = 8.f;
 		const bool bEx = ADPOwned::Extra(Key) != nullptr; ExNotAt = -100.0;
-		Say = bOk ? FString::Printf(TEXT("A new %s is bought: it is brought to its %s."), *Label, bEx ? TEXT("spot beside the others when nobody is looking") : TEXT("place at the vehicle area")) : FString::Printf(TEXT("No %s bought: %s."), *Label, *Why);
-		ADP_LOG(TEXT("Vehicles owned: buy a %s - %s"), *Label, bOk ? TEXT("bought") : *Why);
+		Say = bOk ? FString::Printf(TEXT("A new %s is bought: it is brought to its %s."), *KindName, bEx ? TEXT("spot beside the others when nobody is looking") : TEXT("place at the vehicle area")) : FString::Printf(TEXT("No %s bought: %s."), *KindName, *Why);
+		ADP_LOG(TEXT("Vehicles owned: buy a %s - %s"), *KindName, bOk ? TEXT("bought") : *Why);
 		LastSig.Reset(); Rebuild();
 	}
 
@@ -153,7 +153,7 @@ private:
 			for (const FOwnedVehicle& V : L) if (V.Kind == Kind) { ++N; NWork += V.bWork; NBroken += V.bBroken; NOff += V.bWrittenOff; }
 			const ADPOwned::FExtraKind* E = K ? nullptr : ADPOwned::Extra(Kind);   // (no place at the vehicle area: one more beside its own, GSEExtra.cpp)
 			const FString Not = !bRun ? FString(TEXT("no career is running")) : E ? BuyNotExtra(S->World, A, *E) : BuyNot(S->World, A, K);
-			const FString Key = K ? K->Key : E ? FString(E->Key) : FString(), Label = Kind;
+			const FString Key = K ? K->Key : E ? FString(E->Key) : FString(), KindName = Kind;
 			FString Count = FString::Printf(TEXT("%d"), N);
 			if (NWork) Count += FString::Printf(TEXT(" - %d at work"), NWork);
 			if (NBroken) Count += FString::Printf(TEXT(" - %d broken down"), NBroken);
@@ -172,7 +172,7 @@ private:
 						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
 						[
 							SNew(SButton).IsEnabled(Not.IsEmpty()).ToolTipText(FText::FromString(Not))
-							.OnClicked_Lambda([this, Key, Label]() { Buy(Key, Label); return FReply::Handled(); })
+							.OnClicked_Lambda([this, Key, KindName]() { Buy(Key, KindName); return FReply::Handled(); })
 							[VpText(BuyLine, Not.IsEmpty() ? VpInk : VpDim, 12, "Bold")]
 						]
 						+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)[VpText(Not, VpDim, 10)]
