@@ -40,6 +40,9 @@ public:
 	/** The model's lights as Babylon has them (Data/babylon-<name>-lights.json: points and spots, their colours, strengths
 	 *  and reach), put in the same places. */
 	void AddLights(const FString& Name);
+	/** One more lamp of this model (attached to it, candelas, its reach): no shadow, no flare, dimmed by day with the
+	 *  model's other lamps (LampsByDaylight). Used by the light fittings and by the cargo terminal's lights. */
+	void AddLamp(class ULocalLightComponent* L, const FVector& At, float Candelas, float Reach, const FLinearColor& Col);
 	/** The model's name as placed (Office, Ops, Smartphone, Monitor329...). */
 	FString Model;
 	/** Which of the model's objects an instance is (its node's name, e.g. "laptop~b-131": what you click; the Babylon

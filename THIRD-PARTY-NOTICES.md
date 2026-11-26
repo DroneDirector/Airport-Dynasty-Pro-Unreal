@@ -46,6 +46,12 @@ Art/Sounds/ApronBus (made by Tools/make_apron_bus_sounds.py): recordings by feli
 CC0 1.0 (public domain); each sound's page and what was taken from it is in Art/Sounds/ApronBus/SOURCES.md. The AVAS
 tone, door chime, indicator relay, A/C fans, motor tones and door thud are our own synthesis.
 
+## Cargo terminal sounds - Freesound (CC0)
+Art/Sounds/CargoTerminal (made by Tools/make_cargo_sounds.py): recordings by kyles (rain on a metal roof, warehouse room
+tone), chillaquil (rain under a metal roof), jaegrover (outdoor heating and ventilation unit), HECKFRICKER (ventilation
+outlet) and monotraum (office printer), from https://freesound.org, CC0 1.0 (public domain); each sound's page is in
+Art/Sounds/CargoTerminal/SOURCES.md. Its doors reuse the fire station's door and the jetway's service door sounds.
+
 ## Music
 - The title music (title.mp3): made by the owner with Suno AI on a Pro plan, which gives him full ownership and commercial use; safe to use everywhere, including live streams on YouTube and elsewhere (owner, 2026-11-20). Every future soundtrack is listed here with its source and licence.
 

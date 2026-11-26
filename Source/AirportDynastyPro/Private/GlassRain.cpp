@@ -86,13 +86,16 @@ void UGlassRain::FindBuildings()
 	static const TCHAR* Swap[][2] = {
 		{TEXT("/Game/Babylon/Jetways/jetways/Materials/glassOuter"), TEXT("/Game/Materials/Glass/MI_Rain_JetwayGlass.MI_Rain_JetwayGlass")},
 		{TEXT("/Game/Babylon/Firestation/firestation/Materials/gl-bayDoor"), TEXT("/Game/Materials/Glass/MI_Rain_BayDoorGlass.MI_Rain_BayDoorGlass")},
-		{TEXT("/Game/Babylon/Firestation/firestation/Materials/m12"), TEXT("/Game/Materials/Glass/MI_Rain_StationGlass.MI_Rain_StationGlass")}};
+		{TEXT("/Game/Babylon/Firestation/firestation/Materials/m12"), TEXT("/Game/Materials/Glass/MI_Rain_StationGlass.MI_Rain_StationGlass")},
+		// the cargo terminal (step B2): its office windows, lobby porch and gatehouse glass, and its roof skylights
+		{TEXT("/Game/Babylon/CargoTerminal/CargoTerminal/Materials/M_Cargo_Glass"), TEXT("/Game/Materials/Glass/MI_Rain_CargoGlass.MI_Rain_CargoGlass")},
+		{TEXT("/Game/Babylon/CargoTerminal/CargoTerminal/Materials/M_Cargo_SkylightGlass"), TEXT("/Game/Materials/Glass/MI_Rain_CargoSkylight.MI_Rain_CargoSkylight")}};
 	NotRoofs.Reset();
 	TArray<AActor*> Found;
 	for (TActorIterator<APawn> It(GetWorld()); It; ++It) NotRoofs.Add(*It);
 	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
 	{
-		if (It->Model == TEXT("Terminal") || It->Model == TEXT("Firestation") || It->Model == TEXT("Jetways")) Found.Add(*It);
+		if (It->Model == TEXT("Terminal") || It->Model == TEXT("Firestation") || It->Model == TEXT("Jetways") || It->Model == TEXT("CargoTerminal")) Found.Add(*It);
 		else if (!It->Model.StartsWith(TEXT("Office"))) NotRoofs.Add(*It);   // (vehicles, aircraft, ...)
 	}
 	for (TActorIterator<ATowerADC> It(GetWorld()); It; ++It) Found.Add(*It);

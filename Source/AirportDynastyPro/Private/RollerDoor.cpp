@@ -8,6 +8,8 @@
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
+#include "CargoTerminalLife.h"
+#include "Components/AudioComponent.h"
 
 TArray<TWeakObjectPtr<ARollerDoor>> ARollerDoor::All;
 
@@ -98,7 +100,28 @@ void ARollerDoor::Tick(float Dt)
 	if (Want > 0.5f && K >= 1.f && Quiet > 40.f && HoldOpen <= 0.f) { Want = 0.f; ADP_LOG(TEXT("Roller door %s: closing by itself (nobody near)"), *Id); }
 	// never on anyone: coming down with something in the doorway, it goes back up
 	if (Want < K && SomethingInDoorway()) { Want = 1.f; Quiet = 0.f; ADP_LOG(TEXT("Roller door %s: something in the doorway - back up"), *Id); }
-	if (FMath::IsNearlyEqual(K, Want, 0.0005f)) return;
+	if (FMath::IsNearlyEqual(K, Want, 0.0005f))
+	{
+		// arrived: going up, the motor's whine fades as it stops at the top; coming down, the recording ends on its thud
+		if (Dir > 0 && IsValid(Hum)) Hum->FadeOut(0.3f, 0.f);
+		Dir = 0;
+		return;
+	}
+	const int8 NowDir = Want > K ? 1 : -1;
+	if (NowDir != Dir)
+	{
+		// a start or a turn: the motor and the roll (the recording at the door's own pace: down, so its landing clunks come
+		// as the bottom bar touches the floor - the recording lands 14.6 s in; up, from the switch and the motor's start)
+		static USoundBase* UpS = ACargoTerminalLife::Keep(TEXT("/Game/FireStation/Sounds/FsDoorUp.FsDoorUp"));
+		static USoundBase* DownS = ACargoTerminalLife::Keep(TEXT("/Game/FireStation/Sounds/FsDoorDown.FsDoorDown"));
+		if (IsValid(Hum)) Hum->FadeOut(0.15f, 0.f);
+		Hum = nullptr;
+		const float Travel = (NowDir > 0 ? 1.f - K : K) * 2.f * FMath::Max(1.f, Height);   // (seconds left of the stroke)
+		if (USoundBase* S = NowDir > 0 ? UpS : DownS)
+			Hum = UGameplayStatics::SpawnSoundAtLocation(this, S, GetActorLocation() + FVector(0.f, 0.f, Height * 100.f), FRotator::ZeroRotator,
+				FMath::Clamp(Width / 6.f, 0.6f, 1.f), 1.f, NowDir > 0 ? 0.f : FMath::Max(0.f, 14.6f - Travel), ACargoTerminalLife::Heard(4500.f), nullptr, true);
+		Dir = NowDir;
+	}
 	// half a metre a second, as a real door's motor (the 8 m door: 8 s up)
 	K = FMath::FInterpConstantTo(K, Want, Dt, 0.5f / FMath::Max(1.f, Height));
 	Layout();

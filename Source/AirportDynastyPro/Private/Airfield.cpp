@@ -16,6 +16,7 @@
 #include "Dom/JsonObject.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "CargoTerminalLife.h"
 #include "RollerDoor.h"
 #include "Misc/PackageName.h"
 #include "Serialization/JsonReader.h"
@@ -1278,6 +1279,9 @@ bool AAirfield::Build(bool bModelSite)
 				ADP_LOG(TEXT("Airfield: the cargo terminal's %d roller doors placed (of %d)"), Placed, Rl->Num());
 			}
 			else ADP_WARN(TEXT("Airfield: no cargo terminal doors (%s)"), *DPath);
+			// its lights (the model's lamp system: by day dimmed, no shadows, no flares) and its sounds where they happen
+			// (Data/cargo-lights.json, Art/CargoTerminal/cargo_lights.py)
+			ACargoTerminalLife::Make(Cargo);
 		}
 		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
 	}

@@ -52,6 +52,10 @@ private:
 	float K = 0.f, Want = 0.f;            // openness now, and where it is going
 	float HoldOpen = 0.f;                 // seconds a vehicle asked it to stay open
 	float Quiet = 0.f;                    // seconds with nobody near while open
+	/** Its sound (step B2): the motor and the curtain rolling (the fire station's door recording), down to the bottom bar's
+	 *  thud as it lands; heard from where it is, muffled through walls. Dir: which way it runs (0 standing). */
+	UPROPERTY() TObjectPtr<class UAudioComponent> Hum;
+	int8 Dir = 0;
 	static constexpr float Pitch = 0.1f;  // one slat's height (m)
 	static TArray<TWeakObjectPtr<ARollerDoor>> All;
 };

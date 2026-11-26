@@ -1,6 +1,7 @@
 // Places the Babylon model: walks its node tree from the roots, works out each node's transform the way Unreal's glTF
 // importer converts them, and adds an instance of the node's imported mesh there.
 #include "BabylonModel.h"
+#include "CargoTerminalLife.h"
 #include "Site.h"
 #include "PerfLog.h"
 #include "ParkedAircraft.h"
@@ -809,24 +810,27 @@ void ABabylonModel::FlickerFire()
 
 #pragma region Light fittings
 
+// a lamp of this model (its light fittings, and step B2's cargo terminal lights): no shadows, its own reach, dimmed by day
+void ABabylonModel::AddLamp(ULocalLightComponent* L, const FVector& At, float Candelas, float Reach, const FLinearColor& Col)
+{
+	if (FParse::Param(FCommandLine::Get(), TEXT("NoLampLights"))) { L->MarkAsGarbage(); return; }   // (-NoLampLights: test)
+	L->SetupAttachment(Root);
+	L->SetRelativeLocation(At);
+	L->SetIntensityUnits(ELightUnits::Candelas);
+	L->SetIntensity(Candelas);
+	L->SetLightColor(Col);
+	L->SetAttenuationRadius(Reach);
+	L->SetCastShadows(false);   // hundreds of lamps: no shadows from them (the sun and the sky keep theirs)
+	L->RegisterComponent();
+	LampLights.Add(L); LampBase.Add(Candelas);
+	AddInstanceComponent(L);
+}
+
 void ABabylonModel::LightFittings(const TArray<TSharedPtr<FJsonValue>>& Nodes, const TArray<FTransform>& NodeWorld, const TArray<TPair<UInstancedStaticMeshComponent*, int32>>& NodeInst)
 {
 	auto NameOf = [&](int32 I) { FString S; Nodes[I]->AsObject()->TryGetStringField(TEXT("name"), S); return S; };
 	int32 Spots = 0, Soft = 0, Strip = 0, Lamp = 0;
-	auto Add = [&](ULocalLightComponent* L, const FVector& At, float Candelas, float Reach, const FLinearColor& Col)
-	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("NoLampLights"))) { L->MarkAsGarbage(); return; }   // (-NoLampLights: test)
-		L->SetupAttachment(Root);
-		L->SetRelativeLocation(At);
-		L->SetIntensityUnits(ELightUnits::Candelas);
-		L->SetIntensity(Candelas);
-		L->SetLightColor(Col);
-		L->SetAttenuationRadius(Reach);
-		L->SetCastShadows(false);   // hundreds of lamps: no shadows from them (the sun and the sky keep theirs)
-		L->RegisterComponent();
-		LampLights.Add(L); LampBase.Add(Candelas);
-		AddInstanceComponent(L);
-	};
+	auto Add = [&](ULocalLightComponent* L, const FVector& At, float Candelas, float Reach, const FLinearColor& Col) { AddLamp(L, At, Candelas, Reach, Col); };
 	const FLinearColor Warm(1.f, 0.93f, 0.82f);
 	// merged lamp lights (owner, 2026-11-17: "make the lights copies of each other" - every light costs each frame, the
 	// 16 gates brought 1100 more): the lamps' faces still all glow, but the lamps of one ceiling within a 12 m square share
@@ -1203,7 +1207,17 @@ void ABabylonModel::Tick(float Dt)
 		if (!D.bSlide && !D.bSpin && !D.bOpen && D.K > 0.02f && AnyoneThere()) { D.bOpen = true; D.Away = 0.f; }
 		const float Want = (D.bSlide ? bNear : D.bOpen) ? 1.f : 0.f;
 		if (FMath::Abs(D.K - Want) < 0.001f) continue;
+		const float WasK = D.K;
 		D.K += FMath::Sign(Want - D.K) * FMath::Min(FMath::Abs(Want - D.K), Dt * (D.bSlide && Want < D.K ? 0.8f : 1.6f));   // (sliding doors shut gently)
+		// the cargo terminal's hinged doors are heard (step B2): the handle and the door swinging open as it starts to open,
+		// its closer bringing it shut against the frame; where the door is, muffled through walls
+		if (!D.bSlide && !D.bSpin && Model == TEXT("CargoTerminal") && ((Want > 0.5f && WasK < 0.001f) || (Want < 0.5f && WasK >= 0.08f && D.K < 0.08f)))
+		{
+			static USoundBase* OpenS = ACargoTerminalLife::Keep(TEXT("/Game/JetwayBeacon/Sounds/JwSvcOpen.JwSvcOpen"));
+			static USoundBase* CloseS = ACargoTerminalLife::Keep(TEXT("/Game/JetwayBeacon/Sounds/JwSvcClose.JwSvcClose"));
+			if (USoundBase* S = Want > 0.5f ? OpenS : CloseS)
+				UGameplayStatics::SpawnSoundAtLocation(this, S, D.AtW + FVector(0.f, 0.f, 100.f), FRotator::ZeroRotator, 0.8f, 1.f, 0.f, ACargoTerminalLife::Heard(2500.f));
+		}
 		if (D.JwGate) GateDoorK[D.JwGate] = D.K;
 		const float E = D.K * D.K * (3 - 2 * D.K);   // eased, as doors.ts
 		for (FPart& Part : D.Parts) MovePart(Part, E, 0);
