@@ -179,7 +179,21 @@ bool ATugs::HangarOut(FTug& T, const FVector& F)
 	{
 		P.Add(Plan(HtRoad, HtTY));
 		for (int32 i = 1; i < T.TowWay.Num(); ++i) P.Add(T.TowWay[i]);
-		P.Add(T.HookAt + F * 1500.f); P.Add(T.HookAt);
+		// (to a cargo stand, HangarTow: along K to beside its nose, then across in front of it - the cargo building 15 m
+		//  ahead leaves room for a 7 m run-in only)
+		P.Add(T.HookAt + F * (CargoStand(T.StandX) ? 700.f : 1500.f)); P.Add(T.HookAt);
+	}
+	else if (RemoteStand(T.StandX))
+	{
+		// (a remote stand, to-do 311: round the apron's things by the bus road to 15 m ahead of the nose, then straight in)
+		TArray<FVector> A;
+		if (!G->Apron(A, P.Last(), T.HookAt + F * 1500.f, nullptr))
+		{
+			T.HtRetry = float(Now + 5.0);
+			if (Now - T.TowSaid > 30.0) { T.TowSaid = Now; ADP_LOG(TEXT("Tugs: the hangar tug waits for %s - no clear way to the remote stand yet"), *T.Key); }
+			return false;
+		}
+		P.Append(A); P.Add(T.HookAt);
 	}
 	else
 	{

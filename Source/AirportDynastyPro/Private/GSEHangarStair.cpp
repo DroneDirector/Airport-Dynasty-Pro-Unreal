@@ -7,6 +7,7 @@
 // its crew walk out and the hall door shuts. For the tow back the same the other way round: the stair to the door, the rider
 // up, the stair back to its place, then the tug comes in. Its jobs are ordinary service jobs whose StandX is the hall's key.
 #include "GSE.h"
+#include "GSEStairs.h"
 #include "Hangar.h"
 #include "Tugs.h"
 #include "ServiceVehicles.h"

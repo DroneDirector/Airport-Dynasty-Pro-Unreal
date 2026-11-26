@@ -695,7 +695,11 @@ void ATugs::WalkersDone(int32 Tug)
 		if (C.bHired)
 		{
 			const float Sx = T.StandX;
-			C.Q.Add(WalkAct([this, Sx] { return GateT(Sx, Sx - 20.5f, 104.f); }, 120.f));
+			// never on foot across the runway (to-do 311: a hangar tow from a cargo stand or into a hangar leaves them north
+			// of it): there they stay put and are let go where they are; the van ride back is not built yet
+			const bool bOver = C.A.IsValid() && (SideOf(C.A->GetActorLocation().Y) == 2) != (SideOf(GateT(Sx, Sx - 20.5f, 104.f).Y) == 2);
+			if (bOver) ADP_WARN(TEXT("Tugs: hired walker of tug %d stays north of the runway - no way on foot across it (van ride not built)"), Tug);
+			else C.Q.Add(WalkAct([this, Sx] { return GateT(Sx, Sx - 20.5f, 104.f); }, 120.f));
 			LeaveAct(C); continue;
 		}
 		C.Q.Add(WalkAct([this, i] { return Crew[i].Spot; }, 40.f));

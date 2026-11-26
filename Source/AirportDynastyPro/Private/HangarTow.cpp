@@ -6,6 +6,7 @@
 // the runway until nothing lands, rolls or takes off there (SimTraffic::RunwayBusy) and waits for the wing walkers.
 #include "HangarTow.h"
 #include "Tugs.h"
+#include "PerfLog.h"
 #include "Hangar.h"
 #include "Airfield.h"
 #include "ParkedAircraft.h"
@@ -64,7 +65,6 @@ namespace
 		const int32 E = L.P.Num() - 1; return L.P[E] + (L.P[E] - L.P[E - 1]).GetSafeNormal() * (At - L.S[E]);
 	}
 
-	float TwyX(const FAirfieldData& D, const TCHAR* Id, float Fallback) { const FAirfieldData::FTwy* T = D.Find(Id); return T && T->Pts.Num() ? T->Pts[0].X : Fallback; }
 
 	FVector WorldAt(const FVector2f& P) { return FTerminalPlan::ToWorld(P.X, AAirfield::GroundAt(P.X, P.Y), P.Y); }
 
@@ -74,8 +74,127 @@ namespace
 		return Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& A) { return A.Reg == Reg; });
 	}
 
-	// a terminal stand the tow can reach (nose to the terminal, in front of taxiway T)
-	bool TowStand(const FAirfieldData::FStand& St, const FAirfieldData& D) { return St.Dir < 0.f && !St.bCargo && !St.bRemote && St.HasTug() && St.Frame().Y + GearL + 30.f < D.TY; }
+	// the taxilane a stand is pushed back onto, tail first (SimTraffic's pushback): K for a cargo stand, T for every other
+	const FAirfieldData::FTwy* TowLaneOf(const FAirfieldData::FStand& St, const FAirfieldData& D) { return D.Find(St.bCargo ? TEXT("K") : TEXT("T")); }
+	float TowLaneY(const FAirfieldData::FStand& St, const FAirfieldData& D) { return St.bCargo ? D.KY : D.TY; }
+
+	// a stand the tow can reach (to-do 311): terminal, remote or cargo, with room for a tug in front of the nose and its taxilane behind the tail
+	bool TowStand(const FAirfieldData::FStand& St, const FAirfieldData& D)
+	{
+		const FAirfieldData::FTwy* L = TowLaneOf(St, D); if (!St.HasTug() || !L || L->Pts.Num() < 2) return false;
+		const float Lo = FMath::Min(L->Pts[0].X, L->Pts.Last().X), Hi = FMath::Max(L->Pts[0].X, L->Pts.Last().X);
+		return St.X > Lo + 5.f && St.X < Hi - 5.f && (TowLaneY(St, D) - St.Frame().Y) * (St.Dir < 0.f ? 1.f : -1.f) > GearL + 30.f;   // (the lane behind its tail)
+	}
+
+	// The taxiway network (to-do 311): every centre line of Data/airfield.json cut where another meets or crosses it, the
+	// pieces the edges; extra points (a stand's join on its taxilane, a hangar's on K, the depot road's on T) cut in as nodes.
+	// Runway 08/26 is no taxiway: the only ways across are the links that meet on its centre line (A2-B2, A1-B1, A3-B3).
+	struct FHtTwyNet
+	{
+		TArray<FVector2f> N; TArray<TArray<TPair<int32, float>>> E; TArray<TArray<FString>> EId;
+		int32 Node(const FVector2f& P)
+		{
+			for (int32 i = 0; i < N.Num(); ++i) if (FVector2f::Distance(N[i], P) < 1.5f) return i;
+			E.AddDefaulted(); EId.AddDefaulted(); return N.Add(P);
+		}
+		void Link(int32 A, int32 B, const FString& Id)
+		{
+			if (A == B) return; const float L = FVector2f::Distance(N[A], N[B]);
+			E[A].Add(TPair<int32, float>(B, L)); EId[A].Add(Id); E[B].Add(TPair<int32, float>(A, L)); EId[B].Add(Id);
+		}
+		int32 Near(const FVector2f& P) const { for (int32 i = 0; i < N.Num(); ++i) if (FVector2f::Distance(N[i], P) < 2.f) return i; return INDEX_NONE; }
+	};
+
+	void TowBuildNet(const FAirfieldData& D, const TArray<FVector2f>& Extra, FHtTwyNet& Gn)
+	{
+		struct FSeg { FVector2f A, B; FString Id; };
+		TArray<FSeg> Sg;
+		for (const FAirfieldData::FTwy& T : D.Taxiways) for (int32 i = 1; i < T.Pts.Num(); ++i) if (FVector2f::Distance(T.Pts[i - 1], T.Pts[i]) > 0.1f) Sg.Add({T.Pts[i - 1], T.Pts[i], T.Id});
+		auto Along = [](const FSeg& S, const FVector2f& P, float& U) { const FVector2f Ab = S.B - S.A; U = FMath::Clamp(FVector2f::DotProduct(P - S.A, Ab) / Ab.SizeSquared(), 0.f, 1.f); return FVector2f::Distance(S.A + Ab * U, P); };
+		for (int32 i = 0; i < Sg.Num(); ++i)
+		{
+			const FSeg& S = Sg[i]; TArray<float> Cut = {0.f, 1.f}; float U = 0.f;
+			for (int32 j = 0; j < Sg.Num(); ++j)
+			{
+				if (j == i) continue; const FSeg& O = Sg[j];
+				if (Along(S, O.A, U) < 1.5f) Cut.Add(U);   // (an end of another line on this one: a T-junction)
+				if (Along(S, O.B, U) < 1.5f) Cut.Add(U);
+				const FVector2f R = S.B - S.A, Q = O.B - O.A; const float Den = R.X * Q.Y - R.Y * Q.X;
+				if (FMath::Abs(Den) < 1e-4f) continue;
+				const FVector2f W = O.A - S.A; const float T0 = (W.X * Q.Y - W.Y * Q.X) / Den, T1 = (W.X * R.Y - W.Y * R.X) / Den;
+				if (T0 > 0.f && T0 < 1.f && T1 > 0.f && T1 < 1.f) Cut.Add(T0);   // (a crossing)
+			}
+			for (const FVector2f& P : Extra) if (Along(S, P, U) < 2.f) Cut.Add(U);
+			Cut.Sort();
+			int32 Prev = INDEX_NONE;
+			for (const float C : Cut) { const int32 Nd = Gn.Node(FMath::Lerp(S.A, S.B, C)); if (Prev != INDEX_NONE) Gn.Link(Prev, Nd, S.Id); Prev = Nd; }
+		}
+	}
+
+	// the shortest way between two nodes (Dijkstra; a few hundred nodes at most), its points and the taxiways it follows
+	bool TowNetRoute(const FHtTwyNet& Gn, int32 From, int32 To, TArray<FVector2f>& Out, TArray<FString>* Ids = nullptr)
+	{
+		if (From == INDEX_NONE || To == INDEX_NONE) return false;
+		TArray<float> Dist; Dist.Init(1e30f, Gn.N.Num()); TArray<int32> Prev; Prev.Init(INDEX_NONE, Gn.N.Num()); TArray<FString> By; By.SetNum(Gn.N.Num()); TArray<bool> Done; Done.Init(false, Gn.N.Num());
+		Dist[From] = 0.f;
+		for (;;)
+		{
+			int32 U = INDEX_NONE; for (int32 i = 0; i < Gn.N.Num(); ++i) if (!Done[i] && Dist[i] < 1e29f && (U == INDEX_NONE || Dist[i] < Dist[U])) U = i;
+			if (U == INDEX_NONE || U == To) break;
+			Done[U] = true;
+			for (int32 k = 0; k < Gn.E[U].Num(); ++k) { const int32 V = Gn.E[U][k].Key; const float Dv = Dist[U] + Gn.E[U][k].Value; if (Dv < Dist[V]) { Dist[V] = Dv; Prev[V] = U; By[V] = Gn.EId[U][k]; } }
+		}
+		if (Dist[To] > 1e29f) return false;
+		TArray<int32> Chain; for (int32 v = To; v != INDEX_NONE; v = Prev[v]) Chain.Insert(v, 0);
+		Out.Reset(); for (const int32 v : Chain) Out.Add(Gn.N[v]);
+		if (Ids) { Ids->Reset(); for (int32 c = 1; c < Chain.Num(); ++c) if (!Ids->Num() || Ids->Last() != By[Chain[c]]) Ids->Add(By[Chain[c]]); }
+		return true;
+	}
+
+	// the route as said on the radio: "Tango, Papa 2, Alpha, Alpha 2, cross runway, Bravo 2, ..." (the turn pads left out)
+	FString TowSpoken(const TArray<FString>& Ids)
+	{
+		TArray<FString> W;
+		for (int32 i = 0; i < Ids.Num(); ++i)
+		{
+			const FString& Id = Ids[i];
+			if (Id.IsEmpty() || Id.StartsWith(TEXT("CURVE"))) continue;
+			const TCHAR C = Id[0];
+			const TCHAR* Ph = C == 'A' ? TEXT("Alpha") : C == 'B' ? TEXT("Bravo") : C == 'K' ? TEXT("Kilo") : C == 'P' ? TEXT("Papa") : C == 'Q' ? TEXT("Quebec") : C == 'T' ? TEXT("Tango") : nullptr;
+			const FString S = (Ph ? FString(Ph) : Id.Left(1)) + (Id.Len() > 1 ? TEXT(" ") + Id.Mid(1) : FString());
+			if (!W.Num() || W.Last() != S) W.Add(S);
+			// (a link onto the runway's centre line followed by the one off the other side: the crossing)
+			const bool bLink = Id.Len() > 1 && FChar::IsDigit(Id[1]) && (C == 'A' || C == 'B');
+			if (bLink && Ids.IsValidIndex(i + 1) && Ids[i + 1].Len() > 1 && FChar::IsDigit(Ids[i + 1][1]) && Ids[i + 1][0] == (C == 'A' ? 'B' : 'A')) W.Add(TEXT("cross runway"));
+		}
+		return FString::Join(W, TEXT(", "));
+	}
+
+	// an aircraft as a few lines (nose tyre at N, nose towards Fa; an A320): fuselage, wing, tailplane
+	void TowShape(const FVector2f& N, const FVector2f& Fa, FVector2f (&S)[6])
+	{
+		const FVector2f Sd(-Fa.Y, Fa.X);
+		S[0] = N + Fa * 5.f; S[1] = N - Fa * 32.6f; S[2] = N - Fa * 14.f + Sd * 17.9f; S[3] = N - Fa * 14.f - Sd * 17.9f; S[4] = N - Fa * 30.f + Sd * 6.3f; S[5] = N - Fa * 30.f - Sd * 6.3f;
+	}
+	float TowSegSeg(const FVector2f& A, const FVector2f& B, const FVector2f& C, const FVector2f& Dd)
+	{
+		auto PS = [](const FVector2f& P, const FVector2f& X, const FVector2f& Y) { const FVector2f Ab = Y - X; const float U = FMath::Clamp(FVector2f::DotProduct(P - X, Ab) / FMath::Max(Ab.SizeSquared(), 1e-4f), 0.f, 1.f); return FVector2f::Distance(X + Ab * U, P); };
+		const FVector2f R = B - A, Q = Dd - C; const float Den = R.X * Q.Y - R.Y * Q.X;
+		if (FMath::Abs(Den) > 1e-5f) { const FVector2f W = C - A; const float T0 = (W.X * Q.Y - W.Y * Q.X) / Den, T1 = (W.X * R.Y - W.Y * R.X) / Den; if (T0 >= 0.f && T0 <= 1.f && T1 >= 0.f && T1 <= 1.f) return 0.f; }
+		return FMath::Min(FMath::Min(PS(A, C, Dd), PS(B, C, Dd)), FMath::Min(PS(C, A, B), PS(Dd, A, B)));
+	}
+	// the least gap between two aircraft's shapes (m; a fuselage counted 4 m wide)
+	float TowGap(const FVector2f (&X)[6], const FVector2f (&Y)[6])
+	{
+		float M = 1e9f;
+		for (int32 a = 0; a < 3; ++a) for (int32 b = 0; b < 3; ++b) M = FMath::Min(M, TowSegSeg(X[a * 2], X[a * 2 + 1], Y[b * 2], Y[b * 2 + 1]) - ((a == 0 ? 2.f : 0.f) + (b == 0 ? 2.f : 0.f)));
+		return M;
+	}
+
+	// the depot road meets taxilane T here (TugTow.cpp HtRoad): the hangar tug's way onto the taxiways
+	constexpr float TowRoadX = -245.f;
+	// beside a cargo stand's nose, clear of its wingtip and its neighbour's (the hangar tug's way in and out there)
+	constexpr float TowCargoSide = 30.f, TowCargoFront = 1222.5f;
 
 	// on the runway strip: within the hold distance of its centreline (SimTraffic's 107.5 m hold)
 	bool InStrip(const FAirfieldData& D, const FVector2f& P) { return FMath::Abs(P.Y - D.RwyY) < 107.5f && P.X > D.RwyX0 && P.X < D.RwyX1; }
@@ -181,7 +300,15 @@ void AHangarTow::Look()
 			if (A && A->Status == TEXT("maintenance") && !A->CheckKind.IsEmpty()) continue;
 			if (!bMoving && Start(J, true)) return;
 		}
-	if (bMoving) return;
+	if (bMoving)
+	{
+		// (the other aircraft for the wingtip check, Clear: parked SIM/ and moving MOVE/ models; once per 2 s while a tow moves)
+		ADP_PERF_SCOPE("HangarTow: the aircraft round a tow (every 2 s)", 2.f);
+		Planes.Reset();
+		for (TActorIterator<ABabylonModel> It(W); It; ++It)
+			for (const FName& Tn : It->Tags) { const FString S = Tn.ToString(); if (S.StartsWith(TEXT("SIM/")) || S.StartsWith(TEXT("MOVE/"))) { Planes.Add(*It); break; } }
+		return;
+	}
 	const FAirfieldData& D = AAirfield::Shared();
 	for (const FADPAircraft& A : Sim->World.Aircraft)
 	{
@@ -189,9 +316,9 @@ void AHangarTow::Look()
 		FString StandId; ABabylonModel* Shown = ADPParked::Shown(A.Reg, &StandId); if (!Shown) continue;
 		const FAirfieldData::FStand* St = D.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == StandId; });
 		static TSet<FString> Told;
-		if (!St || !TowStand(*St, D)) { if (!Told.Contains(A.Reg)) { Told.Add(A.Reg); ADP_LOG(TEXT("HangarTow: %s on stand %s - no tow route from there (only the terminal stands so far)"), *A.Reg, *StandId); } continue; }
+		if (!St || !TowStand(*St, D)) { if (!Told.Contains(A.Reg)) { Told.Add(A.Reg); ADP_LOG(TEXT("HangarTow: %s on stand %s - no tow from there (no room for a tug or no taxilane behind it)"), *A.Reg, *StandId); } continue; }
 		FJob J; J.Reg = A.Reg; J.Key = TEXT("TOW/") + A.Reg; J.Stand = StandId; J.StandX = St->X;
-		const FAirfieldData::FStandFrame Fr = St->Frame(); J.Nose = FVector2f(Fr.X, Fr.Y); J.Main = J.Nose + FVector2f(0.f, GearL);
+		const FAirfieldData::FStandFrame Fr = St->Frame(); J.Nose = FVector2f(Fr.X, Fr.Y); J.Main = Fr.P(0.f, GearL);
 		if (!Start(J, false)) continue;
 		// its own model from here (the parked one gives way in the same frame)
 		ABabylonModel* B = W->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator);
@@ -227,6 +354,9 @@ bool AHangarTow::Start(FJob& J, bool bBack)
 			return true;
 		};
 		const FAirfieldData::FStand* Pick = D.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == A->Stand && Free(S); });
+		// (else the first free one of the same kind - terminal, remote or cargo - then any the tow reaches)
+		const FAirfieldData::FStand* Was = D.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == A->Stand; });
+		if (!Pick && Was) Pick = D.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.bCargo == Was->bCargo && S.bRemote == Was->bRemote && Free(S); });
 		if (!Pick) Pick = D.Stands.FindByPredicate(Free);
 		if (!Pick) { if ((J.WhyT -= 2.f) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s stays in hangar %s - no stand free to tow it to"), *J.Reg, *J.Hangar); } return false; }
 		J.Stand = Pick->Id; J.StandX = Pick->X; A->Stand = Pick->Id;
@@ -235,31 +365,57 @@ bool AHangarTow::Start(FJob& J, bool bBack)
 	const FAirfieldData::FStand* St = D.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == J.Stand; });
 	if (!Hs || !St) return false;
 	const FHangarSpec& Sp = FHangarSpec::Get(Hs->Size);
-	const float Hx = Hs->X, Yn = Hs->Y + Sp.Lip() + Sp.TailIn(), Sx = St->X, Sy = St->Frame().Y, R = 25.f;
-	const float A2x = TwyX(D, TEXT("A2"), 81.f);
-	const float P1 = TwyX(D, TEXT("P1"), -130.f), P2 = TwyX(D, TEXT("P2"), 150.f);
-	const float Jx = FMath::Abs(P2 - Sx) >= 60.f && (FMath::Abs(P2 - Sx) <= FMath::Abs(P1 - Sx) || FMath::Abs(P1 - Sx) < 60.f) ? P2 : P1;
-	float Qx = TwyX(D, TEXT("Q1"), 200.f);
-	for (const TCHAR* Q : {TEXT("Q0"), TEXT("Q1"), TEXT("Q2")}) { const float X = TwyX(D, Q, 1e6f); if (FMath::Abs(A2x - X) + FMath::Abs(X - Hx) < FMath::Abs(A2x - Qx) + FMath::Abs(Qx - Hx)) Qx = X; }
-	const float E = Hx >= Qx ? 1.f : -1.f, Sg = Jx > Sx ? 1.f : -1.f;
-	const TArray<FVector2f> Field = {FVector2f(Jx, D.TY), FVector2f(Jx, D.AY), FVector2f(A2x, D.AY), FVector2f(A2x, D.BY), FVector2f(Qx, D.BY), FVector2f(Qx, D.KY)};   // (T to K)
+	const FAirfieldData::FStandFrame Fr = St->Frame();
+	const float Hx = Hs->X, Yn = Hs->Y + Sp.Lip() + Sp.TailIn(), Sx = St->X, Sy = Fr.Y, Ly = TowLaneY(*St, D), R = 25.f;
+	// the way along the taxiway network (to-do 311): from the stand's join on its taxilane to the hangar's on K (and back),
+	// the depot road's join on T for the hangar tug; a cargo stand's tug comes in beside the nose, clear of the wingtips
+	const FVector2f StJoin(Sx, Ly), HJoin(Hx, D.KY), RoadJ(TowRoadX, D.TY), CgJoin(Sx + TowCargoSide, D.KY);
+	FHtTwyNet Net; TowBuildNet(D, {StJoin, HJoin, RoadJ, CgJoin}, Net);
+	TArray<FVector2f> Route; TArray<FString> Ids;
+	if (!TowNetRoute(Net, Net.Near(StJoin), Net.Near(HJoin), Route, &Ids) || Route.Num() < 2)
+	{
+		if ((J.WhyT -= 2.f) <= 0.f) { J.WhyT = 30.f; ADP_WARN(TEXT("HangarTow: %s - no way along the taxiways from stand %s (%.0f, %.0f) to hangar %s (%.0f, %.0f)"), *J.Reg, *J.Stand, Sx, Ly, *J.Hangar, Hx, D.KY); }
+		return false;
+	}
+	J.Via = TowSpoken(Ids);
+	// the hangar tug's own ways: out from the depot road to the hangar (tow back), home from the hangar to it (tow out)
+	TArray<FVector2f> TugIn, TugHome, TugCargo;
+	if (TowNetRoute(Net, Net.Near(RoadJ), Net.Near(HJoin), TugIn)) TugIn.Insert(RoadJ, 0);
+	if (TowNetRoute(Net, Net.Near(HJoin), Net.Near(RoadJ), TugHome)) TugHome.Add(RoadJ);   // (its last point is the stand's line, left out: TugTow.cpp HangarHome)
+	if (St->bCargo && TowNetRoute(Net, Net.Near(RoadJ), Net.Near(CgJoin), TugCargo)) { TugCargo.Insert(RoadJ, 0); TugCargo.Add(FVector2f(Sx + TowCargoSide, TowCargoFront)); }
+	// along K the hangar is passed, then the aircraft is pushed back round into it: which way it comes along K
+	const FVector2f Pre = Route[Route.Num() - 2];
+	const float E = FMath::Abs(Hx - Pre.X) > 1.f ? (Hx > Pre.X ? 1.f : -1.f) : 1.f;
 	J.Legs.Reset(); J.Way.Reset(); J.Home.Reset();
 	if (!bBack)
 	{
-		J.Nose = FVector2f(Sx, Sy); J.Main = J.Nose + FVector2f(0.f, GearL);
-		J.Legs.Add(MakeLeg({J.Main, FVector2f(Sx, D.TY), FVector2f(Sx - Sg * 35.f, D.TY)}, true, 20.f));   // pushed back onto T, the nose towards the P way
-		TArray<FVector2f> Pull = {FVector2f(Sx - Sg * (35.f - GearL), D.TY)}; Pull.Append(Field); Pull.Add(FVector2f(Hx + E * (R + GearL + 5.f), D.KY));
+		// pushed back tail first off the stand (every stand of ours is entered nose first: the push is straight back along
+		// its centre line, -Dir in plan y, SimTraffic's pushback) and round onto the lane, the nose towards the way it goes
+		const float Dx = FMath::Abs(Route[1].X - Sx) > 0.5f ? (Route[1].X > Sx ? 1.f : -1.f) : 1.f;
+		const FAirfieldData::FTwy* L = TowLaneOf(*St, D);
+		const float End = Dx > 0.f ? FMath::Min(L->Pts[0].X, L->Pts.Last().X) : FMath::Max(L->Pts[0].X, L->Pts.Last().X);
+		const float Pd = FMath::Clamp((Sx - End) * Dx - 3.f, 16.f, 35.f);   // (never past the lane's end behind it)
+		J.Nose = FVector2f(Sx, Sy); J.Main = Fr.P(0.f, GearL);
+		J.Legs.Add(MakeLeg({J.Main, StJoin, FVector2f(Sx - Dx * Pd, Ly)}, true, 20.f));
+		TArray<FVector2f> Pull = {FVector2f(Sx - Dx * (Pd - GearL), Ly)}; Pull.Append(Route); Pull.Add(FVector2f(Hx + E * (R + GearL + 5.f), D.KY));
 		J.Legs.Add(MakeLeg(Pull, false, R));                                                // pulled along the taxiways past the hangar
-		J.Legs.Add(MakeLeg({FVector2f(Hx + E * (R + 5.f), D.KY), FVector2f(Hx, D.KY), FVector2f(Hx, Yn + GearL)}, true, R));   // pushed tail first into the hall
-		J.Home = {FVector2f(Hx, D.KY)}; for (int32 i = Field.Num() - 1; i >= 0; --i) J.Home.Add(Field[i]); J.Home.Add(FVector2f(Sx, D.TY));
+		J.Legs.Add(MakeLeg({FVector2f(Hx + E * (R + 5.f), D.KY), HJoin, FVector2f(Hx, Yn + GearL)}, true, R));   // pushed tail first into the hall
+		J.Home = TugHome;
 	}
 	else
 	{
-		TArray<FVector2f> Pull = {FVector2f(Hx, Yn), FVector2f(Hx, D.KY)}; for (int32 i = Field.Num() - 1; i >= 0; --i) Pull.Add(Field[i]);
-		Pull.Add(FVector2f(Sx, D.TY)); Pull.Add(FVector2f(Sx, Sy));
-		J.Legs.Add(MakeLeg(Pull, false, R));                                                // pulled nose first out and nose-in onto the stand
-		J.Way = {FVector2f(Sx, D.TY)}; J.Way.Append(Field); J.Way.Add(FVector2f(Hx, D.KY));
+		// pulled nose first out of the hall, along the taxiways and nose-in onto the stand, as every stand of ours is entered
+		TArray<FVector2f> Pull = {FVector2f(Hx, Yn)}; for (int32 i = Route.Num() - 1; i >= 0; --i) Pull.Add(Route[i]);
+		Pull.Add(FVector2f(Sx, Sy));
+		J.Legs.Add(MakeLeg(Pull, false, R));
+		J.Way = TugIn;
+		if (St->bCargo && TugCargo.Num())   // (no apron way there: home the way it came, beside the nose and along K)
+		{
+			for (int32 i = TugCargo.Num() - 1; i >= 1; --i) J.Home.Add(TugCargo[i]);
+			J.Home.Add(RoadJ);
+		}
 	}
+	if (!bBack && St->bCargo) J.Way = TugCargo;   // (the hangar tug to a cargo stand: along the taxiways to beside its nose, TugTow.cpp HangarOut)
 	for (FLeg& Lg : J.Legs)   // (where its leading wheel would enter the runway strip: it holds short there)
 	{
 		Lg.HoldS = -1.f; const float Len = Lg.S.Num() ? Lg.S.Last() : 0.f;
@@ -272,6 +428,21 @@ bool AHangarTow::Start(FJob& J, bool bBack)
 	if (AHangar* Hg = J.Hall.Get()) Hg->Command(true);   // (the door first: 10 minutes to open)
 	J.bRider = false; J.Rider = 0;   // (the tow back: he climbs aboard by the hall's stair first, Run)
 	if (bBack) ADP_LOG(TEXT("HangarTow: %s check done - towed back from hangar %s to stand %s"), *J.Reg, *J.Hangar, *J.Stand);
+	return true;
+}
+
+bool AHangarTow::Clear(const FJob& J, const FVector2f& Nose, const FVector2f& Main, FString& Who) const
+{
+	FVector2f Me[6]; TowShape(Nose, (Nose - Main).GetSafeNormal(), Me);
+	for (const TWeakObjectPtr<AActor>& Pw : Planes)
+	{
+		const AActor* P = Pw.Get(); if (!P || P == J.Model.Get()) continue;
+		const FVector L = P->GetActorLocation(), Nw = -P->GetActorRightVector();
+		const FVector2f N(float(L.X / 100.0), float(-L.Y / 100.0)); FVector2f Fa(float(Nw.X), float(-Nw.Y)); Fa = Fa.GetSafeNormal();
+		if (Fa.IsNearlyZero() || FVector2f::Distance(N, Nose) > 90.f) continue;
+		FVector2f It[6]; TowShape(N, Fa, It);
+		if (const float Net = TowGap(Me, It); Net < 3.f) { Who = FString::Printf(TEXT("%s at (%.0f, %.0f), %.1f m off"), P->Tags.Num() ? *P->Tags[0].ToString() : *P->GetName(), N.X, N.Y, FMath::Max(Net, 0.f)); return false; }
+	}
 	return true;
 }
 
@@ -311,7 +482,7 @@ void AHangarTow::Run(FJob& J, float Dt)
 		if ((J.Clock -= Dt) > 0.f) return;
 		J.Clock = 1.f;
 		const FString Ask = J.bBack ? FString::Printf(TEXT("hangar %s, request tow to stand %s."), *J.Hangar, *J.Stand) : FString::Printf(TEXT("stand %s, request tow to hangar %s."), *J.Stand, *J.Hangar);
-		const FString Ok = TEXT("tow approved via Tango, Alpha, cross runway, Bravo, Kilo.");
+		const FString Ok = FString::Printf(TEXT("tow approved via %s."), *J.Via);
 		if (Tg->TowPlan(J.Key, J.StandX, J.Way, J.Home, Ask, Ok, Why) && Why.IsEmpty()) { J.Stage = 1; J.Clock = 0.f; ADP_LOG(TEXT("HangarTow: %s - the tow crew is on its way"), *J.Reg); }
 		else if ((J.WhyT -= 1.f) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s waits for its tow - %s"), *J.Reg, *Why); }
 		return;
@@ -379,6 +550,18 @@ void AHangarTow::Run(FJob& J, float Dt)
 			else if ((J.HoldT += Dt) >= 10.f) { J.bCleared = true; ADP_LOG(TEXT("HangarTow: %s cleared to cross the runway"), *J.Reg); }
 			J.V = 0.f; return;
 		}
+	}
+	{
+		// wingtip clearance (to-do 311): 3 m from every other aircraft, parked or moving, a few metres ahead; else it stops and says why
+		const FVector2f Ld = LegAt(Lg, J.S + 3.f), Tr = LegAt(Lg, J.S + 3.f - GearL);
+		FString Who;
+		if (!Clear(J, Lg.bPush ? Tr : Ld, Lg.bPush ? Ld : Tr, Who))
+		{
+			J.V = 0.f;
+			if ((J.BlockT -= Dt) <= 0.f) { J.BlockT = 30.f; ADP_WARN(TEXT("HangarTow: %s stops - not clear of another aircraft: %s"), *J.Reg, *Who); }
+			return;
+		}
+		J.BlockT = 0.f;
 	}
 	const FVector2f H0 = (LegAt(Lg, J.S + 1.f) - LegAt(Lg, J.S)).GetSafeNormal(), H1 = (LegAt(Lg, J.S + 9.f) - LegAt(Lg, J.S + 8.f)).GetSafeNormal();
 	const float Cap = Lag > 4.f ? TowTurn * 0.5f : (FVector2f::DotProduct(H0, H1) < 0.985f ? TowTurn : TowFast);

@@ -953,8 +953,10 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - A C or D check of ours at our airport (Sim/ADPMaint): HangarTow.cpp has the hangar tug and your hired crew tow it to
   the nearest free hangar. Key `TOW/<reg>`; the same calls as a pushback (Tugs.h `TowPlan`, `Push`, `Release`), so your
   own tow (step C) can use them with the same limits.
-- The way: pushed tail first onto T, pulled nose first T - P - A - A2 (over the runway) - B - Q - K past the hangar, then
-  pushed tail first onto the bay's new tail-first stop bar (Hangar.h `TailIn`, nose tyre D - 35.5 m in). 8 km/h, 5 in
+- From every stand (terminal, remote, cargo): a taxiway graph from the centre lines of Data/airfield.json, cut where lines
+  meet or cross; shortest way from the stand's join on its lane (T, cargo K) to the hangar's on K (HangarTow `TowBuildNet`,
+  `TowNetRoute`; route logged as spoken, e.g. "Tango, Papa 1, Alpha, Alpha 2, cross runway, Bravo 2 ..."). Pushed tail
+  first straight back off the stand onto its lane, pulled along the route past the hangar, then pushed tail first onto the bay's new tail-first stop bar (Hangar.h `TailIn`, nose tyre D - 35.5 m in). 8 km/h, 5 in
   turns, easing to an exact stop. Wing walkers, beacon and nav lights (night) on; strobes, landing, taxi off. The door
   opens first (the tow holds until fully open) and shuts 30 s after the tug is clear; cold and dark inside.
 - After the check: pulled nose first out and nose-in onto its own stand (or the first free one), handed back to
@@ -968,9 +970,12 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Runway: the tow holds short 107.5 m from the centreline until nothing rolls, lands below 400 m or takes off
   (SimTraffic `RunwayBusy`), then 10 s more; departures hold while it is on the strip (`HangarTow::OnRunway`).
 - Wing walkers: the tow slows to 2.5 km/h when one is over 4 m from his place and stops over 10 m (logged).
+- Wingtips: the tow stops and logs when its A320 shape 3 m ahead comes within 3 m of another aircraft within 90 m.
+- The hangar tug reaches remote stands by the apron planner and cargo stands along K beside the nose; hired walkers left
+  north of the runway stay there and are let go (logged), never walking across.
 - Not yet: your own tow (step C), an ATC radio call for the crossing (log only), landings
-  waiting for a tow, the crew walking between stand and hangar over the runway on foot, the baked chock store staying
-  full while its chocks are out, towing from cargo / remote stands, a tow running over a save.
+  waiting for a tow, the van ride for crew across the runway (stair crew still use HiredWay over it), the baked chock
+  store staying full while its chocks are out, a tow running over a save; untested in game.
 
 ## Maintenance van (to-do 311, before step B)
 - Art/MaintenanceVan: the cleaning van copied part for part (make_maintenancevan.py, materials MV_*); only new are white

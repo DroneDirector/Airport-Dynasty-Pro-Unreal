@@ -36,7 +36,8 @@ private:
 	{
 		FString Reg, Key, Stand, Hangar; float StandX = 0, Hx = 0; bool bBack = false, bPlanned = false;
 		int32 Stage = 0, Leg = 0; float S = 0, V = 0, WhyT = 0, Clock = 0;
-		TArray<FLeg> Legs; TArray<FVector2f> Way, Home;
+		TArray<FLeg> Legs; TArray<FVector2f> Way, Home; FString Via;   // (Via: the taxiways it follows, as said on the radio)
+		float BlockT = 0.f;                               // (stopped for another aircraft's wingtip: when it was last logged)
 		FVector2f Nose = FVector2f::ZeroVector, Main = FVector2f::ZeroVector;
 		bool bCleared = false; float HoldT = 0.f;        // (holding short of the runway: cleared to cross, how long held)
 		bool bRider = false; int32 Rider = 0;             // (the brake rider in the cockpit; AGSE::MaintRider's answer)
@@ -46,6 +47,9 @@ private:
 	TArray<FJob> Jobs;
 	UPROPERTY() TObjectPtr<UInstancedStaticMeshComponent> Ck;
 	float Scan = 0;
+	TArray<TWeakObjectPtr<AActor>> Planes;   // (the other aircraft, parked or moving - SIM/ and MOVE/ tags - gathered every 2 s for the wingtip check)
+	/** No other aircraft within 3 m of the towed one's wings, body or tailplane were it at Nose / Main (plan m); Who: the one in the way. */
+	bool Clear(const FJob& J, const FVector2f& Nose, const FVector2f& Main, FString& Who) const;
 	void Look();
 	bool Start(FJob& J, bool bBack);
 	void Run(FJob& J, float Dt);
