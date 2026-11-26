@@ -30,6 +30,7 @@
 #include "Site.h"
 #include "StaffPeople.h"
 #include "Sim/ADPCrew.h"
+#include "CrewVoice.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPStaff.h"
 
@@ -302,6 +303,8 @@ void AADPPeople::Say(AActor* Who, const FString& Line, ETone T)
 	ADP_LOG(TEXT("People: %s says (%s): %s"), *Name, ToneName(T), *Line);
 	if (Who && !Hearing(Who->GetActorLocation())) return;   // (too far off to hear)
 	SubWho = Name; SubLine = Line; SubTone = T; SubT = FMath::Clamp(1.5f + Line.Len() * 0.06f, 2.5f, 7.f);
+	// (heard aloud too, owner 2026-11-26: each person's own Kokoro voice, from where they stand - CrewVoice.h; Chatterbox later, to-do 223)
+	if (Who) ADPCrewVoice::Say(Who, Line, ADPCrewVoice::VoiceFor(W ? W->Name : Name, W && W->bFemale));
 }
 
 void AADPPeople::Moment(AActor* Who, const TCHAR* Name)
