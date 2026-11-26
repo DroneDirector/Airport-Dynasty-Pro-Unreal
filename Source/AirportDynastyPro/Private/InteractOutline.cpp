@@ -8,6 +8,7 @@
 #include "Seats.h"
 #include "DoorPanelUse.h"
 #include "VehicleControls.h"
+#include "TalkCamera.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/PostProcessVolume.h"
@@ -79,6 +80,10 @@ void AInteractOutline::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	if ((GatherIn -= Dt) <= 0.f) { GatherIn = 5.f; Gather(); }
+	// (owner, 2026-11-26: no outline on anyone from the moment you start a talk, all through the camera gliding in and back
+	// out; after that only again on the one you look straight at - so a change of that state is picked up at once)
+	const bool bTalkView = ADPTalkCam::Amount() > 0.f; static bool bWasQuiet = false; const bool bQuiet = bBusy || bTalkView || Hide != 0;
+	if (bQuiet != bWasQuiet) { bWasQuiet = bQuiet; PickIn = 0.f; }
 	if ((PickIn -= Dt) > 0.f) return;
 	PickIn = 0.15f;
 	APlayerController* PC = GetWorld()->GetFirstPlayerController();
@@ -88,7 +93,7 @@ void AInteractOutline::Tick(float Dt)
 	TArray<FNear> Near;
 	// (owner, 2026-11-14: only the one thing in the middle of your view - not every chair round you - and none while you
 	// sit or hold something)
-	const bool bWalking = Me && Me->IsA<ACharacter>() && bOn && !ASeats::IsSitting() && !AWashHose::Held() && !ADoorPanelUse::IsActive() && !bBusy;   // (owner: an outline goes once you use the thing - the person you talk to, the device, the menu)
+	const bool bWalking = Me && Me->IsA<ACharacter>() && bOn && !ASeats::IsSitting() && !AWashHose::Held() && !ADoorPanelUse::IsActive() && !bBusy && !bTalkView;   // (owner: an outline goes once you use the thing - the person you talk to, the device, the menu)
 	FVector Cam = Me ? Me->GetPawnViewLocation() : FVector::ZeroVector, Look = FVector::ForwardVector;
 	if (PC && PC->PlayerCameraManager) { Cam = PC->PlayerCameraManager->GetCameraLocation(); Look = PC->PlayerCameraManager->GetCameraRotation().Vector(); }
 	// at a door panel: only the button your finger is on
