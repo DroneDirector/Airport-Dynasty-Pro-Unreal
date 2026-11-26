@@ -72,6 +72,9 @@ struct FPaxAnimProxy : public FAnimSingleNodeInstanceProxy
 	// foot's and the hips' eased rise, the ground's slope
 	FPaxSoles Soles; float FeetW = 0.f, Under[2][6] = {}, Rise[2] = {0.f, 0.f}, HipRise = 0.f;
 	FVector Slope[2] = {FVector::UpVector, FVector::UpVector};
+	// a hand on a place (UPaxAnimInstance::SetReach; component space, copied each update)
+	int32 ReachSide = 1; FVector ReachAt = FVector::ZeroVector, ReachPalm = FVector::ZeroVector, ReachFing = FVector::ZeroVector;
+	float ReachCurl = 0.f, ReachW = 0.f; bool bReachKnuckles = false;
 private:
 	struct FCurl { int32 Bone; FVector Axis; float Angle; };
 	const void* RigFor = nullptr;   // the skeletal mesh asset the bones below were found on
@@ -87,7 +90,9 @@ private:
 	FVector BL = FVector(1, 0, 0), BF = FVector(0, 1, 0), BU = FVector(0, 0, 1);
 	FVector PalmL[2] = {FVector::ZeroVector, FVector::ZeroVector}, AlongL[2] = {FVector::ZeroVector, FVector::ZeroVector};
 	bool bFidRig = false;
+	FVector KnockL[2] = {FVector::ZeroVector, FVector::ZeroVector}, GripL[2] = {FVector::ZeroVector, FVector::ZeroVector};   // (hand space: the fist's knuckles, a handle inside the closed fingers)
 	void Rig(const FBoneContainer& BC);
+	void Reach(FCompactPose& Pose);
 	void Fidget(FCompactPose& Pose);
 	void Feet(FCompactPose& Pose) const;
 };
@@ -133,6 +138,15 @@ public:
 	int32 Device = 0;
 	/** A hand's own axes in its bone's space (along the fingers, out of the palm), from the reference pose. */
 	static bool HandAxes(const USkeletalMeshComponent* Body, bool bRight, FVector& OutAlong, FVector& OutPalm);
+
+	/** A hand on a place in the world, by two-bone IK (OfficeCall: the knuckles knocking on the door leaf, the hand round
+	 *  its handle while the leaf swings): Side 0 left / 1 right; At the knuckles' front (bKnuckles, a fist) or the middle
+	 *  of the handle inside the closed fingers; Palm the way the palm faces, Fingers the way the straight fingers would
+	 *  point (world); Curl 0 open .. 1 closed; Weight 0..1 (the caller eases it in and out; 0 lets go). The elbow out
+	 *  and down, the wrist within 70 degrees. Set it each frame it should hold. */
+	void SetReach(int32 Side, const FVector& At, const FVector& Palm, const FVector& Fingers, float Curl, bool bKnuckles, float Weight)
+	{ RSide = Side; RAt = At; RPalm = Palm; RFing = Fingers; RCurl = Curl; bRKnuck = bKnuckles; RW = FMath::Clamp(Weight, 0.f, 1.f); }
+	int32 RSide = 1; FVector RAt = FVector::ZeroVector, RPalm = FVector::ZeroVector, RFing = FVector::ZeroVector; float RCurl = 0.f, RW = 0.f; bool bRKnuck = false;
 
 	/** The feet kept on the ground (off while falling). */
 	bool bFeet = true;

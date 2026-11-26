@@ -6,6 +6,7 @@
 #include "Sim/ADPStaff.h"
 #include "Sim/ADPCrew.h"
 #include "StaffPeople.h"
+#include "OfficeCall.h"
 #include "Sim/ADPEconomy.h"
 #include "Sim/ADPSchedule.h"
 #include "Sim/ADPWorldData.h"
@@ -114,6 +115,13 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 					else if (const ADPCrew::FShift* Sh = Job->bShift ? ADPCrew::Shift(P.Shift) : nullptr) { const FDateTime Lt = ADPBoards::Local(At); Doing = ADPCrew::InShift(*Sh, Lt.GetHour() + Lt.GetMinute() / 60.f) ? TEXT("on shift") : TEXT("off shift"); }
 					else Doing = TEXT("in the 24 hour watches");
 					J->SetStringField(TEXT("doing"), Doing); J->SetStringField(TEXT("where"), Where);
+					// (calling them to your office - UOfficeCall: only those in the 3D airport now; coming or queued)
+					if (const UOfficeCall* OC = Job->b3D && UStaffPeople::On() && H ? UOfficeCall::Get(H->GetWorld()) : nullptr)
+					{
+						FString Dd, Ww; const UStaffPeople* Sp = UStaffPeople::Get(H->GetWorld());
+						J->SetBoolField(TEXT("callable"), P.Status == TEXT("on") && Sp && Sp->Status(P.Id, Dd, Ww));
+						J->SetStringField(TEXT("office"), OC->StateOf(P.Id));
+					}
 				}
 				Mine.Add(MakeShared<FJsonValueObject>(J));
 			}
@@ -508,6 +516,15 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 		const FADPPerson* Who = W.People.FindByPredicate([&](const FADPPerson& X) { return X.Id == A; });
 		const bool bLocal = Who && ADPCrew::AtAirport(Who->Role) && !ADPBoards::HereIcao().IsEmpty();
 		return Ok(ADPStaff::Hire(W, A, Me, !B.IsEmpty() ? B : bLocal ? ADPBoards::HereIcao() : My ? My->Hub : B, At), TEXT("no longer looking for work"));
+	}
+	if (Action == TEXT("office"))
+	{
+		// "Call to my office" from the staff list or a conduct report (the same way in as the talk menu: UOfficeCall::Ask)
+		UOfficeCall* OC = H ? UOfficeCall::Get(H->GetWorld()) : nullptr;
+		FString Line = TEXT("the 3D airport isn't running");
+		const bool b = OC && OC->Ask(A, Line);
+		if (H) H->Hint(Line);
+		return Ok(b, Line);
 	}
 	if (Action == TEXT("dismiss")) return Ok(ADPStaff::Dismiss(W, A, At), TEXT("not on your staff"));
 	if (Action == TEXT("shift")) { FString Why; return Ok(ADPCrew::SetShift(W, A, B, Why), Why); }

@@ -64,6 +64,7 @@ function simPersonRow(p: any, i: number, hire: boolean): string {
     <span class="cr-name"><b>${esc(p.name)}</b><small>${esc(p.rank || simRoleName(p.role))}, ${p.woman ? 'she' : 'he'}, ${p.age}${p.base ? ', based ' + esc(p.base) : ''}${p.home ? ', lives in ' + esc(p.home) : ''}${!hire && turn ? ' · ' + esc(turn) : ''}</small>
       <small>${p.hours ? num(p.hours) + ' flight hours · ' : ''}${(p.languages || []).map((l: string) => esc(l)).join(', ')}${p.contract === 'part' ? ' · part time' : ''} · notice ${p.noticeDays} days</small>
       ${p.interviewed ? `<small class="sim-iv">${icon('check')}Strong: ${esc(p.strengths || '')} · Weak: ${esc(p.weaknesses || '')}</small>` : ''}</span>
+    ${!hire && p.warnings > 0 ? `<span class="sim-conduct"><small class="chip amber">${p.warnings} conduct report${p.warnings > 1 ? 's' : ''}</small>${simOfficeBtn(p)}</span>` : ''}
     <span class="cr-now">${hire ? `<small>Rating ${Number(p.rating).toFixed(1)} · level ${p.level}</small>` : `${now}<small class="chip ${moodC}">mood ${p.mood}</small>`}</span>
     <span class="cr-rules">${(p.types || []).map((t: string) => `<i class="rating">${esc(t)}</i>`).join('')}${p.training ? `<i class="rating training">${esc(p.training)} course</i>` : ''}${hire || job.local ? '' : `<i>${p.fly28 || 0} h / 28 days${p.with ? ' · on ' + esc(p.with) : ''}${p.offUntil ? ' · days off' : p.restUntil ? ' · resting' : ''}</i>`}<i>${money(p.salary)}/wk${payVs ? ` (${payVs > 0 ? '+' : ''}${payVs}% vs going rate)` : ''}</i></span>
     <span class="cr-btns">${hire ? `${p.interviewed ? '' : `<button class="btn sm ghost" data-act="sim-interview" data-id="${esc(p.id)}">Interview</button>`}<button class="btn sm primary" data-act="sim-hire" data-id="${esc(p.id)}">${icon('plus')}Hire at ${money(p.asks || p.salary)}/wk</button>` : `<button class="btn sm ghost" data-act="sim-open" data-id="${esc(p.id)}">${open ? 'Close' : 'Manage'}</button>`}</span>
@@ -72,6 +73,7 @@ function simPersonRow(p: any, i: number, hire: boolean): string {
       <label>Base <input class="sim-base" type="text" maxlength="4" value="${esc(p.base)}" data-id="${esc(p.id)}"></label><button class="btn sm" data-act="sim-base" data-id="${esc(p.id)}">Move</button>
       ${p.role === 'captain' || p.role === 'fo' ? `<label>Type rating <select class="sim-type" data-id="${esc(p.id)}">${(SimCrew.data.types || []).map((t: any) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select></label><button class="btn sm" data-act="sim-train" data-id="${esc(p.id)}">Start course</button>` : ''}
       ${job.shift ? `<span class="sc-shifts">Shift ${(SimCrew.data.shifts || []).map((x: any) => `<button class="fchip ${x.id === p.shift ? 'on' : ''}" data-act="sim-shift" data-id="${esc(p.id)}" data-s="${esc(x.id)}">${esc(x.label)}</button>`).join('')}</span>` : ''}
+      ${simOfficeBtn(p)}
       <button class="btn sm ghost" data-act="sim-dayoff" data-id="${esc(p.id)}">Give 2 days off</button>
       <button class="btn sm ghost" data-act="sim-contract" data-id="${esc(p.id)}" data-c="${p.contract === 'part' ? 'full' : 'part'}">Make ${p.contract === 'part' ? 'full time' : 'part time (55% pay)'}</button>
       ${p.status === 'dismissed' ? '<small>Leaving after their notice.</small>' : `<button class="btn sm danger" data-act="sim-dismiss" data-id="${esc(p.id)}">Let go (notice ${p.noticeDays} days, severance)</button>`}
@@ -129,6 +131,21 @@ ACTIONS['crew-area'] = el => { SimCrew.tab = el.getAttribute('data-area') || 'pi
 function simStaffApp(): string { if (!simLink()) return ''; simCrewLoad(false); return SimCrew.data ? simCrewHtml() : ''; }
 // (live: where everyone is, every 5 seconds while the page is open and nothing is being typed)
 setInterval(() => { try { const f: any = document.activeElement; if ((State as any).screen === 'pilots' && simLink() && document.querySelector('#view .sim-crew') && !(f && /INPUT|SELECT|TEXTAREA/.test(f.tagName))) simCrewLoad(false); } catch (e) { /* not on screen */ } }, 5000);
+// "Call to my office" (owner 11-26): the one way in, UOfficeCall::Ask - now, or queued until they are free, with a line
+// saying which; only for people in the 3D airport just now (callable), and "coming" / "queued" once asked
+function simOfficeBtn(p: any): string {
+  if (p.office === 'coming') return '<small class="chip ok">On the way to your office</small>';
+  if (p.office === 'queued') return '<small class="chip amber">Busy - comes to your office when free</small>';
+  return p.callable ? `<button class="btn sm ghost" data-act="sim-office" data-id="${esc(p.id)}">Call to my office</button>` : '';
+}
+ACTIONS['sim-office'] = el => {
+  const U = simLink(); if (!U) return;
+  Promise.resolve(U.sim('office', el.getAttribute('data-id') || '')).then((s: any) => {
+    let d: any = {}; try { d = JSON.parse(String(s || '{}')); } catch (e) { /* bad answer */ }
+    if (d.ok) { Haptics.success(); toast(d.why || 'Called to your office', 'ok'); } else toast(d.why ? 'Not called: ' + d.why : 'Not called', 'warn');
+    simCrewLoad(true);
+  });
+};
 ACTIONS['sim-dayoff'] = el => simCrewDo('dayoff', (el.getAttribute('data-id') || '') + '|2', 'Two days off rostered');
 ACTIONS['sim-interview'] = el => simCrewDo('interview', el.getAttribute('data-id') || '', 'Interviewed');
 ACTIONS['sim-advert'] = el => simCrewDo('advert', el.getAttribute('data-r') || 'ground', 'Advert placed');

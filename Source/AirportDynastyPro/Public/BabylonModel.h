@@ -123,7 +123,7 @@ private:
 	struct FPart { FTransform Base, Parent; TArray<FInst> Inst; float Slide = 0; float Swing = 0; bool bSpin = false; USceneComponent* Sticker = nullptr; FTransform StickerRel; };
 	// (owner's door rule, 2026-11-12 / to-do 20: only sliding doors open by themselves; every other door with the use key
 	// E / X, shown in the Buttons panel, and a door closer pulls it shut 4 s after you've gone)
-	struct FDoor { FString Id; FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; bool bSlide = false; bool bOpen = false; float Away = 0.f; bool bPax = false; int32 JwGate = 0; int32 JwIx = -2; FVector AtW = FVector::ZeroVector; };   // bPax: a sliding door passengers use (AtW: where, world)
+	struct FDoor { FString Id; FVector At; float Reach = 2.6f; float K = 0; TArray<FPart> Parts; bool bSpin = false; bool bSlide = false; bool bOpen = false; float Away = 0.f; bool bPax = false; bool bHand = false; int32 JwGate = 0; int32 JwIx = -2; FVector AtW = FVector::ZeroVector; };   // bPax: a sliding door passengers use (AtW: where, world)
 	/** A gate's jetway door: is its jetway (the one whose rotunda is right outside it; JwIx, found once) docked at an aircraft now? */
 	bool JetwayDocked(FDoor& D);
 	/** The no-smoking sticker on an entrance door's sliding leaf (owner, 2026-11-12): a small square on the glass at eye
@@ -140,6 +140,11 @@ public:
 	static float StaffDoor(const FVector& World, bool bOpen);
 	/** Shuts that door again behind a staff member (OfficeCall: the office door closed by hand). */
 	static void StaffDoorShut(const FVector& World);
+	/** That door moved by a hand on its handle (OfficeCall: the leaf follows the hand): put at K (0..1) now, this frame
+	 *  (its closer and the doorway rule leave it alone while held). False: no such door. */
+	static bool StaffDoorHold(const FVector& World, float K);
+	/** Where a point on that door's leaf (given where it is with the door shut, world) is now, and how far it is open. */
+	static bool StaffDoorPoint(const FVector& World, const FVector& RestPoint, FVector& Now, float& K);
 	/** For the -UIDoorRule test: a hinged door's place (world) and how many doors slide / swing. */
 	static bool TestHingedDoor(FVector& At, int32& NSlide, int32& NHinged);
 	/** The passengers' sliding doors (entrances, arrivals, security, into the airside lobby) opened now: the walkers' map

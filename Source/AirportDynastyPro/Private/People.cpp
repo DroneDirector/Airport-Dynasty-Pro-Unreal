@@ -31,6 +31,7 @@
 #include "StaffPeople.h"
 #include "Sim/ADPCrew.h"
 #include "CrewVoice.h"
+#include "UI/ADPHUD.h"
 #include "OfficeCall.h"
 #include "StaffPeople.h"
 #include "Sim/ADPSim.h"
@@ -352,7 +353,7 @@ void AADPPeople::ShowStart()
 	MenuOptions = {TEXT("Just talk"), TEXT("Ask if they would like to work for you"), TEXT("Goodbye")};
 	// your own staff (owner 11-26): called into your office - off their job, they come and sit with you (OfficeCall.h)
 	if (const UStaffPeople* SP = UStaffPeople::Get(GetWorld()))
-		if (!SP->IdOf(MenuWho.Get()).IsEmpty() && !(UOfficeCall::Get(GetWorld()) && UOfficeCall::Get(GetWorld())->Busy())) MenuOptions.Insert(TEXT("Call them into your office"), 2);
+		if (!SP->IdOf(MenuWho.Get()).IsEmpty()) MenuOptions.Insert(TEXT("Call them into your office"), 2);
 }
 
 void AADPPeople::ShowQuestions()
@@ -505,7 +506,8 @@ void AADPPeople::Choose(int32 I)
 		{
 			const FString Id = UStaffPeople::Get(GetWorld()) ? UStaffPeople::Get(GetWorld())->IdOf(MenuWho.Get()) : FString();
 			Close();
-			if (UOfficeCall* OC = UOfficeCall::Get(GetWorld())) OC->Call(Id);
+			FString Line;
+			if (UOfficeCall* OC = UOfficeCall::Get(GetWorld())) { OC->Ask(Id, Line); ADP_LOG(TEXT("People: office call - %s"), *Line); if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) if (AADPHUD* Hd = Cast<AADPHUD>(PC->GetHUD())) Hd->Hint(Line); }
 		}
 		else Close();
 		break;

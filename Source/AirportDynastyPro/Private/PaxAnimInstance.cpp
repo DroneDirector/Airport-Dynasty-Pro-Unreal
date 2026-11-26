@@ -118,6 +118,13 @@ void FPaxAnimProxy::PreUpdate(UAnimInstance* In, float Dt)
 			FidFade = FMath::FInterpConstantTo(FidFade, 0.f, Dt, 3.f);
 			if (FidFade <= 0.001f && !bRun) FidKind = EPaxFidget::None;
 		}
+		// (a hand on a place: world -> component space here, on the game thread)
+		ReachW = A->RW; ReachSide = A->RSide == 0 ? 0 : 1; ReachCurl = A->RCurl; bReachKnuckles = A->bRKnuck;
+		if (ReachW > 0.f && In->GetSkelMeshComponent())
+		{
+			const FTransform C = In->GetSkelMeshComponent()->GetComponentTransform();
+			ReachAt = C.InverseTransformPosition(A->RAt); ReachPalm = C.InverseTransformVectorNoScale(A->RPalm).GetSafeNormal(); ReachFing = C.InverseTransformVectorNoScale(A->RFing).GetSafeNormal();
+		}
 		Look.Update(In->GetSkelMeshComponent(), Dt, A->bGripRight || A->Device != 0 || FidFade > 0.01f);
 		A->bLooks = Look.IsOn();
 	}
@@ -149,6 +156,12 @@ void FPaxAnimProxy::Rig(const FBoneContainer& BC)
 		PalmL[S] = CS[H].GetRotation().UnrotateVector(Palm); AlongL[S] = CS[H].GetRotation().UnrotateVector(Along);
 		TArray<FVector> Ax; TArray<int32> Bn; TArray<float> An;
 		PaxCurlsFor(RS, CS, Sd[S], Palm, Ax, Bn, An);
+		if (const int32 Mid = RS.FindBoneIndex(FName(*FString::Printf(TEXT("middle_01_%s"), Sd[S]))); Mid != INDEX_NONE)
+		{
+			// (a fist: the front of the bent knuckles, just past the middle knuckle; a handle: as GripInHand)
+			KnockL[S] = CS[H].InverseTransformPosition(CS[Mid].GetLocation() + Along * 3.f - Palm * 0.5f);
+			GripL[S] = CS[H].InverseTransformPosition(CS[Mid].GetLocation() + Along * 2.f + Palm * 2.5f);
+		}
 		TArray<FCurl>& Into = S == 0 ? CurlL : Curl;
 		for (int32 I = 0; I < Bn.Num(); ++I) Into.Add({Bn[I], Ax[I], An[I]});
 	}
@@ -378,6 +391,49 @@ void FPaxAnimProxy::Fidget(FCompactPose& Pose)
 	}
 }
 
+void FPaxAnimProxy::Reach(FCompactPose& Pose)
+{
+	const int32 S = ReachSide;
+	if (PalmL[S].IsNearlyZero() || ReachPalm.IsNearlyZero() || ReachFing.IsNearlyZero()) return;
+	const FBoneContainer& BC = Pose.GetBoneContainer();
+	auto Ix = [&](int32 Mesh) { return Mesh == INDEX_NONE ? FCompactPoseBoneIndex(INDEX_NONE) : BC.MakeCompactPoseIndex(FMeshPoseBoneIndex(Mesh)); };
+	const FCompactPoseBoneIndex U = Ix(Arm[S][0]), Lw = Ix(Arm[S][1]), H = Ix(Arm[S][2]);
+	if (U == INDEX_NONE || Lw == INDEX_NONE || H == INDEX_NONE) return;   // (a low LOD without them)
+	const float W = FMath::SmoothStep(0.f, 1.f, ReachW);
+	// the hand's wanted turn: its palm and fingers onto the wanted ways (the wrist at most 70 degrees from the arm's own)
+	const FTransform H0 = CSOf(Pose, H);
+	FVector WantA = ReachFing - FVector::DotProduct(ReachFing, ReachPalm) * ReachPalm;
+	if (!WantA.Normalize()) return;
+	const FQuat Now0 = FRotationMatrix::MakeFromXZ(H0.GetRotation().RotateVector(AlongL[S]), H0.GetRotation().RotateVector(PalmL[S])).ToQuat();
+	const FQuat Want = FRotationMatrix::MakeFromXZ(WantA, ReachPalm).ToQuat();
+	const FQuat HandQ = (Want * Now0.Inverse()) * H0.GetRotation();
+	// the wrist where the knuckles / the grip land on the place
+	const FVector Off = bReachKnuckles ? KnockL[S] : GripL[S];
+	const FVector Wrist = ReachAt - HandQ.RotateVector(Off);
+	const FVector A0 = CSOf(Pose, U).GetLocation(), B0 = CSOf(Pose, Lw).GetLocation(), C0 = H0.GetLocation();
+	const FVector Eff = FMath::Lerp(C0, Wrist, W);
+	// (the elbow out to the side and down, as a hand on a door handle has it)
+	const FVector Pole = (A0 + Eff) * 0.5f + ((S == 0 ? BL : -BL) * 0.7f - BU * 0.7f) * 40.f;
+	FVector OJ, OE;
+	AnimationCore::SolveTwoBoneIK(A0, B0, C0, FMath::Lerp(B0, Pole, W), Eff, OJ, OE, false, 1.0, 1.0);
+	TurnCS(Pose, U, FQuat::FindBetweenVectors(B0 - A0, OJ - A0));
+	const FTransform L1 = CSOf(Pose, Lw), H1 = CSOf(Pose, H);
+	TurnCS(Pose, Lw, FQuat::FindBetweenVectors(H1.GetLocation() - L1.GetLocation(), OE - L1.GetLocation()));
+	// the hand turned onto the place, blended
+	const FQuat Have = CSOf(Pose, H).GetRotation();
+	FQuat Q = HandQ * Have.Inverse();
+	FVector Ax; float Ang; Q.ToAxisAndAngle(Ax, Ang);
+	if (Ang > PI) { Ang = 2.f * PI - Ang; Ax = -Ax; }
+	TurnCS(Pose, H, FQuat(Ax, FMath::Min(Ang, FMath::DegreesToRadians(70.f)) * W));
+	// the fingers: a fist (knocking) or closed round the handle
+	for (const FCurl& C : S == 0 ? CurlL : Curl)
+	{
+		const FCompactPoseBoneIndex I = Ix(C.Bone);
+		if (I == INDEX_NONE) continue;
+		Pose[I].SetRotation((FQuat(C.Axis, C.Angle * ReachCurl * W) * Pose[I].GetRotation()).GetNormalized());
+	}
+}
+
 bool FPaxAnimProxy::Evaluate(FPoseContext& Output)
 {
 	const bool bOk = FAnimSingleNodeInstanceProxy::Evaluate(Output);
@@ -400,6 +456,7 @@ bool FPaxAnimProxy::Evaluate(FPoseContext& Output)
 		ArmOut *= 1.f - 0.7f * FMath::Abs(Twist) / 42.f;
 	}
 	Look.Apply(Pose);
+	if (ReachW > 0.001f && bFidRig) Reach(Pose);
 	if (FeetW > 0.001f && Soles.bOk && bFidRig) Feet(Pose);   // (last: the legs as they are by now)
 	if (Grip <= 0.001f) return bOk;
 	const float W = FMath::SmoothStep(0.f, 1.f, Grip);

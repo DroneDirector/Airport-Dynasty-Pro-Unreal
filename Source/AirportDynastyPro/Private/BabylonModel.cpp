@@ -1159,6 +1159,7 @@ void ABabylonModel::Tick(float Dt)
 	if (P) Me = Root->GetComponentTransform().InverseTransformPosition(P->GetActorLocation() - FVector(0, 0, P->GetSimpleCollisionHalfHeight()));
 	for (FDoor& D : Doors)
 	{
+		if (D.bHand) { D.bHand = false; D.Away = 0.f; continue; }   // (in someone's hand this frame: StaffDoorHold moved it)
 		if (D.bSpin)
 		{
 			// (turned by the door's own works - the passengers' compartments: ATerminalDoors; alone, as doors.ts turns them)
@@ -1327,6 +1328,52 @@ void ABabylonModel::StaffDoorShut(const FVector& World)
 		if (ABabylonModel* M = W.Get())
 			for (FDoor& D : M->Doors)
 				if (!D.bSlide && !D.bSpin && FMath::Abs(D.AtW.Z - World.Z) <= 150.f && FVector::DistSquared2D(D.AtW, World) <= FMath::Square(200.f)) { D.bOpen = false; return; }
+}
+
+namespace
+{
+	bool IsStaffDoorAt(const FVector& DoorW, const FVector& World)
+	{
+		return FMath::Abs(DoorW.Z - World.Z) <= 150.f && FVector::DistSquared2D(DoorW, World) <= FMath::Square(200.f);
+	}
+}
+
+bool ABabylonModel::StaffDoorHold(const FVector& World, float K)
+{
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (ABabylonModel* M = W.Get())
+			for (FDoor& D : M->Doors)
+			{
+				if (D.bSlide || D.bSpin || !IsStaffDoorAt(D.AtW, World)) continue;
+				D.K = FMath::Clamp(K, 0.f, 1.f); D.bOpen = D.K > 0.02f; D.Away = 0.f; D.bHand = true;
+				const float E = D.K * D.K * (3 - 2 * D.K);
+				for (FPart& Part : D.Parts) M->MovePart(Part, E, 0);
+				return true;
+			}
+	return false;
+}
+
+bool ABabylonModel::StaffDoorPoint(const FVector& World, const FVector& RestPoint, FVector& Now, float& K)
+{
+	for (const TWeakObjectPtr<ABabylonModel>& W : AllModels)
+		if (ABabylonModel* M = W.Get())
+			for (FDoor& D : M->Doors)
+			{
+				if (D.bSlide || D.bSpin || !IsStaffDoorAt(D.AtW, World)) continue;
+				K = D.K; Now = RestPoint;
+				// (the swinging leaf: the part that turns, in its instances' component frame)
+				for (const FPart& P : D.Parts)
+				{
+					if (P.Swing == 0 || !P.Inst.Num() || !P.Inst[0].K) continue;
+					const float E = D.K * D.K * (3 - 2 * D.K);
+					FTransform L = P.Base; L.SetRotation(L.GetRotation() * FQuat(FVector::UpVector, P.Swing * E));
+					const FTransform Shut = P.Base * P.Parent, Open = L * P.Parent, C = P.Inst[0].K->GetComponentTransform();
+					Now = C.TransformPosition(Open.TransformPosition(Shut.InverseTransformPosition(C.InverseTransformPosition(RestPoint))));
+					break;
+				}
+				return true;
+			}
+	return false;
 }
 
 bool ABabylonModel::UseDoor(const APawn* Me)

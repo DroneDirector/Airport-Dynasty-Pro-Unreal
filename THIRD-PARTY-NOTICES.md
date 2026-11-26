@@ -52,6 +52,10 @@ tone), chillaquil (rain under a metal roof), jaegrover (outdoor heating and vent
 outlet) and monotraum (office printer), from https://freesound.org, CC0 1.0 (public domain); each sound's page is in
 Art/Sounds/CargoTerminal/SOURCES.md. Its doors reuse the fire station's door and the jetway's service door sounds.
 
+## Office door knock - Freesound (CC0)
+Art/Sounds/Office/Knock.wav (made by Tools/make_office_knock_sound.py): "Knocking On a Wooden Door" by ExplosiveTamale,
+https://freesound.org/people/ExplosiveTamale/sounds/448359/, CC0 1.0 (public domain); details in Art/Sounds/Office/SOURCES.md.
+
 ## Meshy models (owner's own)
 The models listed in Art/MeshyIntake/README.md (lorry, cargo vehicles, aircraft, received 2026-11-26) were made by the
 owner with Meshy AI (https://www.meshy.ai) on a paid plan that includes commercial use; the owner holds the rights to
