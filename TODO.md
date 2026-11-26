@@ -743,6 +743,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       take the stairs or queue for the other lift.
 - [ ] **Medical transport flights** (2026-11-26): air ambulances and urgent organ transports get priority; an
       ambulance meets them right on the apron.
+- [ ] **Airfield signs** (2026-11-26): taxiway location signs (yellow on black), mandatory signs at runway entries
+      and holding points (white on red), direction and destination signs at junctions (black on yellow), all lit at
+      night, as ICAO Annex 14 / FAA AC 150/5340-18.
+- [ ] **Runway distance remaining signs** (2026-11-26; real, FAA type L-858B): black boards with a white number along
+      one or both runway edges every 1,000 ft, showing the thousands of feet of runway left. Common in the US and at
+      military fields, rare in Europe - so only at sites whose real-world country uses them (an option per site).
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
