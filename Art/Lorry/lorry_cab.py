@@ -1,12 +1,11 @@
-# The lorry's cab, modelled (called by make_lorry.py after lorry_details.build; game metres: x forward, y left, z up).
-# The owner saw the Meshy cab crumpled and torn (door, side window, wheel arch, wavy panels, smeared paint), so the whole
-# cab shell above the chassis is cut out of the Meshy 'Tractor' and built again from one side outline:
-#   outer body (rolled edges) - 9 cm wall - inner trim; door apertures with a 5 mm shut gap, door edge 9 cm; window openings
-#   with closed reveals, rubber seals and see-through glass; lamp pockets, grille recess, bumper, mirror brackets, a black
-#   arch liner with rolled edge, fenders over the drive tandem and the trailer axles.
-# Every existing part keeps its name and pivot (Door_L/R, Door_*_Glass, Glass_Windscreen, Mirror_*, lamps, steps, grab
-# handles ...); their meshes are swapped where the owner named them. The placeholder CabLining becomes the full interior
-# (CabInterior + moving parts SteeringWheel, Needle_Speed/RPM, GearLever, ParkBrake, Pedal_Accel/Brake, SunVisor_L/R).
+# The lorry's cab: the Meshy cab cleaned (called by make_lorry.py after lorry_details.build; game metres: x forward, y left, z up).
+# The owner wants the EXACT Meshy cab, only its imperfections cleaned (2026-11-26): the Meshy Tractor, doors and texture
+# stay; only repair boxes (door + side window band, front arch lip) get torn holes filled and a Taubin smooth (max 3.5 cm,
+# UVs untouched); outside them no vertex moves. Window faces inside the Meshy window lines are opened and get curved
+# see-through glass, rubber surrounds and door shut seals; a hidden lining (9 cm inside the Meshy skin, never outside it)
+# closes the walls. Every existing part keeps its name and pivot (Door_L/R, Door_*_Glass, Glass_Windscreen, Mirror_*,
+# lamps, steps, grab handles ...). The placeholder CabLining becomes the full interior (CabInterior + moving parts
+# SteeringWheel, Needle_Speed/RPM, GearLever, ParkBrake, Pedal_Accel/Brake, SunVisor_L/R).
 # Left-hand drive (driver on +y).
 import bpy, bmesh, math
 import numpy as np
@@ -15,20 +14,31 @@ from mathutils.bvhtree import BVHTree
 import forklift_details as FD
 
 Part, material, W = FD.Part, FD.material, FD.W
-XB, XF, HY, WALL = 0.88, 3.86, 1.37, 0.09          # cab back, front face, half width (door skin), wall depth
+XB, XF, HY, WALL = 0.88, 3.90, 1.37, 0.09          # cab back, front face, half width (door skin), wall depth
 WC, RA = (2.326, 0.60), 0.78                        # front wheel centre (x, z), arch radius
 ZB = 1.38                                           # cab bottom; floor inside = ZB + WALL
-WIN = dict(a0=1.47, a1=2.52, b0=2.20, b1=3.12)      # door window opening (x, z)
+WIN = dict(a0=1.47, a1=2.56, b0=2.20, b1=2.92)      # door window opening (x, z)
 DOOR = dict(a0=1.37, a1=2.62, b0=1.39, b1=3.24)     # door outline (hinge at the front edge, pivot kept)
-WS = dict(a0=-1.10, a1=1.10, b0=0.07, b1=0.88)      # windscreen opening (y, metres up the raked face)
-P0 = Vector((XF, 0, 1.95)); SL = Vector((-0.12, 0, 0.95)).normalized(); NO = Vector((SL.z, 0, -SL.x))   # windscreen frame
+WS = dict(a0=-1.08, a1=1.08, b0=0.03, b1=0.84)      # windscreen opening (y, metres up the raked face)
+P0 = Vector((3.889, 0, 2.0)); SL = Vector((-0.276, 0, 0.83)).normalized(); NO = Vector((SL.z, 0, -SL.x))   # windscreen frame (Meshy rake)
+RC = 0.36                                           # plan radius of the front corners (Meshy: y 1.39 at x 3.48 -> 0.93 at 3.88)
 
 
 def outer_pts():
+    """side outline traced from the Meshy cab: raked screen, round brow, roof rising into the high roof / deflector"""
     p = [(XB, ZB), (WC[0], ZB)]
     p += [(WC[0] + RA * math.cos(a), WC[1] + RA * math.sin(a)) for a in np.linspace(math.pi / 2, 0, 13)[1:]]
-    return p + [(WC[0] + RA, 0.42), (XF - 0.06, 0.42), (XF, 0.48), (XF, 1.95), (XF - 0.12, 2.90), (XF - 0.20, 3.12), (XF - 0.38, 3.32),
-                (2.6, 3.55), (1.5, 3.80), (1.05, 3.90), (XB, 3.86)]
+    return p + [(WC[0] + RA, 0.42), (XF - 0.08, 0.42), (XF - 0.03, 0.50), (XF, 1.00), (XF + 0.02, 1.80), (XF, 2.0), (3.62, 2.86),
+                (3.585, 3.02), (3.50, 3.20), (3.36, 3.33), (3.0, 3.42), (2.55, 3.47), (2.25, 3.53), (1.85, 3.72), (1.45, 3.87),
+                (1.10, 3.92), (XB, 3.88)]
+
+
+def plan_pts(n=8):
+    """plan outline: straight sides, front corners rounded RC (closed loop in x, y)"""
+    p = [(XB - 0.3, -HY), (XF - RC, -HY)]
+    p += [(XF - RC + RC * math.sin(a), -HY + RC - RC * math.cos(a)) for a in np.linspace(0, math.pi / 2, n + 1)[1:]]
+    p += [(XF - RC + RC * math.cos(a), HY - RC + RC * math.sin(a)) for a in np.linspace(0, math.pi / 2, n + 1)]
+    return p + [(XB - 0.3, HY)]
 
 
 def inner_pts(w=WALL):
@@ -45,6 +55,7 @@ def rrect(a0, a1, b0, b1, r, n=6):
 
 
 def F_side(s): return Matrix(((1, 0, 0, 0), (0, 0, s, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
+def FS(s): return Matrix.Translation((0, s * HY, 0)) @ F_side(s)        # side frame on the door skin plane
 F_WS = Matrix(((0, SL.x, NO.x, P0.x), (1, 0, 0, 0), (0, SL.z, NO.z, P0.z), (0, 0, 0, 1)))
 
 
@@ -149,6 +160,234 @@ def fender(P, axles, zt, yi, yo, mi_plate, mi_lip, end=60):
     sweep(P, [(x, 0, z) for x, _, z in path], circle((yo, 0.0), 0.011), (0, 1, 0), mi_lip)
 
 
+def cab_zone(c): return (c.x > 0.80 and c.z > 1.30) or (c.x > 2.75 and c.z > 0.30)
+
+
+def meshy_target(body, PARTS):
+    """the Meshy cab surface as it came (body + its split doors, door glass, windscreen) - the shape to follow"""
+    bm = bmesh.new()
+    for o in [body] + [PARTS[k] for k in ('Door_L', 'Door_R', 'Door_L_Glass', 'Door_R_Glass', 'Glass_Windscreen') if k in PARTS]:
+        t = bmesh.new(); t.from_mesh(o.data); bmesh.ops.transform(t, matrix=o.matrix_world, verts=t.verts)
+        bmesh.ops.delete(t, geom=[f for f in t.faces if not cab_zone(f.calc_center_median())], context='FACES')
+        me = bpy.data.meshes.new('_t'); t.to_mesh(me); t.free(); bm.from_mesh(me); bpy.data.meshes.remove(me)
+    T = BVHTree.FromBMesh(bm); bm.free(); return T
+
+
+def lap(V, E, n, fixed, iters, lam=0.5, data=None, w=None):
+    """umbrella smoothing of a per-vertex field (positions or offsets); fixed rows kept, data rows pulled back by w"""
+    deg = np.bincount(E.ravel(), minlength=n).astype(float)[:, None]; deg[deg == 0] = 1
+    for _ in range(iters):
+        acc = np.zeros_like(V); np.add.at(acc, E[:, 0], V[E[:, 1]]); np.add.at(acc, E[:, 1], V[E[:, 0]])
+        Vn = V + lam * (acc / deg - V)
+        if data is not None: Vn = Vn * (1 - w) + data * w
+        Vn[fixed] = V[fixed]; V = Vn
+    return V
+
+
+def meshy_skin(T, voxel=0.035):
+    """the clean cage: side outline x rounded plan, voxel-remeshed to an even quad skin, then laid onto the Meshy cab
+    by rays along each normal; the offsets are smoothed over ~25 cm so the curves stay and the crumples go. The door
+    sides, back wall, floor and wheel arch stay true (pinned) so doors, shuts and seals keep their planes."""
+    S = obj('_S', solid(outer_pts(), HY, 0.05, 0.05)); Pl = obj('_P', prism_bm(plan_pts(), -0.5, 4.6, Matrix.Identity(4)))
+    apply_bool(S, Pl, 'INTERSECT'); bpy.data.objects.remove(Pl, do_unlink=True)
+    m = S.modifiers.new('r', 'REMESH'); m.mode = 'VOXEL'; m.voxel_size = voxel
+    dg = bpy.context.evaluated_depsgraph_get(); me = bpy.data.meshes.new_from_object(S.evaluated_get(dg)); S.modifiers.clear(); S.data = me
+    me = S.data; n = len(me.vertices)
+    V = np.array([v.co for v in me.vertices]); N = np.array([v.normal for v in me.vertices])
+    E = np.array([e.vertices[:] for e in me.edges])
+    pin = ((np.abs(N[:, 1]) > 0.93) & (V[:, 0] < XF - RC - 0.02) & (V[:, 2] < 3.30)) | (N[:, 2] < -0.9) | (N[:, 0] < -0.93) \
+        | ((V[:, 2] < ZB + 0.06) & (V[:, 0] < XF - 0.45))
+    d = np.zeros(n); hit = np.zeros(n, bool)
+    for i in np.where(~pin)[0]:
+        p, nn = Vector(V[i]), Vector(N[i])
+        h = T.ray_cast(p + nn * 0.30, -nn, 0.60)
+        if h[0] is not None and abs(h[1].dot(nn)) > 0.3: d[i] = 0.30 - h[3]; hit[i] = True
+    d = np.clip(d, -0.28, 0.10)
+    D = lap(d[:, None], E, n, pin, 220, 0.5, d[:, None], hit[:, None] * 0.04)[:, 0]
+    V = V + N * D[:, None]
+    V = lap(V, E, n, pin, 4, 0.5)
+    me.vertices.foreach_set('co', V.ravel()); me.update()
+    Nn = np.array([v.normal for v in me.vertices]); Nn[pin & (np.abs(N[:, 1]) > 0.93)] = N[pin & (np.abs(N[:, 1]) > 0.93)]
+    Vi = lap(V - Nn * WALL, E, n, pin, 6, 0.5)
+    print('SKIN verts %d pinned %d hit %d offset mean %.3f min %.3f max %.3f' % (n, pin.sum(), hit.sum(), D[~pin].mean(), D.min(), D.max()))
+    I = obj('_I', bmesh.new()); I.data = me.copy(); I.data.vertices.foreach_set('co', Vi.ravel()); I.data.update()
+    return S, I
+
+
+def fit_inside(I, T):
+    """the lining never shows outside: each lining vertex is checked by a ray from the cab's middle out through it to
+    the Meshy surface and pulled in so it sits a wall depth (9 cm) inside it; only ever pulled in, the floor stays"""
+    me = I.data; V = np.array([v.co for v in me.vertices]); moved = 0
+    for i, v in enumerate(V):
+        if v[2] < ZB + 0.15 and abs(v[1]) < HY - 0.15 and XB + 0.12 < v[0] < 3.5: continue   # the cab floor itself
+        c = Vector((min(max(v[0], 1.15), 3.45), 0.0, min(max(v[2], 1.95), 3.0))); dv = Vector(v) - c; L = dv.length
+        if L < 0.05: continue
+        dv /= L; h = T.ray_cast(c, dv, 3.0)
+        if h[0] is None:
+            q = T.find_nearest(Vector(v))[0]; lim = (q - c).length - WALL if q is not None else L
+        else: lim = h[3] - WALL
+        if L > lim: V[i] = np.array(c + dv * max(lim, 0.05)); moved += 1
+    me.vertices.foreach_set('co', V.ravel()); me.update(); return moved
+
+
+def hollow(O, I):
+    """outer skin + inward-facing inner skin = one closed wall (the cut openings then get their reveals)"""
+    bm = bmesh.new(); bm.from_mesh(O.data); t = bmesh.new(); t.from_mesh(I.data)
+    bmesh.ops.reverse_faces(t, faces=t.faces); me = bpy.data.meshes.new('_t'); t.to_mesh(me); t.free(); bm.from_mesh(me); bpy.data.meshes.remove(me)
+    me = bpy.data.meshes.new('_H'); bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new('_H', me); bpy.context.scene.collection.objects.link(o); return o
+
+
+def to_frame(F, a, b, c): return F @ Vector((a, b, c))
+
+
+def on_skin(tO, F, a, b):
+    """point of the outer skin seen along the frame normal at (a, b)"""
+    nrm = (F.to_3x3() @ Vector((0, 0, 1))).normalized(); h = tO.ray_cast(to_frame(F, a, b, 0.4), -nrm, 1.0)
+    return (h[0], h[1]) if h[0] is not None else (to_frame(F, a, b, 0), nrm)
+
+
+def skin_glass(O, F, rect, sc, inset=0.012, depth=0.020, thick=0.006):
+    """glass that follows the skin's curve: the skin under the opening, sunk 'depth', 6 mm thick, trimmed to the opening"""
+    a0, a1, b0, b1, r = rect; Fi = F.inverted(); bm = bmesh.new(); bm.from_mesh(O.data)
+    kill = []
+    for f in bm.faces:
+        q = Fi @ f.calc_center_median(); fn = (Fi.to_3x3() @ f.normal)
+        if not (a0 - 0.08 < q.x < a1 + 0.08 and b0 - 0.08 < q.y < b1 + 0.08 and fn.z > 0.3): kill.append(f)
+    bmesh.ops.delete(bm, geom=kill, context='FACES')
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for v in bm.verts: v.co -= v.normal * depth
+    ex = bmesh.ops.extrude_face_region(bm, geom=bm.faces[:]); nv = [e for e in ex['geom'] if isinstance(e, bmesh.types.BMVert)]
+    for v in nv: v.co -= v.normal * thick
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    g = obj('_G', bm, [bpy.data.materials['M_Lorry_Glass']])
+    c = obj('_c', prism_bm(rrect(a0 + inset, a1 - inset, b0 + inset, b1 - inset, max(r - inset, 0.01)), -0.5, 0.5, F))
+    apply_bool(g, c, 'INTERSECT'); bpy.data.objects.remove(c, do_unlink=True)
+    assert len(g.data.vertices) > 0, 'glass trimmed to nothing'
+    g.data.materials.clear(); g.data.materials.append(bpy.data.materials['M_Lorry_Glass'])
+    g.data.polygons.foreach_set('material_index', [0] * len(g.data.polygons))
+    for p in g.data.polygons: p.use_smooth = True
+    return g
+
+
+def skin_loop(tO, F, rect, n=6):
+    a0, a1, b0, b1, r = rect
+    return [on_skin(tO, F, a, b) for a, b in rrect(a0, a1, b0, b1, r, n)]
+
+
+def skin_seal(P, tO, F, rect, mi, w=0.028, d0=-0.004, d1=-0.044, n=6, c=None):
+    """rubber seal swept round an opening on the curved skin: a band 'w' wide just inside the edge, from d0 to d1 deep"""
+    a0, a1, b0, b1, r = rect; c = w / 2 - 0.006 if c is None else c
+    pts = skin_loop(tO, F, (a0 + c, a1 - c, b0 + c, b1 - c, max(r - c, 0.01)), n)
+    t = bmesh.new(); rings = []; m = len(pts)
+    prof = [(d0, -w / 2), (d0 + 0.002, w / 2), (d1, w / 2 - 0.004), (d1, -w / 2 + 0.004)]
+    for i, (p, nrm) in enumerate(pts):
+        tg = (pts[(i + 1) % m][0] - pts[i - 1][0]).normalized(); bn = tg.cross(nrm).normalized(); u = bn.cross(tg)
+        rings.append([t.verts.new(p + u * a + bn * b) for a, b in prof])
+    for i in range(m):
+        r0, r1 = rings[i], rings[(i + 1) % m]
+        for k in range(4): t.faces.new((r0[k], r0[(k + 1) % 4], r1[(k + 1) % 4], r1[k]))
+    bmesh.ops.recalc_face_normals(t, faces=t.faces); P._merge(t, mi)
+
+
+def in_rr(rect, x, y):
+    a0, a1, b0, b1, r = rect
+    if not (a0 <= x <= a1 and b0 <= y <= b1): return False
+    dx = max(a0 + r - x, 0, x - a1 + r); dy = max(b0 + r - y, 0, y - b1 + r); return dx * dx + dy * dy <= r * r
+
+
+REPAIR_BODY = [((0.95, 1.12, 1.42), (3.30, 1.60, 3.30)), ((1.45, 0.95, 0.85), (3.25, 1.60, 1.48))]   # side + window band; front arch lip (|y|)
+REPAIR_DOOR = [((1.30, 1.10, 1.35), (2.70, 1.60, 3.30))]
+
+
+def zone_weight(V, zones, fade=0.08):
+    """1 inside a repair box (y as |y|), fading to 0 over 'fade' outside it; 0 elsewhere (those vertices never move)"""
+    P = V.copy(); P[:, 1] = np.abs(P[:, 1]); w = np.zeros(len(V))
+    for lo, hi in zones:
+        lo, hi = np.array(lo), np.array(hi); out = np.maximum(np.maximum(lo - P, P - hi), 0).max(1)
+        w = np.maximum(w, np.clip(1 - out / fade, 0, 1))
+    return w * w * (3 - 2 * w)
+
+
+def repair(o, zones, cap=0.035):
+    """local clean-up of a Meshy part in place: torn holes (up to 10 edges) filled, then Taubin smoothing (no shrink) of
+    the vertices in the repair boxes only; open edges (the door gaps, Meshy's own lines) stay put. UVs untouched, so the
+    Meshy texture stays."""
+    bm = bmesh.new(); bm.from_mesh(o.data)
+    bnd = [e for e in bm.edges if e.is_boundary]; nf = len(bm.faces)
+    bmesh.ops.holes_fill(bm, edges=bnd, sides=10); filled = len(bm.faces) - nf
+    bm.to_mesh(o.data); bm.free(); me = o.data; me.update()
+    M = np.array(o.matrix_world); V = np.array([v.co for v in me.vertices]); Vw = V @ M[:3, :3].T + M[:3, 3]
+    w = zone_weight(Vw, zones); E = np.array([e.vertices[:] for e in me.edges])
+    bm = bmesh.new(); bm.from_mesh(me); fix = np.array([v.is_boundary or not v.link_faces for v in bm.verts]); bm.free()
+    fix |= w <= 0
+    S = V.copy()
+    for _ in range(25):
+        S = lap(S, E, len(V), fix, 1, 0.55); S = lap(S, E, len(V), fix, 1, -0.58)
+    dV = (S - V) * w[:, None]; L = np.linalg.norm(dV, axis=1); k = np.minimum(1, cap / np.maximum(L, 1e-9))
+    V = V + dV * k[:, None]; me.vertices.foreach_set('co', V.ravel()); me.update()
+    return int((w > 0).sum()), float((L * k).max()), filled
+
+
+def open_window(o, F, rect, grow=0.0):
+    """faces of a Meshy part inside a window outline (frame coords, facing out) go: the window is glass, never paint"""
+    a0, a1, b0, b1, r = rect; Fi = F.inverted() @ o.matrix_world; R = Fi.to_3x3(); poly = rrect(a0 - grow, a1 + grow, b0 - grow, b1 + grow, r + grow)
+    bm = bmesh.new(); bm.from_mesh(o.data); kill = []
+    for f in bm.faces:
+        q = Fi @ f.calc_center_median()
+        if -0.25 < q.z < 0.25 and abs((R @ f.normal).z) > 0.2 and in_rr((a0 - grow, a1 + grow, b0 - grow, b1 + grow, r + grow), q.x, q.y): kill.append(f)
+    bmesh.ops.delete(bm, geom=kill, context='FACES'); bm.to_mesh(o.data); bm.free(); o.data.update(); return len(kill)
+
+
+def door_inside(D, s, yi):
+    """door card on the door's inner face: armrest, pull handle, window switches, speaker, pocket, inner release, map light"""
+    D.box((1.42, s * (yi - 0.012), 1.46), (2.58, s * (yi + 0.004), 2.16), 3, 0.02)                         # card panel
+    D.box((1.55, s * (yi - 0.075), 2.00), (2.30, s * (yi - 0.010), 2.075), 3, 0.022)                       # armrest
+    D.box((1.57, s * (yi - 0.078), 2.06), (2.28, s * (yi - 0.030), 2.082), 4, 0.010)                       # soft armrest pad
+    D.box((2.08, s * (yi - 0.065), 2.075), (2.20, s * (yi - 0.020), 2.090), 4, 0.004)                      # window switch block
+    for xx in (2.095, 2.15): D.box((xx, s * (yi - 0.055), 2.090), (xx + 0.04, s * (yi - 0.030), 2.098), 2, 0.002)
+    D._merge(sweep_tmp([(1.62, s * (yi - 0.008), 2.16), (1.64, s * (yi - 0.050), 2.17), (1.80, s * (yi - 0.050), 2.17), (1.82, s * (yi - 0.008), 2.16)], 0.013), 3)
+    D.cyl((2.30, s * (yi - 0.010), 1.68), (2.30, s * (yi - 0.022), 1.68), 0.095, 3, 32, 0.004)            # speaker ring
+    D.cyl((2.30, s * (yi - 0.020), 1.68), (2.30, s * (yi - 0.026), 1.68), 0.08, 2, 32, 0.0)
+    for rr in (0.025, 0.045, 0.065): D.torus((0, 0, 0), rr, 0.003, 4, 32, 6, M=Matrix.Translation((2.30, s * (yi - 0.026), 1.68)) @ Matrix.Rotation(math.pi / 2, 4, 'X'))
+    D.box((1.58, s * (yi - 0.065), 1.50), (2.10, s * (yi - 0.008), 1.56), 3, 0.012)                       # pocket lip
+    D.box((1.58, s * (yi - 0.030), 1.52), (2.10, s * (yi - 0.008), 1.78), 3, 0.012)                       # pocket back
+    D.box((1.47, s * (yi - 0.020), 2.30), (1.53, s * (yi + 0.003), 2.40), 4, 0.008); D.box((1.475, s * (yi - 0.035), 2.335), (1.525, s * (yi - 0.015), 2.365), 1, 0.006)
+    D.box((1.42, s * (yi - 0.020), 2.16), (2.58, s * (yi + 0.004), 2.20), 4, 0.008)                       # window sill trim
+
+
+def shut_seals(E, s):
+    """door shut sealed: ring A frames the aperture inside the lining, ring B is the lip just inside the closed door,
+    overlapping its edge - the gap round the door shows rubber, never light"""
+    E._merge(ring_bm(rrect(DOOR['a0'] - 0.030, DOOR['a1'] + 0.030, ZB - 0.01, DOOR['b1'] + 0.030, 0.09),
+                     rrect(DOOR['a0'] - 0.004, DOOR['a1'] + 0.004, ZB + 0.005, DOOR['b1'] + 0.004, 0.065),
+                     HY - WALL - 0.03, HY - 0.012, F_side(s), 0.003), 1)
+    E._merge(ring_bm(rrect(DOOR['a0'] - 0.010, DOOR['a1'] + 0.010, ZB, DOOR['b1'] + 0.010, 0.07),
+                     rrect(DOOR['a0'] + 0.035, DOOR['a1'] - 0.035, ZB + WALL + 0.01, DOOR['b1'] - 0.035, 0.03),
+                     HY - WALL - 0.03, HY - WALL - 0.010, F_side(s), 0.002), 1)
+
+
+def lining(sc, I, holes, mats):
+    """the inner wall (wall depth 9 cm behind the Meshy skin): the smooth inner skin, facing in, with the window and door
+    openings taken out under their rubber surrounds; floor = mat, roof = headliner, rest = trim"""
+    bm = bmesh.new(); bm.from_mesh(I.data); bmesh.ops.reverse_faces(bm, faces=bm.faces); kill = set()
+    for F, (a0, a1, b0, b1, r) in holes:
+        Fi = F.inverted()
+        for f in bm.faces:
+            q = Fi @ f.calc_center_median()
+            if -0.6 < q.z < 0.3 and in_rr((a0, a1, b0, b1, r), q.x, q.y): kill.add(f)
+    for s in (1, -1):
+        Fi = F_side(s).inverted(); dr = (DOOR['a0'] - 0.01, DOOR['a1'] + 0.01, ZB - 0.2, DOOR['b1'] + 0.01, 0.07)
+        for f in bm.faces:
+            q = Fi @ f.calc_center_median()
+            if HY - 0.3 < q.z < HY + 0.05 and in_rr(dr, q.x, q.y): kill.add(f)
+    kill |= {f for f in bm.faces if f.calc_center_median().z < ZB + WALL - 0.03}   # nothing below the cab floor (the Meshy lower cab is solid)
+    bmesh.ops.delete(bm, geom=list(kill), context='FACES')
+    for f in bm.faces:
+        c = f.calc_center_median(); f.smooth = True
+        f.material_index = 2 if f.normal.z > 0.8 and c.z < ZB + WALL + 0.05 else 1 if f.normal.z < -0.5 and c.z > 2.9 else 0
+    o = obj('CabLining', bm, mats); return o
+
 def build(sc, body, trailer, PARTS):
     INFO, IKN, mats = [], {}, {}
     def mat(name, col, rough, metal=0.0, emit=None):
@@ -169,122 +408,34 @@ def build(sc, body, trailer, PARTS):
     g.inputs['Roughness'].default_value = 0.0; g.inputs['Base Color'].default_value = (0.80, 0.86, 0.84, 1)
     glass.use_backface_culling = False; glass.shadow_method = 'HASHED'
 
-    # ------------------------------------------------ 1. the Meshy cab shell out (chassis, tanks, steps' Meshy remains kept)
-    n = FD.delete_faces(body, lambda v: (v[:, 0] > 0.80) & (v[:, 2] > 1.30), True)
-    n += FD.delete_faces(body, lambda v: (v[:, 0] > 2.75) & (v[:, 2] > 0.30) & ~((np.abs(v[:, 1]) < 0.55) & (v[:, 2] < 1.0) & (v[:, 0] < 3.3)))
-    n += FD.delete_faces(body, lambda v: (v[:, 0] > 1.55) & (v[:, 0] < 2.80) & (np.abs(v[:, 1]) > 0.85) & (v[:, 2] > 0.9))
-    INFO.append('Cab: %d Meshy faces cut out (cab shell, front, arches)' % n)
-
-    # ------------------------------------------------ 2. shell = outer - inner - openings
-    O = obj('_O', solid(outer_pts(), HY, 0.06, 0.085)); I = obj('_I', solid(inner_pts(), HY - WALL, 0.03, 0.03))
-    tO, tI = tree_of(O), tree_of(I)
-    shell = obj('_Shell', solid(outer_pts(), HY, 0.06, 0.085)); apply_bool(shell, I, 'DIFFERENCE')
-    door_o = {s: rrect(DOOR['a0'], DOOR['a1'], DOOR['b0'], DOOR['b1'], 0.06) for s in (1, -1)}
-    cut = []
-    for s in (1, -1):
-        c = obj('_c', prism_bm(rrect(DOOR['a0'] - 0.005, DOOR['a1'] + 0.005, 1.30, DOOR['b1'] + 0.005, 0.065), HY - WALL - 0.02, HY + 0.3, F_side(s))); cut.append(c)
-    cut.append(obj('_c', prism_bm(rrect(WS['a0'], WS['a1'], WS['b0'], WS['b1'], 0.09), -0.25, 0.10, F_WS)))
-    lamps = [PARTS[k] for k in ('Light_Head_L', 'Light_Head_R', 'Light_Indicator_FL', 'Light_Indicator_FR') if k in PARTS]
-    for L in lamps:
-        v = W(L); lo, hi = v.min(0) - 0.008, v.max(0) + 0.008; s = 1 if lo[1] > 0 else -1
-        if 'Indicator' in L.name: lo[1], hi[1] = (lo[1], HY + 0.2) if s > 0 else (-HY - 0.2, hi[1])
-        bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
-        for q in bm.verts: q.co = Vector(((lo[0] + XF + 0.3) / 2 + q.co.x * (XF + 0.3 - lo[0]), (lo[1] + hi[1]) / 2 + q.co.y * (hi[1] - lo[1]), (lo[2] + hi[2]) / 2 + q.co.z * (hi[2] - lo[2])))
-        cut.append(obj('_c', bm))
-    cut.append(obj('_c', prism_bm(rrect(-0.72, 0.72, 1.52, 1.92, 0.03), XF - 0.03, XF + 0.3, Matrix(((0, 0, 1, 0), (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 0, 1))))))
-    for c in cut: apply_bool(shell, c, 'DIFFERENCE')
-    # doors: the same wall, inside the door outline, minus the window
-    doors = {}
-    for s in (1, -1):
-        d = obj('_D', solid(outer_pts(), HY, 0.06, 0.085)); apply_bool(d, I, 'DIFFERENCE')
-        box = obj('_c', prism_bm(door_o[s], HY - WALL - 0.005, HY + 0.3, F_side(s))); apply_bool(d, box, 'INTERSECT'); cut.append(box)
-        w = obj('_c', prism_bm(rrect(WIN['a0'], WIN['a1'], WIN['b0'], WIN['b1'], 0.05), HY - 0.3, HY + 0.3, F_side(s))); apply_bool(d, w, 'DIFFERENCE'); cut.append(w)
-        doors[s] = d
-
-    def paint_faces(o, door):
-        o.data.materials.clear()
-        for m in (paint, trim, head, blk, seal): o.data.materials.append(m)
-        M = o.matrix_world; idx = []
-        for f in o.data.polygons:
-            c = M @ f.center; nrm = (M.to_3x3() @ f.normal).normalized()
-            dO = (tO.find_nearest(c)[3] or 1); dI = (tI.find_nearest(c)[3] or 1)
-            if dO < 0.003: k = 3 if nrm.z < -0.6 or (c.z < 1.40 and abs(c.y) < HY - 0.05) else 0
-            elif dI < 0.003: k = 2 if nrm.z < -0.5 and c.z > 2.8 else 3 if nrm.z > 0.7 and c.z < 1.5 else 1
-            elif door or (DOOR['a0'] - 0.02 < c.x < DOOR['a1'] + 0.02 and abs(c.y) > HY - WALL - 0.03 and c.z > 1.38):
-                inwin = WIN['a0'] - 0.01 < c.x < WIN['a1'] + 0.01 and WIN['b0'] - 0.01 < c.z < WIN['b1'] + 0.01
-                k = 4 if inwin else 0
-            else: k = 4 if c.z > 1.98 and c.x > 3.5 else 3
-            idx.append(k)
-        o.data.polygons.foreach_set('material_index', idx)
-        o.data.polygons.foreach_set('use_smooth', [True] * len(idx)); o.data.use_auto_smooth = True; o.data.auto_smooth_angle = math.radians(40)
-    paint_faces(shell, False)
-    for s in (1, -1): paint_faces(doors[s], True)
-
-    # ------------------------------------------------ 3. seals + glass (windscreen, door windows)
+    # ------------------------------------------------ 1. the Meshy cab kept: only its bad spots repaired, in place
+    if 'CabLining' in PARTS: bpy.data.objects.remove(PARTS.pop('CabLining'), do_unlink=True)   # the placeholder box
+    TM = meshy_target(body, PARTS)                 # the Meshy cab as it came (the smooth inner lining follows it)
+    for o, zone in ((body, REPAIR_BODY), (PARTS['Door_L'], REPAIR_DOOR), (PARTS['Door_R'], REPAIR_DOOR)):
+        INFO.append('Repair %s: %d vertices smoothed (max move %.3f m), %d torn holes filled' % ((o.name,) + repair(o, zone)))
+    # ------------------------------------------------ 2. windows opened along Meshy's lines; see-through glass on the cab's curve
+    O, I = meshy_skin(TM); tO = tree_of(O); INFO.append('Cab lining: %d vertices pulled inside the Meshy skin' % fit_inside(I, TM))
     E = Part('_Ext', [blk, seal, chrome, paint, trim])
-    def seal_glass(F, a0, a1, b0, b1, r, sign=1):
-        E._merge(ring_bm(rrect(a0 - 0.006, a1 + 0.006, b0 - 0.006, b1 + 0.006, r + 0.006), rrect(a0 + 0.022, a1 - 0.022, b0 + 0.022, b1 - 0.022, max(r - 0.022, 0.01)),
-                         -0.042, -0.004, F, 0.004), 1)
-        G = Part('_G', [glass]); G._merge(prism_bm(rrect(a0 + 0.012, a1 - 0.012, b0 + 0.012, b1 - 0.012, max(r - 0.012, 0.01)), -0.026, -0.020, F), 0); return G.done(sc)
-    gw = seal_glass(F_WS, WS['a0'], WS['a1'], WS['b0'], WS['b1'], 0.09)
-    PARTS['Glass_Windscreen'].matrix_world = Matrix.Identity(4); swap_mesh(PARTS['Glass_Windscreen'], gw)
+    rws = (WS['a0'], WS['a1'], WS['b0'], WS['b1'], 0.08); rwi = (WIN['a0'], WIN['a1'], WIN['b0'], WIN['b1'], 0.07)
+    n = open_window(body, F_WS, rws, 0.015)
+    for k in ('Glass_Windscreen',): PARTS[k].matrix_world = Matrix.Identity(4); swap_mesh(PARTS[k], skin_glass(O, F_WS, rws, sc, -0.02, 0.03))
+    skin_seal(E, tO, F_WS, rws, 1, w=0.055, d0=0.006, d1=-0.115, c=0.0)
+    INFO.append('Windscreen: %d painted Meshy faces opened, glass follows the curve 3 cm in, rubber surround to the lining' % n)
     for s, side in ((1, 'L'), (-1, 'R')):
-        D = Part('_DS', [seal, chrome, blk, trim, dash])
-        D._merge(ring_bm(rrect(WIN['a0'] - 0.006, WIN['a1'] + 0.006, WIN['b0'] - 0.006, WIN['b1'] + 0.006, 0.056), rrect(WIN['a0'] + 0.02, WIN['a1'] - 0.02, WIN['b0'] + 0.02, WIN['b1'] - 0.02, 0.03),
-                         HY - 0.040, HY - 0.003, F_side(s), 0.004), 0)
-        G = Part('_G', [glass]); G._merge(prism_bm(rrect(WIN['a0'] + 0.012, WIN['a1'] - 0.012, WIN['b0'] + 0.012, WIN['b1'] - 0.012, 0.04), HY - 0.026, HY - 0.020, F_side(s)), 0)
-        swap_mesh(PARTS['Door_%s_Glass' % side], G.done(sc))
-        # outside handle: dark recess plate + grip bar on two posts (at the IK point)
-        D.box((1.40, s * 1.366, 2.185), (1.56, s * 1.374, 2.255), 2, 0.003)
-        D.box((1.42, s * 1.385, 2.205), (1.54, s * 1.397, 2.235), 1, 0.005)
-        for xx in (1.43, 1.53): D.box((xx - 0.008, s * 1.372, 2.212), (xx + 0.008, s * 1.387, 2.228), 1, 0.002)
-        # door card: armrest, window switch, pull handle, speaker, pocket, inner release
-        yi = HY - WALL
-        D.box((1.55, s * (yi - 0.075), 2.00), (2.30, s * (yi + 0.004), 2.075), 3, 0.018)
-        D.box((2.08, s * (yi - 0.06), 2.075), (2.20, s * (yi - 0.015), 2.088), 4, 0.004)        # window switch block
-        for xx in (2.10, 2.15): D.box((xx, s * (yi - 0.05), 2.088), (xx + 0.03, s * (yi - 0.025), 2.096), 2, 0.002)
-        D._merge(sweep_tmp([(1.62, s * (yi + 0.004), 2.16), (1.64, s * (yi - 0.045), 2.17), (1.80, s * (yi - 0.045), 2.17), (1.82, s * (yi + 0.004), 2.16)], 0.013), 3)
-        D.cyl((2.27, s * (yi + 0.004), 1.68), (2.27, s * (yi - 0.012), 1.68), 0.095, 3, 32, 0.004)
-        D.cyl((2.27, s * (yi - 0.010), 1.68), (2.27, s * (yi - 0.016), 1.68), 0.08, 2, 32, 0.0)
-        for rr in (0.025, 0.045, 0.065): D.torus((0, 0, 0), rr, 0.003, 4, 32, 6, M=Matrix.Translation((2.27, s * (yi - 0.016), 1.68)) @ Matrix.Rotation(math.pi / 2, 4, 'X'))
-        D.box((1.58, s * (yi - 0.06), 1.52), (2.10, s * (yi + 0.004), 1.78), 3, 0.015)
-        D.box((1.47, s * (yi - 0.02), 2.30), (1.53, s * (yi + 0.003), 2.40), 4, 0.008); D.box((1.475, s * (yi - 0.035), 2.335), (1.525, s * (yi - 0.015), 2.365), 1, 0.006)
-        dd = D.done(sc); join_into(doors[s], [dd])
-        swap_mesh(PARTS['Door_' + side], doors[s]); PARTS['Door_' + side].data.name = 'Door_' + side
-        IKN['DoorInnerHandle_' + side] = (1.50, s * (yi - 0.03), 2.35)
-        # door shut, sealed: ring A frames the aperture, sunk 5 mm into the wall lining (no slit behind it) and closes
-        # under the door sill; ring B is the lip 2 mm inside the closed door, overlapping its edge 3 cm and filling the
-        # floor slot along the sill up to 1 cm above the floor - the 5 mm shut gap shows rubber, never light
-        E._merge(ring_bm(rrect(DOOR['a0'] - 0.025, DOOR['a1'] + 0.025, ZB - 0.01, DOOR['b1'] + 0.025, 0.085),
-                         rrect(DOOR['a0'] - 0.005, DOOR['a1'] + 0.005, ZB + 0.005, DOOR['b1'] + 0.005, 0.065),
-                         HY - WALL - 0.03, HY - WALL + 0.005, F_side(s), 0.003), 1)
-        E._merge(ring_bm(rrect(DOOR['a0'] - 0.008, DOOR['a1'] + 0.008, ZB, DOOR['b1'] + 0.008, 0.068),
-                         rrect(DOOR['a0'] + 0.03, DOOR['a1'] - 0.03, ZB + WALL + 0.01, DOOR['b1'] - 0.03, 0.03),
-                         HY - WALL - 0.028, HY - WALL - 0.002, F_side(s), 0.002), 1)
-        # mirror bracket on the A-pillar up to the kept mirror pivot (hinge pin through the mirror arms)
-        mp = PARTS['Mirror_' + side].matrix_world.translation
-        for zz in (mp.z + 0.30, mp.z - 0.15):
-            E.cyl((mp.x, s * (HY - 0.01), zz), (mp.x, mp.y - s * 0.022, zz), 0.016, 0, 14)
-            E.box((mp.x - 0.05, s * (HY - 0.01), zz - 0.05), (mp.x + 0.05, s * (HY + 0.008), zz + 0.05), 0, 0.006)
-            E.cyl((mp.x, mp.y, zz - 0.045), (mp.x, mp.y, zz - 0.018), 0.02, 0, 14)
-        E.cyl((mp.x, mp.y, mp.z - 0.20), (mp.x, mp.y, mp.z + 0.36), 0.006, 2, 10)
-    # grille slats in the recess, bumper, arch flare round the front arch, rear mudguard quarter behind the front tyre
-    for k in range(6):
-        z = 1.545 + k * 0.065; E.box((XF - 0.032, -0.70, z), (XF - 0.008, 0.70, z + 0.028), 0, 0.006)
-    E.box((XF - 0.03, -1.20, 0.45), (XF + 0.09, 1.20, 0.84), 3, 0.05); E.box((XF + 0.06, -1.0, 0.53), (XF + 0.095, 1.0, 0.60), 0, 0.01)
-    for s in (1, -1):
-        arc = [(WC[0] + (RA + 0.004) * math.cos(a), 0, WC[1] + (RA + 0.004) * math.sin(a)) for a in np.linspace(0, math.pi / 2, 16)]
-        sweep(E, arc, circle((s * (HY - 0.012), 0), 0.014, 10), (0, 1, 0), 0)
-        rq = [(WC[0] + 0.70 * math.cos(a), 0, WC[1] + 0.70 * math.sin(a)) for a in np.linspace(math.pi / 2, math.radians(148), 10)]
-        sweep(E, rq, [(s * 0.92, 0), (s * 1.30, 0), (s * 1.30, 0.006), (s * 0.92, 0.006)], (0, 1, 0), 0)
-        sweep(E, rq, circle((s * 1.30, 0.003), 0.011), (0, 1, 0), 0)
-        E.cyl((WC[0] - 0.25, s * 0.55, 1.05), (WC[0] - 0.25, s * 0.93, 1.29), 0.015, 0, 10)
+        d = PARTS['Door_' + side]; n = open_window(d, FS(s), rwi, 0.015)
+        swap_mesh(PARTS['Door_%s_Glass' % side], obj('_G', prism_bm(rrect(rwi[0] - 0.02, rwi[1] + 0.02, rwi[2] - 0.02, rwi[3] + 0.02, rwi[4] + 0.02), -0.036, -0.030, FS(s)), [bpy.data.materials['M_Lorry_Glass']]))   # the door side is flat: a flat pane 3 cm in
+        D = Part('_DS', [seal, chrome, blk, trim, dash]); skin_seal(D, tO, FS(s), rwi, 0, w=0.05, d0=0.006, d1=-0.10, c=0.0)
+        door_inside(D, s, yi=HY - WALL)
+        join_into(d, [D.done(sc)]); INFO.append('Door_%s: %d Meshy faces opened for the window, door card inside' % (side, n))
+        shut_seals(E, s)
+    # ------------------------------------------------ 3. the lining: the inner wall 9 cm inside, open at doors and windows
+    lining(sc, I, [(F_WS, rws), (FS(1), rwi), (FS(-1), rwi)], (trim, head, matm))
     # fenders over the drive tandem (tractor) - top kept under the trailer's swing
     xs = [PARTS['Wheel_%sL' % a].matrix_world.translation.x for a in ('D1', 'D2')]
     for s in (1, -1):
         fender(E, xs, 1.240, s * 0.86, s * 1.29, 0, 0)
         for xx in xs: E.cyl((xx, s * 0.45, 1.00), (xx, s * 0.87, 1.235), 0.015, 0, 10)
-    ext = E.done(sc); join_into(body, [shell, ext])
+    ext = E.done(sc); join_into(body, [ext])
     # trailer fenders: under the box floor (ray up), over the three axles
     tt = tree_of(trailer); xs = [PARTS['Wheel_%sL' % a].matrix_world.translation.x for a in ('T1', 'T2', 'T3')]
     zs = [h[0].z for x in (xs[0], xs[2]) for yy in (0.9, 1.25, -0.9, -1.25) for h in [tt.ray_cast(Vector((x, yy, 1.21)), Vector((0, 0, 1)), 1.0)] if h[0] is not None]
@@ -337,14 +488,27 @@ def build(sc, body, trailer, PARTS):
         PARTS['Pedal_' + nm] = Pd.done(sc, top); IKN['Pedal_' + nm] = (pad[0] - 0.015, yy, pad[2] - 0.02); INFO.append('Pedal_%s pivot %.3f %.3f %.3f about y' % (nm, *top))
     # seats (driver +y, passenger -y): suspended base, cushion with bolsters, raked back with bolsters, headrest, armrest
     for yc, nm in ((yd, 'Driver'), (-yd, 'Passenger')):
-        C.box((2.32, yc - 0.20, zf - 0.005), (2.68, yc + 0.20, zf + 0.30), 3, 0.02)
-        C.box((2.20, yc - 0.27, zf + 0.30), (2.76, yc + 0.27, zf + 0.42), 2, 0.04)
-        for y0_, y1_ in ((0.20, 0.27), (-0.27, -0.20)): C.box((2.24, yc + y0_, zf + 0.36), (2.74, yc + y1_, zf + 0.50), 2, 0.03)
+        C.box((2.32, yc - 0.20, zf - 0.005), (2.68, yc + 0.20, zf + 0.20), 3, 0.02)        # air-suspension base
+        for k in range(3): C.torus((0, 0, 0), 0.13, 0.024, 3, 32, 8, M=Matrix.Translation((2.50, yc, zf + 0.22 + k * 0.035)))   # bellows
+        C.box((2.26, yc - 0.22, zf + 0.29), (2.74, yc + 0.22, zf + 0.315), 3, 0.01)        # seat pan
+        C.box((2.22, yc - 0.19, zf + 0.30), (2.73, yc + 0.19, zf + 0.405), 2, 0.05)        # cushion
+        C.cyl((2.725, yc - 0.19, zf + 0.37), (2.725, yc + 0.19, zf + 0.37), 0.042, 2, 20, 0.0)   # front roll
+        for sy in (1, -1):                                                                 # side bolsters, rounded
+            C._merge(sweep_tmp([(2.23, yc + sy * 0.215, zf + 0.37), (2.45, yc + sy * 0.225, zf + 0.425), (2.70, yc + sy * 0.215, zf + 0.39)], 0.048, 16), 2)
+            C.box((2.25, yc + sy * 0.12 - 0.002, zf + 0.404), (2.70, yc + sy * 0.12 + 0.002, zf + 0.409), 3, 0.0)   # seams
+        C.box((2.30, yc - 0.12, zf + 0.404), (2.304, yc + 0.12, zf + 0.409), 3, 0.0); C.box((2.55, yc - 0.12, zf + 0.404), (2.554, yc + 0.12, zf + 0.409), 3, 0.0)
         Mb = Matrix.Translation((2.26, yc, zf + 0.42)) @ Matrix.Rotation(math.radians(-14), 4, 'Y')
-        C.box((-0.14, -0.27, 0.0), (0.0, 0.27, 0.80), 2, 0.04, M=Mb)
-        for y0_, y1_ in ((0.20, 0.27), (-0.27, -0.20)): C.box((-0.12, y0_, 0.05), (0.06, y1_, 0.62), 2, 0.035, M=Mb)
-        C.box((-0.12, -0.15, 0.84), (0.0, 0.15, 1.04), 2, 0.04, M=Mb); for_ = [C.cyl((-0.06, yy, 0.79), (-0.06, yy, 0.85), 0.008, 4, 8, 0.0, M=Mb) for yy in (-0.08, 0.08)]
-        C.box((2.30, yc - 0.33 if yc > 0 else yc + 0.27, zf + 0.58), (2.62, yc - 0.27 if yc > 0 else yc + 0.33, zf + 0.65), 3, 0.02)
+        C.box((-0.12, -0.19, 0.0), (0.0, 0.19, 0.78), 2, 0.05, M=Mb)                       # back cushion
+        C.box((-0.17, -0.24, 0.02), (-0.11, 0.24, 0.80), 3, 0.035, M=Mb)                   # hard back shell
+        C.cyl((0.0, -0.17, 0.20), (0.0, 0.17, 0.20), 0.03, 2, 16, 0.0, M=Mb)               # lumbar roll
+        for sy in (1, -1):
+            C._merge(sweep_tmp([(-0.06, sy * 0.215, 0.04), (0.01, sy * 0.225, 0.30), (-0.01, sy * 0.215, 0.58), (-0.06, sy * 0.19, 0.74)], 0.05, 16), 2, Mb)
+            C.box((0.0, sy * 0.12 - 0.002, 0.05), (0.004, sy * 0.12 + 0.002, 0.74), 3, 0.0, M=Mb)
+        C.box((0.0, -0.12, 0.42), (0.004, 0.12, 0.424), 3, 0.0, M=Mb)
+        C.box((-0.13, -0.15, 0.85), (0.02, 0.15, 1.05), 2, 0.06, M=Mb); C.box((0.018, -0.10, 0.93), (0.022, 0.10, 0.934), 3, 0.0, M=Mb)   # headrest + seam
+        for yy in (-0.08, 0.08): C.cyl((-0.06, yy, 0.77), (-0.06, yy, 0.86), 0.008, 4, 8, 0.0, M=Mb)
+        ya = yc - 0.29 if yc > 0 else yc + 0.29                                            # fold-down armrest, inner side
+        C._merge(sweep_tmp([(2.30, ya, zf + 0.62), (2.60, ya, zf + 0.615)], 0.038, 16), 2); C.cyl((2.27, ya, zf + 0.62), (2.27, ya + (0.03 if yc > 0 else -0.03), zf + 0.62), 0.02, 3, 12)
         IKN['Seat_' + nm] = (2.47, yc, zf + 0.42)
         C.box((2.80, yc - 0.33, zf - 0.004), (3.32, yc + 0.33, zf + 0.008), 5, 0.004)        # floor mat with ribs
         for k in range(7): C.box((2.84 + k * 0.065, yc - 0.30, zf + 0.008), (2.86 + k * 0.065, yc + 0.30, zf + 0.013), 5, 0.002)
@@ -367,9 +531,21 @@ def build(sc, body, trailer, PARTS):
         V_.box((3.36, s * 0.18 if s > 0 else -0.98, hz - 0.02), (3.60, 0.98 if s > 0 else -0.18, hz), 0, 0.008)
         V_.cyl((3.60, s * 0.20, hz - 0.01), (3.60, s * 0.96, hz - 0.01), 0.008, 1, 10)
         PARTS['SunVisor_' + side] = V_.done(sc, (3.60, s * 0.58, hz - 0.01)); INFO.append('SunVisor_%s hinge (y axis) 3.600 %.3f %.3f, folds down' % (side, s * 0.58, hz - 0.01))
+    C.cyl((1.76, -1.24, 3.06), (1.76, 1.24, 3.06), 0.012, 4, 10)                         # bunk curtain rail
+    for sy in (1, -1):                                                                 # curtain drawn back to both walls, in folds
+        for k in range(7): C.cyl((1.76 + 0.022 * (k % 2), sy * (1.20 - k * 0.045), zf + 0.62), (1.76 + 0.022 * (k % 2), sy * (1.20 - k * 0.045), 3.05), 0.026, 2, 10, 0.0)
+    for k in range(5): C.box((2.80 + k * 0.10, -0.03, 3.40), (2.86 + k * 0.10, 0.03, 3.42), 4, 0.004)   # roof console lamps
+    Mc = Matrix.Translation((3.24, 0.05, 1.78)) @ Matrix.Rotation(math.radians(-22), 4, 'Z') @ Matrix.Rotation(math.radians(-18), 4, 'Y')
+    C.box((-0.04, -0.20, -0.20), (0.06, 0.20, 0.16), 1, 0.03, M=Mc)                     # centre stack turned to the driver
+    C.box((-0.045, -0.15, 0.02), (-0.035, 0.15, 0.13), 6, 0.004, M=Mc)                  # its screen
+    for k in range(8): C.box((-0.05, -0.16 + k * 0.042, -0.06), (-0.035, -0.13 + k * 0.042, -0.035), 3 if k % 3 else 4, 0.003, M=Mc)   # switch bank
+    for k in range(3): C.cyl((-0.035, -0.10 + k * 0.10, -0.14), (-0.06, -0.10 + k * 0.10, -0.14), 0.022, 4, 20, 0.003, M=Mc)        # climate knobs
+    for yy in (0.24, 1.00):                                                            # round vents either side of the binnacle
+        C.torus((0, 0, 0), 0.045, 0.01, 4, 24, 8, M=Matrix.Translation((3.215, yy, 1.94)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
+        for k in range(4): C.box((3.212, yy - 0.04, 1.915 + k * 0.016), (3.22, yy + 0.04, 1.92 + k * 0.016), 3, 0.001)
     IKN['Bunk'] = (1.30, 0.0, zf + 0.60)
     PARTS['CabInterior'] = C.done(sc)
-    for o in (O, I, *cut): bpy.data.objects.remove(o, do_unlink=True)
+    for o in (O, I): bpy.data.objects.remove(o, do_unlink=True)
     # sidewall detail on every tyre is in lorry_details.tyre (rim protector, two raised rings)
     IKS = []
     for k, p in IKN.items():

@@ -232,6 +232,8 @@ for o in (body, trailer, *[PARTS['Door_' + k] for k in 'LR'], *[PARTS['RearDoor_
 GEO = dict(SX=SX, SY=SY, SZ=SZ, G=G, WHEEL=WHEEL, KP=KP, ZT=ZT, HW=HW, XR=XR, THW=THW, ZTOP=ZTOP, XREAR=XREAR)
 import lorry_details as LD
 INFO, IKS = LD.build(sc, body, trailer, PARTS, GEO)
+if os.environ.get('ADP_PRECAB'):                 # dev: the scene just before the cab build (Art/Lorry/dev_cab.py)
+    bpy.ops.wm.save_as_mainfile(filepath=WORK + '/precab.blend', copy=True); open(WORK + '/precab_info.txt', 'w').write(chr(10).join(INFO))
 import lorry_cab as LC                              # the modelled cab, interior, fenders (owner: Meshy cab crumpled)
 I2, K2 = LC.build(sc, body, trailer, PARTS); INFO += I2; IKS += K2
 
@@ -249,6 +251,6 @@ bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'Lorry.blend'))
 for o in sc.objects: o.select_set(o in ALL or o in IKS)
 bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, 'lorry.glb'), export_format='GLB', use_selection=True, export_apply=True,
                           export_texcoords=True, export_normals=True, export_materials='EXPORT', export_image_format='AUTO')
-v = np.concatenate([np.array([o.matrix_world @ q.co for q in o.data.vertices]) for o in ALL])
+v = np.concatenate([np.array([o.matrix_world @ q.co for q in o.data.vertices]).reshape(-1, 3) for o in ALL])
 print('SIZE %.3f x %.3f x %.3f m, faces %d, parts %d' % (*(v.max(0) - v.min(0)), count(), len(ALL)))
 print('DONE')
