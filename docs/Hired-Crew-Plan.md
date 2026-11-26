@@ -971,3 +971,13 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Not yet: the brake rider (step B), your own tow (step C), an ATC radio call for the crossing (log only), landings
   waiting for a tow, the crew walking between stand and hangar over the runway on foot, the baked chock store staying
   full while its chocks are out, towing from cargo / remote stands, a tow running over a save.
+
+## Maintenance van (to-do 311, before step B)
+- Art/MaintenanceVan: the cleaning van copied part for part (make_maintenancevan.py, materials MV_*); only new are white
+  panels with navy MAINTENANCE lettering on both sides (MaintPanel_L/R, MaintWord_L/R) and on the right rear door
+  (RearDoorR_MaintPanel, RearDoorR_MaintWord, moving with the door). The amber roof beacon is the van's own (Beacon_Base,
+  BeaconLens, Beacon_Cap, IK_Beacon), lit by the GSE lamp system.
+- GSEService.cpp table line Task "maint", points Data/maintenancevan-riders.json (the cleaning van's), home plan
+  (-355, 1225) facing east on the hangar apron's north edge between hangars 1 and 2. No job asks for it yet.
+- Role "ground" / EStaffTask::PushHelp for now (no mechanic role yet). Step B: the brake rider drives it to the stand and
+  back; whether the route planner finds a way from the hangar apron is not tested yet.

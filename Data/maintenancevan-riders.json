@@ -1,0 +1,400 @@
+{
+ "note": "named points of the maintenance van (Blender m: x forward, y left, z up): the cabin cleaning van's own (a copy, Art/MaintenanceVan; Data/cleaningvan-riders.json); the PIV_/IK_ names are the standard of ServiceVehicles.h",
+ "points": {
+  "PIV_Wheel_FL": [
+   2.051,
+   0.905,
+   0.372
+  ],
+  "PIV_Wheel_RL": [
+   -1.984,
+   0.895,
+   0.372
+  ],
+  "PIV_Steer_FL": [
+   2.051,
+   0.775,
+   0.372
+  ],
+  "PIV_Wheel_FR": [
+   2.051,
+   -0.905,
+   0.372
+  ],
+  "PIV_Wheel_RR": [
+   -1.984,
+   -0.895,
+   0.372
+  ],
+  "PIV_Steer_FR": [
+   2.051,
+   -0.775,
+   0.372
+  ],
+  "PIV_DoorDriver": [
+   1.705,
+   1.015,
+   1.0
+  ],
+  "IK_Handle_DoorDriver_Out": [
+   0.605,
+   1.053,
+   1.082
+  ],
+  "IK_Handle_DoorDriver_In": [
+   1.27,
+   0.915,
+   1.105
+  ],
+  "IK_Step_DoorDriver": [
+   1.0,
+   0.86,
+   0.415
+  ],
+  "IK_Stand_DoorDriver": [
+   0.8,
+   1.65,
+   0.0
+  ],
+  "IK_Grab_L": [
+   1.125,
+   0.75,
+   1.91
+  ],
+  "PIV_DoorPassenger": [
+   1.705,
+   -1.015,
+   1.0
+  ],
+  "IK_Handle_DoorPassenger_Out": [
+   0.605,
+   -1.053,
+   1.082
+  ],
+  "IK_Handle_DoorPassenger_In": [
+   1.27,
+   -0.915,
+   1.105
+  ],
+  "IK_Step_DoorPassenger": [
+   1.0,
+   -0.86,
+   0.415
+  ],
+  "IK_Stand_DoorPassenger": [
+   0.8,
+   -1.65,
+   0.0
+  ],
+  "IK_Grab_R": [
+   1.125,
+   -0.75,
+   1.91
+  ],
+  "PIV_SlideDoor": [
+   -0.255,
+   -0.985,
+   1.235
+  ],
+  "IK_Handle_SlideDoor_Out": [
+   0.255,
+   -1.053,
+   1.082
+  ],
+  "IK_Handle_SlideDoor_In": [
+   0.2,
+   -0.905,
+   1.12
+  ],
+  "IK_Step_SlideDoor": [
+   -0.1,
+   -0.84,
+   0.415
+  ],
+  "IK_Stand_SlideDoor": [
+   0.05,
+   -1.7,
+   0.0
+  ],
+  "PIV_RearDoorL": [
+   -2.992,
+   0.826,
+   1.4
+  ],
+  "IK_Stand_RearDoorL": [
+   -3.75,
+   0.55,
+   0.0
+  ],
+  "PIV_RearDoorR": [
+   -2.992,
+   -0.826,
+   1.4
+  ],
+  "IK_Stand_RearDoorR": [
+   -3.75,
+   -0.55,
+   0.0
+  ],
+  "IK_Handle_RearDoorR_Out": [
+   -3.016,
+   -0.085,
+   1.225
+  ],
+  "IK_Handle_RearDoorL_Edge": [
+   -2.97,
+   0.02,
+   1.22
+  ],
+  "IK_Cluster": [
+   1.23,
+   0.42,
+   1.295
+  ],
+  "IK_GearSelect": [
+   1.09,
+   0.07,
+   0.89
+  ],
+  "PIV_SteeringWheel": [
+   1.085,
+   0.42,
+   1.175
+  ],
+  "IK_Hand_Wheel_L": [
+   1.085,
+   0.615,
+   1.175
+  ],
+  "IK_Hand_Wheel_R": [
+   1.085,
+   0.225,
+   1.175
+  ],
+  "IK_Foot_Accel": [
+   1.462,
+   0.3,
+   0.7
+  ],
+  "PIV_Pedal_Accel": [
+   1.6,
+   0.3,
+   0.93
+  ],
+  "IK_Foot_Brake": [
+   1.462,
+   0.43,
+   0.71
+  ],
+  "PIV_Pedal_Brake": [
+   1.6,
+   0.43,
+   0.93
+  ],
+  "IK_Foot_Rest": [
+   1.485,
+   0.575,
+   0.66
+  ],
+  "IK_Seat_SeatDriver": [
+   0.63,
+   0.42,
+   1.02
+  ],
+  "IK_Buckle_SeatDriver": [
+   0.53,
+   0.158,
+   1.11
+  ],
+  "IK_Seat_SeatPassenger": [
+   0.63,
+   -0.46,
+   1.02
+  ],
+  "IK_Buckle_SeatPassenger": [
+   0.53,
+   -0.208,
+   1.11
+  ],
+  "IK_Seat_SeatRow0": [
+   -0.47,
+   -0.53,
+   1.02
+  ],
+  "IK_Buckle_SeatRow0": [
+   -0.57,
+   -0.288,
+   1.11
+  ],
+  "IK_Seat_SeatRow1": [
+   -0.47,
+   0.0,
+   1.02
+  ],
+  "IK_Buckle_SeatRow1": [
+   -0.57,
+   0.242,
+   1.11
+  ],
+  "IK_Seat_SeatRow2": [
+   -0.47,
+   0.53,
+   1.02
+  ],
+  "IK_Buckle_SeatRow2": [
+   -0.57,
+   0.288,
+   1.11
+  ],
+  "IK_BeltTongue_D": [
+   0.42,
+   0.87,
+   1.15
+  ],
+  "IK_BeltTongue_P": [
+   0.42,
+   -0.87,
+   1.15
+  ],
+  "IK_BeltTongue_R0": [
+   -0.895,
+   -0.87,
+   1.15
+  ],
+  "IK_BeltTongue_R2": [
+   -0.895,
+   0.87,
+   1.15
+  ],
+  "PIV_Wiper_L": [
+   2.132,
+   0.62,
+   1.362
+  ],
+  "PIV_Wiper_R": [
+   2.179,
+   -0.1,
+   1.362
+  ],
+  "IK_Beacon": [
+   0.25,
+   0.0,
+   2.61
+  ],
+  "IK_Name_L": [
+   -1.84,
+   1.009,
+   1.66
+  ],
+  "IK_Name_R": [
+   -1.84,
+   -1.009,
+   1.66
+  ],
+  "IK_Name_Rear": [
+   -2.966,
+   0.38,
+   2.19
+  ],
+  "IK_Driver_Eye": [
+   0.6,
+   0.42,
+   1.72
+  ],
+  "IK_Cart_Out": [
+   -3.9,
+   -0.62,
+   0.0
+  ],
+  "IK_Tow": [
+   -3.05,
+   0.0,
+   0.46
+  ],
+  "IK_Aisle_Row0": [
+   0.12,
+   -0.53,
+   0.585
+  ],
+  "IK_Aisle_Row1": [
+   0.12,
+   0.0,
+   0.585
+  ],
+  "IK_Aisle_Row2": [
+   0.12,
+   0.53,
+   0.585
+  ],
+  "Stock_Caddy_0": [
+   -2.56,
+   0.6625,
+   1.5295
+  ],
+  "Stock_Caddy_1": [
+   -2.02,
+   0.6625,
+   1.5295
+  ],
+  "Stock_Caddy_2": [
+   -1.44,
+   0.6625,
+   1.5295
+  ],
+  "Stock_BagRoll_0": [
+   -2.68,
+   0.6625,
+   1.6315000000000002
+  ],
+  "Stock_BagRoll_1": [
+   -2.5,
+   0.6625,
+   1.6315000000000002
+  ],
+  "Stock_BagRoll_2": [
+   -2.32,
+   0.6625,
+   1.6315000000000002
+  ],
+  "Stock_BagRoll_3": [
+   -2.14,
+   0.6625,
+   1.6315000000000002
+  ],
+  "Stock_BagRoll_4": [
+   -1.72,
+   0.6625,
+   1.6315000000000002
+  ],
+  "Stock_BagRoll_5": [
+   -1.54,
+   0.6625,
+   1.6315000000000002
+  ],
+  "Stock_BagFull_0": [
+   -1.28,
+   -0.655,
+   1.143
+  ],
+  "Stock_BagFull_1": [
+   -1.755,
+   -0.66,
+   1.143
+  ],
+  "Stock_CleanCart_0": [
+   -2.44,
+   -0.62,
+   0.5854999999999999
+  ],
+  "Stock_Vacuum_0": [
+   -1.135,
+   -0.32,
+   1.78
+  ],
+  "Stock_Vacuum_1": [
+   -1.135,
+   -0.04,
+   1.78
+  ]
+ }
+}

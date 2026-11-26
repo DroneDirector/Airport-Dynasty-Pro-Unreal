@@ -193,6 +193,25 @@ const TArray<FServiceSpec>& ADPService::All()
 			X.Wipers = {{TEXT("WiperL"), TEXT("PIV_Wiper_L"), FVector(210.6f, -4.f, 143.3f), FVector(176.3f, -50.f, 178.f)}, {TEXT("WiperR"), TEXT("PIV_Wiper_R"), FVector(204.2f, 68.f, 143.3f), FVector(178.2f, 22.f, 178.f)}};   // (the van's: the same pivots)
 			L.Add(X);
 		}
+		{
+			// the maintenance van (Art/MaintenanceVan, a copy of the cleaning van with MAINTENANCE on its sides and rear
+			// door): no turn-round task asks for it yet (the hangar brake rider will drive it). It waits on the hangar apron's
+			// north edge between hangars 1 and 2 (plan -355, 1225; door line y 1231), clear of both doors, facing east.
+			// Crew and player use it through the same functions as the cleaning van (drive, ride, its doors and lamps).
+			FServiceSpec Mv;
+			Mv.Task = TEXT("maint"); Mv.Model = TEXT("MaintenanceVan"); Mv.Points = TEXT("maintenancevan"); Mv.Label = TEXT("maintenance van"); Mv.Role = TEXT("ground"); Mv.Team = EStaffTask::PushHelp; Mv.MaxPeople = 4;   // (no mechanic role yet: ground crew)
+			Mv.HomeX = -355.f; Mv.HomeY = 1225.f; Mv.HomeHx = 1.f; Mv.HomeHy = 0.f;
+			Mv.HalfL = 300.f; Mv.HalfW = 103.f; Mv.TurnR = 620.f; Mv.MaxSteer = 36.f; Mv.DoorDeg = 68.f; Mv.PlayerSpeed = 830.f;
+			Mv.Doors = {{TEXT("SlideDoor"), TEXT("PIV_SlideDoor"), TEXT("IK_Handle_SlideDoor_Out"), TEXT("IK_Stand_SlideDoor"), 0.f, true},
+				{TEXT("RearDoorR"), TEXT("PIV_RearDoorR"), TEXT("IK_Handle_RearDoorR_Out"), TEXT("IK_Stand_RearDoorR"), -100.f, false},
+				{TEXT("RearDoorL"), TEXT("PIV_RearDoorL"), TEXT("IK_Handle_RearDoorL_Edge"), TEXT("IK_Stand_RearDoorL"), 100.f, false}};
+			Mv.Seats = {TEXT("IK_Seat_SeatRow2"), TEXT("IK_Seat_SeatRow1"), TEXT("IK_Seat_SeatRow0")};   // (the farthest from the door first)
+			Mv.NameL = TEXT("IK_Name_L"); Mv.NameR = TEXT("IK_Name_R"); Mv.NameRear = TEXT("IK_Name_Rear");
+			Mv.Cab = {{TEXT("IK_Seat_SeatPassenger"), {TEXT("DoorPassenger"), TEXT("PIV_DoorPassenger"), TEXT("IK_Handle_DoorPassenger_Out"), TEXT("IK_Stand_DoorPassenger"), -68.f, false}}};
+			Mv.Wipers = {{TEXT("WiperL"), TEXT("PIV_Wiper_L"), FVector(210.6f, -4.f, 143.3f), FVector(176.3f, -50.f, 178.f)}, {TEXT("WiperR"), TEXT("PIV_Wiper_R"), FVector(204.2f, 68.f, 143.3f), FVector(178.2f, 22.f, 178.f)}};
+			Mv.LiveryBody = TEXT("MV_Livery_Body_Paint"); Mv.LiveryMain = TEXT("MV_Livery_Main_Paint");
+			L.Add(Mv);
+		}
 	}
 	return L;
 }
