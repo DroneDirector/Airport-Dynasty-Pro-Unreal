@@ -232,6 +232,8 @@ for o in (body, trailer, *[PARTS['Door_' + k] for k in 'LR'], *[PARTS['RearDoor_
 GEO = dict(SX=SX, SY=SY, SZ=SZ, G=G, WHEEL=WHEEL, KP=KP, ZT=ZT, HW=HW, XR=XR, THW=THW, ZTOP=ZTOP, XREAR=XREAR)
 import lorry_details as LD
 INFO, IKS = LD.build(sc, body, trailer, PARTS, GEO)
+import lorry_cab as LC                              # the modelled cab, interior, fenders (owner: Meshy cab crumpled)
+I2, K2 = LC.build(sc, body, trailer, PARTS); INFO += I2; IKS += K2
 
 # ---------------------------------------------------------------- save, check, export
 col = bpy.data.collections.new('Lorry'); sc.collection.children.link(col)
