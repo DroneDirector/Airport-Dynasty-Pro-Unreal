@@ -462,9 +462,9 @@ namespace ADPPerfViewsInternal
 			for (const FADPPerson& P : Sim->World.People)
 			{
 				if (P.AirlineId != UADPSim::Me()) continue;
-				FString Doing, Spot; if (!St->Status(P.Id, Doing, Spot)) Doing = St->OnShift(P.Id) ? TEXT("on shift, not in 3D") : TEXT("off shift or no job in 3D");
+				FString DoingNow, Spot; if (!St->Status(P.Id, DoingNow, Spot)) DoingNow = St->OnShift(P.Id) ? TEXT("on shift, not in 3D") : TEXT("off shift or no job in 3D");
 				++All.FindOrAdd(P.Role); if (St->ActorOf(P.Id)) ++Work.FindOrAdd(P.Role);
-				++How.FindOrAdd(P.Role).FindOrAdd(Doing.Left(50));
+				++How.FindOrAdd(P.Role).FindOrAdd(DoingNow.Left(50));
 			}
 			for (const auto& E : All)
 			{

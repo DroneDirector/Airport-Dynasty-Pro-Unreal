@@ -30,9 +30,9 @@ namespace ADPOffices
 	 *  Data/owner-office-points.json. Its lamps: the two pendant bars over the desk and the desk lamp. */
 	static bool PlaceYours(UWorld* W)
 	{
-		const float FY = 6.01f;
+		const float FloorY = 6.01f;
 		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		auto P = [FY](float Bx, float By, float Bz) { return FTerminalPlan::ToWorld(114.f + Bx, FY + 0.002f + Bz, By); };   // (the model's 2 mm over the floor)
+		auto P = [FloorY](float Bx, float By, float Bz) { return FTerminalPlan::ToWorld(114.f + Bx, FloorY + 0.002f + Bz, By); };   // (the model's 2 mm over the floor)
 		ABabylonModel* M = W->SpawnActor<ABabylonModel>(P(0, 0, 0), FRotator(0, 180.f, 0), S);
 		if (!M) return false;
 		if (!M->Place(TEXT("OfficeOwner"))) { M->Destroy(); ADP_WARN(TEXT("Offices: your office's furniture (OfficeOwner) did not load")); return false; }
@@ -72,7 +72,7 @@ namespace ADPOffices
 		// the door's swing and the wardrobe. Yours is the west one: since 2026-11-26 (owner, Tools/render_owner_office.py)
 		// x 114..126.3 on the Grand Hall window (its glass guard 0.32 m in), Office 2 x 126.3..139.1
 		struct FAt { float X, Z, Yaw; bool bMine; };
-		const float FY = 6.01f;                                       // Floor 2
+		const float FloorY = 6.01f;                                       // Floor 2
 		const FAt At[] = { {119.3f, 3.1f, 180.f, true}, {132.7f, 3.1f, 180.f, false}, {143.2f, 3.1f, 180.f, false}, {151.65f, 3.1f, 180.f, false} };
 		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		int32 Placed = 0;
@@ -80,7 +80,7 @@ namespace ADPOffices
 		{
 			if (A.bMine) { if (PlaceYours(W)) ++Placed; continue; }
 			const FString Model = A.bMine && (Pet == TEXT("dog") || Pet == TEXT("cat")) ? TEXT("Office") + Pet : TEXT("Office");
-			ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(A.X, FY + 0.02f, A.Z), FRotator(0, A.Yaw, 0), S);
+			ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(A.X, FloorY + 0.02f, A.Z), FRotator(0, A.Yaw, 0), S);
 			if (M && M->Place(Model))
 			{
 				M->AddLights(Model); ++Placed;
@@ -103,12 +103,12 @@ namespace ADPOffices
 			{146.f, 9.f - 0.06f - 0.3f - 0.03f, 180.f}, {154.6f, 9.f - 0.06f - 0.3f - 0.03f, 180.f} };
 		int32 Wardrobes = 0;
 		for (const FWd& A : Wd)
-			if (AWardrobe* Wr = W->SpawnActor<AWardrobe>(FTerminalPlan::ToWorld(A.X, FY, A.Z), FRotator(0, A.Yaw, 0), S)) { if (Wr->Build()) ++Wardrobes; else Wr->Destroy(); }
+			if (AWardrobe* Wr = W->SpawnActor<AWardrobe>(FTerminalPlan::ToWorld(A.X, FloorY, A.Z), FRotator(0, A.Yaw, 0), S)) { if (Wr->Build()) ++Wardrobes; else Wr->Destroy(); }
 		ADP_LOG(TEXT("Offices: %d wardrobes"), Wardrobes);
 		// the operations room (Floor 2, x 118.7-133, z 12-26, its door south onto the staff corridor): the old room's desk
 		// with the ultra-wide monitor, its window side (+z) to the room's west wall (onto the walkway by the Grand Hall's
 		// window), the chair facing it (the old room is 5.4 m deep: its window wall 2.7 m from its middle)
-		if (ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(121.4f, FY + 0.02f, 19.f), FRotator(0, -90.f, 0), S))
+		if (ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(121.4f, FloorY + 0.02f, 19.f), FRotator(0, -90.f, 0), S))
 		{
 			if (!M->Place(TEXT("Ops"))) M->Destroy();
 			// your phone here too, right of the mouse (you sit on the room's -z side here: turned round)
@@ -116,11 +116,11 @@ namespace ADPOffices
 		}
 		// its monitor, the one that matches your screen, where the old one stood (the desk's top 0.7725 m up, the screen
 		// 1.40 m from the old room's middle towards its window); the models face their +z, turned to the chair
-		if (AOpsMonitors* Mon = W->SpawnActor<AOpsMonitors>(FTerminalPlan::ToWorld(120.f, FY + 0.7925f, 19.f), FRotator(0, 90.f, 0), S)) Mon->Build();
+		if (AOpsMonitors* Mon = W->SpawnActor<AOpsMonitors>(FTerminalPlan::ToWorld(120.f, FloorY + 0.7925f, 19.f), FRotator(0, 90.f, 0), S)) Mon->Build();
 		// the Academy (Floor 2, x 136-156, z 12-34.5, its doors south): the old classroom turned round, its front (the
 		// whiteboard, its -x side) to the east wall, the whiteboard 15 cm clear of the wall's face and between two of its
 		// windows (z 18.5..22.2, the windows at 16..18.2 and 22.5..24.7); the class's desks at z 16.6..24.1
-		if (ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(141.23f, FY + 0.02f, 33.85f), FRotator(0, 180.f, 0), S))
+		if (ABabylonModel* M = W->SpawnActor<ABabylonModel>(FTerminalPlan::ToWorld(141.23f, FloorY + 0.02f, 33.85f), FRotator(0, 180.f, 0), S))
 			if (!M->Place(TEXT("Academy"))) M->Destroy();
 	}
 }
