@@ -171,6 +171,12 @@ void AHangarTow::Look()
 	for (FJob& J : Jobs)
 		if (J.Stage == 3)
 		{
+			// (the brake rider down by the hall's own stair; the door shut once the stair is parked and its crew are out)
+			if (AGSE* Gs = AGSE::Get(W))
+			{
+				Gs->MaintHall(J.Reg, J.Hangar, J.Model.Get(), true);
+				if (AHangar* Hd = J.Hall.Get()) if (Hd->DoorOpen() > 0.999f && !Gs->HallBusy(J.Hangar)) { Hd->Command(false); ADP_LOG(TEXT("HangarTow: hangar %s - its stair parked, the door closes"), *J.Hangar); }
+			}
 			const FADPAircraft* A = Plane(W, J.Reg);
 			if (A && A->Status == TEXT("maintenance") && !A->CheckKind.IsEmpty()) continue;
 			if (!bMoving && Start(J, true)) return;
@@ -264,8 +270,7 @@ bool AHangarTow::Start(FJob& J, bool bBack)
 	J.Hx = Hx; J.bBack = bBack; J.bPlanned = false; J.Stage = 0; J.Leg = 0; J.S = 0.f; J.V = 0.f; J.Clock = 0.f; J.WhyT = 0.f;
 	for (TActorIterator<AHangar> It(W); It; ++It) if (FMath::Abs(It->GetActorLocation().X - Hx * 100.f) < 200.f) J.Hall = *It;
 	if (AHangar* Hg = J.Hall.Get()) Hg->Command(true);   // (the door first: 10 minutes to open)
-	J.bRider = bBack && AGSE::Get(W) && AGSE::Get(W)->MaintAboard(J.Reg); J.Rider = J.bRider ? 3 : 0;
-	if (bBack && !J.bRider) ADP_WARN(TEXT("HangarTow: %s - no brake rider aboard for the tow back (nobody can board in the hall yet: no hangar stair)"), *J.Reg);
+	J.bRider = false; J.Rider = 0;   // (the tow back: he climbs aboard by the hall's stair first, Run)
 	if (bBack) ADP_LOG(TEXT("HangarTow: %s check done - towed back from hangar %s to stand %s"), *J.Reg, *J.Hangar, *J.Stand);
 	return true;
 }
@@ -291,6 +296,16 @@ void AHangarTow::Run(FJob& J, float Dt)
 		if (J.Rider < 3 && J.Stage == 1 && (J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s waits for its brake rider - %s"), *J.Reg, *Rw); }
 		else if (J.Rider != Was && J.Rider < 3) ADP_LOG(TEXT("HangarTow: %s - %s"), *J.Reg, *Rw);
 	}
+	if (J.bBack && !J.bPlanned && J.Stage <= 1)   // (the tow back: the brake rider up the hall's stair, the stair parked again, before the tug comes in)
+	{
+		FString Rw; AGSE* Gs = AGSE::Get(W);
+		const int32 Was = J.Rider; J.Rider = Gs ? Gs->MaintBack(J.Reg, J.Hangar, B, Rw) : 3;
+		if (J.Rider >= 3 && Was < 3) { J.bRider = Gs && Gs->MaintAboard(J.Reg); if (!J.bRider) ADP_WARN(TEXT("HangarTow: %s - %s: towed back without one"), *J.Reg, *Rw); }
+		if (J.Rider < 3 && (J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s waits in hangar %s - %s"), *J.Reg, *J.Hangar, *Rw); }
+		if (J.Rider < 3 && J.Stage == 0) return;
+	}
+	if (!J.bBack && J.Stage == 1 && J.Rider >= 3)   // (the hall's own stair called while the door is open: its crew walk in before it shuts)
+		if (AGSE* Gs = AGSE::Get(W)) Gs->MaintHall(J.Reg, J.Hangar, B, false);
 	if (J.Stage == 0)   // the tug and its crew
 	{
 		if ((J.Clock -= Dt) > 0.f) return;
@@ -307,7 +322,7 @@ void AHangarTow::Run(FJob& J, float Dt)
 	{
 		if (!J.bBack && J.Chocks == 0 && !Chock(J, true) && (J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s waits in hangar %s - nobody of the tow crew free to set its chocks"), *J.Reg, *J.Hangar); }
 		if (!Tg->IsClear(J.Key) || (J.Clock += Dt) < 30.f || (!J.bBack && J.Chocks != 2)) return;
-		if (AHangar* Hd = J.Hall.Get()) Hd->Command(false);
+		if (AHangar* Hd = J.Hall.Get()) if (J.bBack) Hd->Command(false);   // (in: shut once the hall's stair is parked again, Look)
 		if (J.bBack)
 		{
 			ADPParked::Adopt(J.Stand, J.Reg, B); J.Stage = 9; ADP_LOG(TEXT("HangarTow: %s back on stand %s"), *J.Reg, *J.Stand);
@@ -322,7 +337,7 @@ void AHangarTow::Run(FJob& J, float Dt)
 	const AHangar* Hg = J.Hall.Get();
 	const bool bHall = J.bBack ? J.Leg == 0 && J.S < 60.f : J.Leg == 2;
 	const bool bDoor = !bHall || !Hg || Hg->DoorOpen() > 0.999f;
-	const bool bGo = Tg->Push(J.Key, J.StandX, NoseW + Fwd * 60.f, Fwd) && (J.bBack || J.Rider >= 3);
+	const bool bGo = Tg->Push(J.Key, J.StandX, NoseW + Fwd * 60.f, Fwd) && J.Rider >= 3;
 	if (bGo && !J.bPlanned)
 	{
 		J.bPlanned = true; B->Tags.AddUnique(FName(*(TEXT("MOVE/") + J.Reg))); B->Tags.Remove(FName(*(J.Stand + TEXT("/A320"))));

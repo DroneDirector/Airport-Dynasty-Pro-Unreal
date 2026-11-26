@@ -173,6 +173,7 @@ void AGSE::WetTick(FSvcJob& J, float Dt)
 
 const AActor* AGSE::WetPlane(float StandX) const
 {
+	if (const FHallStair* H = HallOf(StandX)) return H->Plane.Get();   // (in a hangar hall: the towed one)
 	float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(StandX, S, N, Sp); const AActor* Pl = nullptr; double Bd = 900.0; const FVector Nose = PlanT(S, S, N);
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 		for (const FName& Tg2 : It->Tags)

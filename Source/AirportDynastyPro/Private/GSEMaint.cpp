@@ -5,7 +5,7 @@
 // first) or, where no jetway is, up the passenger stairs (called to the door if none is there; sent away once he is in).
 // In the cockpit he is hidden and carried by the aircraft (no interiors yet); the tow waits for him (HangarTow.cpp). On the
 // tow back he gets off at its stand the same ways and walks the hired people's way (HiredWay) to the van and drives it home.
-// Not yet: the hangar's own mobile stair (he stays aboard through the check), a mechanic role (ground crew for now).
+// In the hangar hall he gets off and on by the hall's own stair (GSEHangarStair.cpp). Not yet: a mechanic role (ground crew).
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
@@ -45,6 +45,7 @@ int32 AGSE::MaintRider(float StandX, const FString& Reg, AActor* Plane, FString&
 	if (A && Plane && A->GetAttachParentActor() != Plane)
 	{
 		A->SetActorHiddenInGame(true); A->AttachToActor(Plane, FAttachmentTransformRules::KeepWorldTransform);
+		G->Crew[M->Ci].Hold = [](float, float, FDriverPose&) {};   // (carried: no idle steps back to where he went in)
 		ADP_LOG(TEXT("GSE: %s, the brake rider, is in %s's cockpit - lights on"), *G->Crew[M->Ci].Name, *Reg);
 	}
 	if (J.Stage < 4) J.Stage = 4;
@@ -159,6 +160,13 @@ void AGSE::MaintClimb(int32 Job, float StandX, bool bUp)
 		{
 			if (ATugs* G = Tg()) if (AActor* A = G->Crew[Ci].A.Get()) A->SetActorHiddenInGame(true);
 			if (FSvcMan* X = SvcM(Job, 0)) X->bIn = true;
+			if (const FHallStair* Hh = HallOf(StandX))   // (aboard in the hangar hall for the tow back: carried from here)
+			{
+				ATugs* G = Tg(); AActor* A = G ? G->Crew[Ci].A.Get() : nullptr; AActor* Pl = Hh->Plane.Get();
+				if (A && Pl) { A->AttachToActor(Pl, FAttachmentTransformRules::KeepWorldTransform); G->Crew[Ci].Hold = [](float, float, FDriverPose&) {}; }
+				MaintHallX.Remove(Job); if (FSvcJob* X = SvcJ(Job)) X->Stage = 11;
+				ADP_LOG(TEXT("GSE: the brake rider is in the cockpit again in hangar %s"), *Hh->Hall);
+			}
 			SvcGo(TEXT("stairs"), StandX);
 		});
 		MaintHold(Job);
@@ -166,22 +174,31 @@ void AGSE::MaintClimb(int32 Job, float StandX, bool bUp)
 	}
 	Do(Ci, [this, Job, Ci]
 	{
-		if (ATugs* G = Tg()) if (AActor* A = G->Crew[Ci].A.Get()) { A->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform); A->SetActorHiddenInGame(false); }
+		if (ATugs* G = Tg()) if (AActor* A = G->Crew[Ci].A.Get()) { A->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform); A->SetActorHiddenInGame(false); G->Crew[Ci].Hold = nullptr; G->Crew[Ci].Anchor = A->GetActorLocation(); }
 		if (FSvcMan* X = SvcM(Job, 0)) X->bIn = false;
 	});
 	WalkTo(Ci, [W] { return W.Platform; }, 15.f);
 	Climb(false); Level(false);
 	Do(Ci, [this, Job, StandX] { MaintWay.Remove(Job); SvcGo(TEXT("stairs"), StandX); if (FSvcMan* X = SvcM(Job, 0)) X->bDown = true; });
+	if (const FHallStair* Hh = HallOf(StandX))
+	{
+		// in the hangar hall: out from the stair's foot, along the side wall to behind its place, and waits there through the check
+		const float Fy = float(-W.Foot.Y) / 100.f, Sd = Hh->Side, Hf = Hh->Half;
+		const FVector P1 = Plan(Hh->Hx + Sd * (Hf - 6.f), Fy), P2 = HallP(*Hh, Sd * (Hf - 1.2f), 4.f), Pw = HallP(*Hh, Sd * (Hf - 1.2f), 18.f);
+		WalkTo(Ci, [P1] { return P1; }, 40.f); WalkTo(Ci, [P2] { return P2; }, 40.f); WalkTo(Ci, [Pw] { return Pw; }, 25.f);
+		Do(Ci, [this, Job] { if (FSvcJob* X = SvcJ(Job)) { X->Stage = 8; ADP_LOG(TEXT("GSE: %s's brake rider waits in the hall through the check"), *X->Reg); } });
+		return;
+	}
 	Do(Ci, [this, Job] { Later([this, Job] { if (FSvcJob* X = SvcJ(Job)) if (X->Men.Num()) { HiredWay(X->Men[0].Ci, Tractors[X->Ti].At, 0.f); Do(X->Men[0].Ci, [this, Job] { Later([this, Job] { SvcLeave(Job); }); }); } }); });
 	Wait(Ci, 0.5f);
 }
 
 void AGSE::MaintHold(int32 Job)
 {
-	// in the cockpit through the tow, the check and the tow back (the hangar's own stair is not there yet): off at the stand
+	// in the cockpit through the tow; off in the hangar hall by its own stair (MaintHallX), or at the stand after the tow back
 	FSvcJob* J = SvcJ(Job); if (!J || !J->Men.Num()) return;
 	const int32 Ci = J->Men[0].Ci;
-	WaitFor(Ci, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->bGo; });
+	WaitFor(Ci, [this, Job](float) { const FSvcJob* X = SvcJ(Job); return !X || X->bGo || MaintHallX.Contains(Job); });   // (or down in the hangar hall)
 	Do(Ci, [this, Job] { Later([this, Job] { MaintDown(Job); }); });
 	Wait(Ci, 0.5f);
 }
@@ -189,6 +206,7 @@ void AGSE::MaintHold(int32 Job)
 void AGSE::MaintDown(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J || !J->Men.Num()) return;
+	if (const float* Hk = MaintHallX.Find(Job)) { J->Stage = 6; MaintStairs(Job, *Hk, false); return; }   // (down in the hangar hall by its own stair)
 	const int32 Ci = J->Men[0].Ci; const float* To = MaintTo.Find(Job); const float Sx = To ? *To : J->StandX; MaintTo.Remove(Job);
 	J->Stage = 6;
 	const FAirfieldData::FStand* Sd = AAirfield::Shared().StandAt(Sx);
@@ -205,7 +223,7 @@ void AGSE::MaintDown(int32 Job)
 			if (Rg->State(Jet) == AJetwayRigs::EState::Parked && FMath::Fmod(E, 30.f) < 0.05f && !Rg->Dock(Jet)) ADP_WARN(TEXT("GSE: the brake rider of %s waits in the cockpit - its jetway does not dock: %s"), *Reg, *AJetwayRigs::LastNote);
 			return false;
 		});
-		Do(Ci, [this, Ci] { if (ATugs* G = Tg()) if (AActor* A = G->Crew[Ci].A.Get()) A->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform); });
+		Do(Ci, [this, Ci] { if (ATugs* G = Tg()) if (AActor* A = G->Crew[Ci].A.Get()) { A->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform); G->Crew[Ci].Hold = nullptr; G->Crew[Ci].Anchor = A->GetActorLocation(); } });
 		Do(Ci, [this, Job] { Later([this, Job]
 		{
 			FSvcJob* X = SvcJ(Job); if (!X || !X->Men.Num()) return;

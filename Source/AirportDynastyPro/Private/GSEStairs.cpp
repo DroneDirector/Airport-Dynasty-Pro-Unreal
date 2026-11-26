@@ -351,13 +351,14 @@ void AGSE::StairsWork(int32 Job)
 		{
 			if (E > 240.f) return true;
 			float S = 0.f, N = 0.f, Sp = 36.f; StandGeo(Sx, S, N, Sp); const ATugs* G = ATugs::Get(GetWorld());
-			return E > 2.f && !PlaneNear(PlanT(S, S, N), 1500.f) && (!G || G->ChocksIn(Sx)) && SvcAll(Job, [](const FSvcMan& X) { return X.Seat == 0 || X.bOut; });
+			const bool bHall = HallOf(Sx) != nullptr;   // (in a hangar hall: towed in, standing still, nothing else moves there)
+			return E > 2.f && (bHall || (!PlaneNear(PlanT(S, S, N), 1500.f) && (!G || G->ChocksIn(Sx)))) && SvcAll(Job, [](const FSvcMan& X) { return X.Seat == 0 || X.bOut; });
 		});
 		Do(Ci, [this, Job, Ti, Stage]
 		{
 			FSvcJob* X = SvcJ(Job); if (!X) return;
 			FTractor& T = Tractors[Ti]; FVector2f At, Hd; float Tr = 0.f, S = 0.f, N = 0.f, Sp = 36.f; StandGeo(X->StandX, S, N, Sp);
-			if (X->bGo || PlaneNear(PlanT(S, S, N), 1500.f) || !StairsDock(X->StandX, X->CtDoor, float(T.At.Z), At, Hd, Tr)) { ADP_WARN(TEXT("GSE: the passenger stairs go home: %s is not standing at its door"), *X->Reg); Stage(6); return; }
+			if (X->bGo || (!HallOf(X->StandX) && PlaneNear(PlanT(S, S, N), 1500.f)) || !StairsDock(X->StandX, X->CtDoor, float(T.At.Z), At, Hd, Tr)) { ADP_WARN(TEXT("GSE: the passenger stairs go home: %s is not standing at its door"), *X->Reg); Stage(6); return; }
 			T.Ps->Target = Tr; Motor(T, true);
 			TArray<FVector> W; const FVector E = Plan(At.X, At.Y); const int32 n = FMath::Max(4, FMath::CeilToInt32(FVector::Dist2D(T.At, E) / 12.f)); for (int32 i = 1; i <= n; ++i) W.Add(FMath::Lerp(T.At, E, float(i) / n));
 			X->InWay.Append(W);

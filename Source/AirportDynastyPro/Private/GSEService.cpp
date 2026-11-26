@@ -266,6 +266,7 @@ void AGSE::SvcSetup()
 		for (int32 n = 0; n < (Bs ? Bs->All().Num() : 1); ++n)
 			SvcSpawn(i, n, nullptr);
 	}
+	HallStairsSetup();   // (the hangar halls' own passenger stairs, GSEHangarStair.cpp)
 }
 
 void AGSE::SvcDress(FTractor& T)
@@ -908,8 +909,10 @@ void AGSE::SvcTick(float Dt)
 			// (the roofed one first in rain and snow, the open one first when it is dry; a rear door only when no front door waits)
 			const APuddles* Pu = APuddles::Get(); const bool bWeather = Pu && (Pu->GetRain() > 0.03f || Pu->GetSnowOnPavingCm() > 0.3f); int32 Best = -1; Ti = INDEX_NONE;
 			bool bFront = false; if (J.CtDoor) for (const TPair<int32, FSvcJob>& O : SvcJobs) if (O.Value.Phase == 0 && O.Value.CtDoor == 0 && SvSpec(O.Value.Svc).bStairs) bFront = true;
+			const FHallStair* Hj = HallOf(J.StandX);   // (a hall's job: its own stair only; the halls' never at a stand)
 			for (int32 i = 0; i < Tractors.Num() && !bFront; ++i)
 			{
+				if (Hj ? Hj->Ti != i : HallTi(i)) continue;
 				const FTractor& V = Tractors[i]; if (V.Svc == INDEX_NONE || !SvSpec(V.Svc).bStairs || V.Job != EJob::None || !V.M.IsValid() || V.Brk || Held.Contains(i) || (V.bSpare && (V.Player.IsValid() || (V.bUsed && FVector::Dist2D(V.At, V.Home) < 200.f) || !SpareOk(V, SpareAirline(J.Reg))))) continue;
 				if (V.Ps && V.Ps->YouStandX > -1e5f) continue;   // (yours, at a door: below)
 				const int32 Sc = (SvcYours(V) || !StairsStowed(V) ? 0 : V.bSpare ? 2 : 4) + (SvSpec(V.Svc).bRoof == bWeather ? 1 : 0); if (Sc > Best) { Best = Sc; Ti = i; }
@@ -929,13 +932,14 @@ void AGSE::SvcTick(float Dt)
 			}
 		}
 		if (float Sill = 0.f; S.bStairs && !bTake && !StairsReach(J.StandX, J.CtDoor, Sill)) { J.Why = FString::Printf(TEXT("its door sill is %.0f cm up, the passenger stairs reach 235 to 425 cm"), Sill); continue; }
+		if (Ti == INDEX_NONE && S.bStairs && HallOf(J.StandX)) { J.Why = TEXT("the hangar's stair is busy"); continue; }
 		if (Ti == INDEX_NONE && S.bStairs && J.CtDoor == 0)
 		{
 			// (the other aircraft's: the one they go to or stand at; a pair at a rear door, nobody on it, comes away for a front door)
 			const FSvcJob* By = nullptr; FSvcJob* Rear = nullptr; int32 nAway = 0;
 			for (TPair<int32, FSvcJob>& O : SvcJobs)
 			{
-				FSvcJob& X = O.Value; if (!SvSpec(X.Svc).bStairs || X.Phase == 0 || !Tractors.IsValidIndex(X.Ti)) continue;
+				FSvcJob& X = O.Value; if (!SvSpec(X.Svc).bStairs || X.Phase == 0 || !Tractors.IsValidIndex(X.Ti) || HallOf(X.StandX)) continue;
 				if (X.bGo || X.Phase == 3) ++nAway;
 				if (!By || X.Want < By->Want) By = &X;
 				const FTractor& V = Tractors[X.Ti]; if (X.CtDoor && X.Phase == 2 && X.Stage == 3 && !X.bGo && V.Ps && V.Ps->Users == 0 && V.Ps->YouStandX < -1e5f) Rear = &X;
@@ -1104,6 +1108,7 @@ void AGSE::SvcAlight(int32 Job, int32 m)
 void AGSE::SvcStart(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J) return;
+	if (HallOf(J->StandX)) { HallStart(Job); return; }   // (a hangar hall's own stair)
 	const int32 Ti = J->Ti; FTractor& T = Tractors[Ti];
 	bWorked = true;
 	T.Driver = J->Men[0].Ci; T.JobT = 0.f; T.StandX = J->StandX; T.Key = J->Flight.IsEmpty() ? J->Reg : J->Flight;
@@ -1447,6 +1452,7 @@ void AGSE::SvcReturn(int32 Job, int32 m)
 void AGSE::SvcLeave(int32 Job)
 {
 	FSvcJob* J = SvcJ(Job); if (!J || J->Phase == 3) return;
+	if (HallOf(J->StandX)) { HallLeave(Job); return; }   // (a hangar hall's own stair: back into its place in the hall)
 	J->Phase = 3; const int32 Ti = J->Ti, Ci = J->Men[0].Ci;
 	if (!SvSpec(J->Svc).bFuel && !SvSpec(J->Svc).bCater && !SvSpec(J->Svc).bAmbu && !SvSpec(J->Svc).Wet && !SvSpec(J->Svc).bStairs) WalkTo(Ci, [this, Ti] { return TW(Tractors[Ti], FVector(-345.f, -175.f, 0.f)); }, 30.f);
 	if (!J->Men[0].bSeated) ClimbIn(Ci, Ti, [this, Job] { if (FSvcMan* X = SvcM(Job, 0)) X->bSeated = true; });   // (seated: the catering truck that gave up the rear door)

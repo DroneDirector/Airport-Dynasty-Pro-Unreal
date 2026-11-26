@@ -507,6 +507,11 @@ public:
 	bool MaintAboard(const FString& Reg) const;
 	/** The tow back is on its stand (StandX): he gets off by its jetway or stairs and drives the van home. */
 	void MaintOff(float StandX, const FString& Reg);
+	/** (to-do 311, GSEHangarStair.cpp) The hangar's own passenger stair: called while the tow brings the aircraft in (bIn false),
+	 *  the rider down once it stands in the hall (bIn true); up again for the tow back (3: aboard, the stair parked again). */
+	void MaintHall(const FString& Reg, const FString& Hall, AActor* Plane, bool bIn);
+	int32 MaintBack(const FString& Reg, const FString& Hall, AActor* Plane, FString& Why);
+	bool HallBusy(const FString& Hall) const;   // (its stair or rider still on the move: the hall door stays open)
 	/** De-icing (GSEDeicer.cpp), every tick of your own departure's turnaround: bSoon - its doors are shut in ten minutes, bDoors -
 	 *  they are shut and the jetway is back. The weather decides; it is asked for, sent and asked for again by itself. */
 	bool DeiceLooks(const FString& Flight) const;
@@ -755,6 +760,19 @@ private:
 	void MaintClimb(int32 Job, float StandX, bool bUp);
 	void MaintHold(int32 Job);
 	void MaintDown(int32 Job);
+	// ---- the hangar halls' own stairs (GSEHangarStair.cpp): a copy of the passenger stairs, one per hall, its job's StandX a key
+	struct FHallStair { FString Hall; int32 Ti = INDEX_NONE; float Key = 0.f, Hx = 0.f, Yn = 0.f, Front = 0.f, Half = 23.f, Side = 1.f; FVector2f Park = FVector2f::ZeroVector; TWeakObjectPtr<AActor> Plane; mutable TWeakObjectPtr<AActor> Door; };
+	TArray<FHallStair> HallStairs;
+	TMap<int32, float> MaintHallX;   // (a rider's job: down in that hall, the hall stair's key)
+	const FHallStair* HallOf(float StandX) const;
+	FHallStair* HallNamed(const FString& Hall);
+	bool HallTi(int32 Ti) const;
+	float HallOpen(const FHallStair& H) const;
+	FVector HallP(const FHallStair& H, float X, float Y) const;
+	void HallStairsSetup();
+	void HallStart(int32 Job);
+	void HallLeave(int32 Job);
+	bool HallCrowd(int32 Job) const;
 	// ---- the passenger stairs (GSEStairs.cpp)
 	void StairsDress(FTractor& T);
 	void StairsParts(FTractor& T, float Dt);

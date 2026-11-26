@@ -993,7 +993,15 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Other stands: a passenger stair is called to the front left door if none is there; he climbs it, the stair leaves.
 - Aboard he is hidden and attached to the aircraft; lights from his arrival: beacon on, nav at night, strobes off.
 - Back at the stand (MaintOff) he gets off by jetway or stair, walks to the van and drives it home.
-- Not yet (no hangar mobile stair model): he stays aboard through the check; the van stays parked at the stand.
+- Hangar stair (GSEHangarStair.cpp): one copy of the open passenger stairs per hall (same model, same table line), parked
+  inside against the side wall on the aircraft's left, 2.1 m from the wall, 10 m behind the nose tyre (clear of wingtip,
+  tail and door track). Its jobs are ordinary stairs jobs whose StandX is the hall's key; only that hall's stair takes them.
+- Called while the tow brings the aircraft in (door open): two hired ground crew walk in (they wait outside while the
+  door is shut), board, and once the aircraft stands in the hall drive a curve to the front left door; StairsWork docks it.
+- The rider climbs down as at a stand (MaintClimb) and waits by the side wall behind the stair, visible; the stair backs
+  off into its place (waits if anybody is within 7 m), its crew walk out, then the hall door shuts (HallBusy).
+- Tow back: the stair to the door again, the rider up, the stair parked, then the tug comes in. No van fetch: the van
+  stays at the stand. Not yet: the hall walk-in uses HiredWay (no path round the hangar apron), untested in game.
 
 ## Hangar tug (to-do 311)
 - Art/HangarTug: the pushback tug copied as it is (no marking yet), Content/Babylon/HangarTug, 0 flickering pairs.
