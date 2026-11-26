@@ -41,7 +41,7 @@ bool ATugs::TowPlan(const FString& Key, float StandX, const TArray<FVector2f>& W
 	if (I == INDEX_NONE)
 	{
 		const FTug* H = Tugs.FindByPredicate([](const FTug& U) { return U.bHangar; });
-		Why = !H ? TEXT("there is no hangar tug here (it stands in the vehicle area)") : !HiredJob(Key) ? TEXT("a hangar tow needs your own hired crew") : TEXT("the hangar tug is busy");
+		Why = !H ? TEXT("there is no hangar tug here (it stands in the vehicle area)") : H->State == EState::You ? TEXT("you have the hangar tug - couple it at the nose, or leave it to its crew") : !HiredJob(Key) ? TEXT("a hangar tow needs your own hired crew") : TEXT("the hangar tug is busy");
 		return false;
 	}
 	FTug& T = Tugs[I];

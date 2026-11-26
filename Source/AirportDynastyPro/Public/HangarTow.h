@@ -26,6 +26,11 @@ public:
 	static bool Busy(UWorld* W, const FString& Reg);
 	/** A tow is on the runway strip now (between the holding points): no take-off starts (SimTraffic). */
 	static bool OnRunway(UWorld* W);
+	/** Your own tow (to-do 311 step C): the aircraft the hangar tug at At (world) may couple to - Key's if set, else the nearest
+	 *  waiting one within 40 m (Key set then); its nose tyre and main gear (plan m). */
+	static bool YouFit(UWorld* W, const FVector& At, FString& Key, FVector2f& Nose, FVector2f& Main);
+	/** E at the tow bar: the tow ends here if the nose tyre is on its stop mark (0.5 m, 3 deg); else Hint says how far off. */
+	static bool YouEnd(UWorld* W, const FString& Key, FString& Hint);
 
 	/** One leg of the tow: the line the leading gear follows (plan m, corners rounded) - the nose tyre's pulled, the main
 	 *  gear's pushed tail first; the other gear follows 12.8 m behind on the same line. */
@@ -37,6 +42,7 @@ private:
 		FString Reg, Key, Stand, Hangar; float StandX = 0, Hx = 0; bool bBack = false, bPlanned = false;
 		int32 Stage = 0, Leg = 0; float S = 0, V = 0, WhyT = 0, Clock = 0;
 		TArray<FLeg> Legs; TArray<FVector2f> Way, Home; FString Via;   // (Via: the taxiways it follows, as said on the radio)
+		bool bYou = false; float DoorT = 0.f;             // (towed by you at the hangar tug's wheel: TugYou.cpp; the crew take it over from where it stands - Rejoin)
 		float BlockT = 0.f;                               // (stopped for another aircraft's wingtip: when it was last logged)
 		FVector2f Nose = FVector2f::ZeroVector, Main = FVector2f::ZeroVector;
 		bool bCleared = false; float HoldT = 0.f;        // (holding short of the runway: cleared to cross, how long held)
@@ -55,4 +61,8 @@ private:
 	void Run(FJob& J, float Dt);
 	void Pose(FJob& J);
 	bool Chock(FJob& J, bool bOn);
+	void YouRun(FJob& J, float Dt, bool bGo, bool bChocked, float Lag);
+	bool Rejoin(FJob& J);
+	void Finish(FJob& J);
+	void Mark(const FJob& J, FVector2f& Nose, FVector2f& Dir) const;
 };

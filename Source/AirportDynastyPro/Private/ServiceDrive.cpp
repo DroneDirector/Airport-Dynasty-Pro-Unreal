@@ -525,6 +525,8 @@ void AGSE::SvcPlayerDrive(FTractor& T, float Dt)
 		for (const FVector& A : G->Planes) if (FVector::DistSquared2D(A, T.At) < FMath::Square(4000.f)) TugMax = 200.f;
 		for (const ATugs::FTug& U : G->Tugs) if (U.Ck.Stage > 0 && FVector::DistSquared2D(G->Plan(U.StandX, U.StandNose), T.At) < FMath::Square(2500.f)) TugMax = 200.f;
 		if (bTow) { TugMax = 154.f; if (!bMay) { Go = 0.f; Br = 1.f; } }   // (3 kt, as the crew's push)
+		if (const ATugs::FTug& Hu = G->Tugs[T.TugIx]; bTow && Hu.bTow && Hu.bYouPush)   // (your hangar tow: 8 km/h, 5 in turns, slower for the walkers - as the crew's, HangarTow)
+			TugMax = Hu.YouCap > 0.f ? Hu.YouCap : FMath::Abs(Hu.YouBar) > 8.f ? 139.f : 222.f;
 		if (T.Speed > TugMax) { Go = 0.f; Br = FMath::Max(Br, 0.5f); TugMax = T.Speed; }   // (it slows, it doesn't jump)
 	}
 	const float Max = T.TugIx != INDEX_NONE && (bTow || !T.bReverse) ? TugMax : T.bReverse ? 250.f : T.IsTrain() ? (T.Train.Num() || T.TowGpu != INDEX_NONE ? 417.f : 694.f) : S.PlayerSpeed;   // (the baggage tractor: 25 km/h, 15 with a train)

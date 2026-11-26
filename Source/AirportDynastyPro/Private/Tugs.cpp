@@ -333,8 +333,20 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 	{
 		// (a hangar tow: the hangar tug alone, never the stand's own - from its place by the bus chargers, your hired crew, to-do 311)
 		const int32 H = Tugs.IndexOfByPredicate([](const FTug& U) { return U.bHangar; });
-		if (H == INDEX_NONE || !HiredJob(Key)) return INDEX_NONE;
+		if (H == INDEX_NONE) return INDEX_NONE;
 		FTug& T = Tugs[H];
+		// (coupled by you at that aircraft's nose and you still there: your tow, to-do 311 step C - TugYou.cpp, HangarTow::YouRun)
+		if (T.State == EState::You && T.YouStep == 3 && !T.bYouCrew && T.Key.IsEmpty() && T.YouTowKey == Key && T.YouLeft < 120.f)
+		{
+			T.StandX = StandX;
+			if (const int32 S = StandTug(StandX); S != INDEX_NONE) { T.StandNose = Tugs[S].StandNose; T.StandDir = Tugs[S].StandDir; }
+			T.Key = Key; T.Path.Reset(); T.Seq = 0; T.SeqT = 0.f; T.EngT = -1.f; T.bDeiced = T.bPushReq = T.bCleared = T.bEngines = false; T.PreSeq = 0; T.PreAt = 0.0; T.Talk.Reset(); T.TalkT = 0.f;
+			T.bYouPush = true; T.bYouDone = T.bYouGo = T.bYouCrewIn = false; T.bYouRejoin = true; T.YouUn = 0; T.YouBend = 0.f; T.YouBeat = GetWorld()->GetTimeSeconds(); T.YouLeft = 0.f; T.YouWhy.Reset(); T.YouCap = 0.f;
+			T.bHired = HiredJob(Key); T.Driver = T.Handler = INDEX_NONE; T.CrewAsk = 0.f;
+			Engine(T, true); ADP_LOG(TEXT("Tugs: the hangar tug %d - you tow %s (your own hired crew %d)"), H, *Key, T.bHired);
+			return H;
+		}
+		if (!HiredJob(Key)) return INDEX_NONE;
 		if (T.State != EState::Parked || !T.Key.IsEmpty()) return INDEX_NONE;
 		if (T.bHired) { if (!HiredFree(T)) return INDEX_NONE; HiredEnd(T); }
 		T.StandX = StandX;
@@ -582,9 +594,9 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		const FVector In = T.HookAt + F * 800.f;          // 8 m short of the hook place, in line with the nose
 		T.Path = {Plan(StandX + BoxX, BoxY + 6.f), Plan(StandX + BoxX * 0.5f, BoxY + 12.5f), Plan(StandX, BoxY + 18.f), T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};
 		if (HeadStand(StandX)) T.Path = {T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};   // (its box is on the centre line)
-		if (T.bTow && T.TowWay.Num())   // (a hangar tow: out along the taxiways to the aircraft, to-do 311)
+		if (T.bTow && T.TowWay.Num() && T.YouStep == 0)   // (a hangar tow: out along the taxiways to the aircraft, to-do 311)
 		{ T.Path = {Plan(StandX + BoxX, BoxY + 6.f)}; T.Path.Append(T.TowWay); T.Path.Add(T.HookAt + F * 1500.f); T.Path.Add(T.HookAt); }
-		if (T.bHangar && !HangarOut(T, F)) { T.State = EState::Waiting; T.Path.Reset(); return false; }   // (the hangar tug: from its place, no way clear yet - it tries again)
+		if (T.bHangar && T.YouStep == 0 && !HangarOut(T, F)) { T.State = EState::Waiting; T.Path.Reset(); return false; }   // (the hangar tug: from its place, no way clear yet - it tries again)
 		if (T.YouStep > 0) { T.Path.Reset(); if (FVector::Dist2D(T.At, T.HookAt) > 30.f) { T.Path = {T.HookAt}; T.YouStep = 0; } }   // (you coupled it: already there)
 		// (with a handler it stops 1.5 m short: he waves it in the last bit)   // (out of its box in a smooth S-curve onto the centre line, then straight in)
 	}

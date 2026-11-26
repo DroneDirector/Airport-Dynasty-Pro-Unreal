@@ -21,6 +21,7 @@
 #include "EngineUtils.h"
 #include "SimTraffic.h"
 #include "GSE.h"
+#include "VehicleControls.h"
 #include "CrewPose.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -523,6 +524,14 @@ void AHangarTow::Run(FJob& J, float Dt)
 	if (J.bBack && J.Chocks == 2 && Tg->TowHooked(J.Key) && !Chock(J, false) && (J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s waits - nobody of the tow crew free to take its chocks away"), *J.Reg); }
 	const bool bChocked = J.bBack && J.Chocks != 0;
 	const float Lag = bGo ? Tg->TowWalkerLag(J.Key) : 0.f;   // (the wing walkers keep pace: walking, never far from their wingtips)
+	// your own tow (to-do 311 step C): you steer it at the hangar tug's wheel, the same limits; left to the crew, they go on from where it stands
+	if (Tg->YouPushing(J.Key)) { J.bYou = true; YouRun(J, Dt, bGo, bChocked, Lag); return; }
+	if (J.bYou && bGo && !Rejoin(J))
+	{
+		J.V = 0.f;
+		if ((J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_WARN(TEXT("HangarTow: %s - its crew can't take your tow over from (%.0f, %.0f): too far off its route"), *J.Reg, J.Nose.X, J.Nose.Y); }
+		return;
+	}
 	if (!bGo || !bDoor || !J.bPlanned || bChocked || Lag > 10.f)
 	{
 		J.V = 0.f;
@@ -575,8 +584,149 @@ void AHangarTow::Run(FJob& J, float Dt)
 	if (J.S < Len - 0.005f) return;
 	J.V = 0.f; J.S = 0.f; J.bCleared = false; J.HoldT = 0.f;
 	if (++J.Leg < J.Legs.Num()) { ADP_LOG(TEXT("HangarTow: %s - leg %d of %d"), *J.Reg, J.Leg + 1, J.Legs.Num()); return; }
+	Finish(J);
+}
+
+void AHangarTow::Finish(FJob& J)
+{
 	// on its mark: the brakes set, unhooked
-	Tg->Release(J.Key); J.Stage = 2; J.Clock = 0.f; B->Tags.Remove(FName(*(TEXT("MOVE/") + J.Reg)));
+	ATugs* Tg = ATugs::Get(GetWorld()); ABabylonModel* B = J.Model.Get(); if (!Tg || !B) return;
+	Tg->Release(J.Key); J.Stage = 2; J.Clock = 0.f; J.V = 0.f; B->Tags.Remove(FName(*(TEXT("MOVE/") + J.Reg)));
 	if (UADPAircraftLights* Lm = J.Lamps.Get()) Lm->SetParked(J.bBack);   // (in the hall: cold and dark)
-	ADP_LOG(TEXT("HangarTow: %s on its mark (%.1f, %.1f) - unhooking"), *J.Reg, J.Nose.X, J.Nose.Y);
+	ADP_LOG(TEXT("HangarTow: %s on its mark (%.1f, %.1f)%s - unhooking"), *J.Reg, J.Nose.X, J.Nose.Y, J.bYou ? TEXT(" by you") : TEXT(""));
+}
+
+void AHangarTow::Mark(const FJob& J, FVector2f& Nose, FVector2f& Dir) const
+{
+	// (the stop mark: where the crew's tow ends - the last leg's end, the nose tyre on it)
+	Nose = J.Nose; Dir = (J.Nose - J.Main).GetSafeNormal(); if (!J.Legs.Num()) return;
+	const FLeg& L = J.Legs.Last(); const float Len = L.S.Num() ? L.S.Last() : 0.f;
+	const FVector2f Lead = LegAt(L, Len), Trail = LegAt(L, Len - GearL);
+	Nose = L.bPush ? Trail : Lead; Dir = (L.bPush ? Trail - Lead : Lead - Trail).GetSafeNormal();
+}
+
+bool AHangarTow::YouFit(UWorld* W, const FVector& At, FString& Key, FVector2f& Nose, FVector2f& Main)
+{
+	if (!W) return false;
+	const FJob* Best = nullptr; float Bd = FMath::Square(4000.f);
+	for (TActorIterator<AHangarTow> It(W); It; ++It)
+		for (const FJob& J : It->Jobs)
+		{
+			if (!J.Model.IsValid() || J.Stage > 1) continue;
+			if (!Key.IsEmpty()) { if (J.Key == Key) Best = &J; continue; }
+			if (J.Stage != 0) continue;   // (the crew's own tow already under way)
+			if (const float D2 = FVector::DistSquared2D(WorldAt(J.Nose), At); D2 < Bd) { Bd = D2; Best = &J; }
+		}
+	if (!Best) return false;
+	Key = Best->Key; Nose = Best->Nose; Main = Best->Main;
+	return true;
+}
+
+bool AHangarTow::YouEnd(UWorld* W, const FString& Key, FString& Hint)
+{
+	if (!W) return false;
+	for (TActorIterator<AHangarTow> It(W); It; ++It)
+		for (FJob& J : It->Jobs)
+		{
+			if (J.Key != Key || J.Stage != 1) continue;
+			FVector2f Mn, Md; It->Mark(J, Mn, Md);
+			const FVector2f Off = J.Nose - Mn, Dn = (J.Nose - J.Main).GetSafeNormal();
+			const float Along = FVector2f::DotProduct(Off, Md), Aside = FMath::Abs(Md.X * Off.Y - Md.Y * Off.X);
+			const float Turn = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(FVector2f::DotProduct(Dn, Md), -1.f, 1.f)));
+			if (Off.Size() <= 0.5f && Turn <= 3.f) { ADP_LOG(TEXT("HangarTow: %s - you stop on the mark (%.2f m, %.1f deg off)"), *J.Reg, Off.Size(), Turn); It->Finish(J); return true; }
+			Hint = Off.Size() > 30.f ? FString::Printf(TEXT("Not on the stop mark - it is %.0f m away"), Off.Size())
+				: FString::Printf(TEXT("Not on the stop mark: the nose wheel %.1f m %s, %.1f m aside, %.0f deg turned (0.5 m, 3 deg)"), FMath::Abs(Along), Along < 0.f ? TEXT("short") : TEXT("past"), Aside, Turn);
+			return false;
+		}
+	Hint = TEXT("No hangar tow of yours here");
+	return false;
+}
+
+bool AHangarTow::Rejoin(FJob& J)
+{
+	// (your tow taken over by the crew: from where it stands onto its route - the nearest point of a leg ahead of the leading
+	//  gear, the way it faces; that leg goes on from there, the legs before it dropped)
+	int32 Bl = INDEX_NONE; float Bs = 0.f, Bd = 40.f;
+	for (int32 l = J.Leg; l < J.Legs.Num(); ++l)
+	{
+		const FLeg& L = J.Legs[l]; const float Len = L.S.Num() ? L.S.Last() : 0.f;
+		const FVector2f Lead = L.bPush ? J.Main : J.Nose, Dl = (L.bPush ? J.Main - J.Nose : J.Nose - J.Main).GetSafeNormal();
+		for (float S = 0.f; S <= Len; S += 1.f)
+		{
+			const FVector2f P = LegAt(L, S), Dp = (LegAt(L, S + 1.f) - P).GetSafeNormal();
+			if (const float Dd = FVector2f::Distance(P, Lead); Dd < Bd && FVector2f::DotProduct(Dp, Dl) > 0.7f) { Bd = Dd; Bl = l; Bs = S; }
+		}
+	}
+	if (Bl == INDEX_NONE) return false;
+	const FLeg Was = J.Legs[Bl];
+	const float Len = Was.S.Last(), To = FMath::Min(Bs + 15.f, Len);
+	FLeg Nw; Nw.bPush = Was.bPush;
+	Nw.P = {Was.bPush ? J.Nose : J.Main, Was.bPush ? J.Main : J.Nose};
+	if (FVector2f::Distance(LegAt(Was, To), Nw.P.Last()) > 0.5f) Nw.P.Add(LegAt(Was, To));
+	for (int32 i = 0; i < Was.P.Num(); ++i) if (Was.S[i] > To + 0.5f) Nw.P.Add(Was.P[i]);
+	Nw.S.Add(0.f); for (int32 i = 1; i < Nw.P.Num(); ++i) Nw.S.Add(Nw.S.Last() + FVector2f::Distance(Nw.P[i - 1], Nw.P[i]));
+	const FAirfieldData& D = AAirfield::Shared(); const float Nl = Nw.S.Last();
+	Nw.HoldS = -1.f;
+	if (!InStrip(D, LegAt(Nw, Nw.S[1]))) for (float S = Nw.S[1]; S <= Nl; S += 0.5f) if (InStrip(D, LegAt(Nw, S))) { Nw.HoldS = FMath::Max(0.f, S - 0.5f); break; }
+	J.Legs[Bl] = Nw; J.Leg = Bl; J.S = Nw.S[1]; J.V = 0.f; J.HoldT = 0.f;
+	J.bCleared = InStrip(D, J.Nose) || InStrip(D, J.Main);   // (on the runway already: it goes on across)
+	J.bYou = false;
+	ADP_LOG(TEXT("HangarTow: %s - its crew take your tow over at (%.0f, %.0f), %.0f m from its route, leg %d of %d"), *J.Reg, J.Nose.X, J.Nose.Y, Bd, Bl + 1, J.Legs.Num());
+	return true;
+}
+
+void AHangarTow::YouRun(FJob& J, float Dt, bool bGo, bool bChocked, float Lag)
+{
+	UWorld* W = GetWorld(); ATugs* Tg = ATugs::Get(W); ABabylonModel* B = J.Model.Get(); if (!Tg || !B) return;
+	const FAirfieldData& D = AAirfield::Shared();
+	FString Why, Say; bool bMay = bGo; float Cap = 0.f;
+	if (!bGo) Why = J.Rider < 3 ? TEXT("the brake rider is not in the cockpit yet") : TEXT("waiting for ATC's tow approval");
+	const FVector2f Dn = (J.Nose - J.Main).GetSafeNormal();
+	// the hangar door: opened as you reach its apron; nothing of the aircraft into or out of the hall before it is fully open
+	AHangar* Hg = J.Hall.Get();
+	if (const FAirfieldData::FHangarSite* Hs = D.Hangars.FindByPredicate([&](const FAirfieldData::FHangarSite& H) { return H.Id == J.Hangar; }); Hg && Hs)
+	{
+		const FHangarSpec& Sp = FHangarSpec::Get(Hs->Size);
+		const float Door = Hs->Y + Sp.Lip(), Half = Sp.W * 0.5f;
+		FVector2f Sh[6]; TowShape(J.Nose, Dn, Sh);
+		bool bNear = false, bInside = false;
+		for (const FVector2f& P : {Sh[0], Sh[1], Sh[2], Sh[3], Sh[4], Sh[5], J.Nose, J.Main})
+		{
+			if (FMath::Abs(P.X - Hs->X) < Half + 40.f && P.Y > Door - 60.f) bNear = true;
+			if (FMath::Abs(P.X - Hs->X) < Half + 2.f && P.Y > Door - 3.f) bInside = true;
+		}
+		if (bNear && Hg->DoorOpen() < 0.999f && (J.DoorT -= Dt) <= 0.f) { J.DoorT = 15.f; Hg->Command(true); }
+		if (bInside && Hg->DoorOpen() < 0.999f) { bMay = false; Why = FString::Printf(TEXT("the hangar door is still opening (%.0f %%)"), Hg->DoorOpen() * 100.f); }
+	}
+	if (bChocked) { bMay = false; Why = TEXT("its hangar chocks are still under the wheels"); }
+	if (Lag > 10.f) { bMay = false; Why = FString::Printf(TEXT("a wing walker is %.0f m from his wingtip"), Lag); }
+	else if (Lag > 4.f) Cap = 2.5f / 3.6f * 100.f;   // (the walkers keep pace: 2.5 km/h)
+	// the runway: held short 107.5 m from its centre line until nothing rolls, lands or takes off, then 10 s more (as the crew's)
+	auto ByStrip = [&D](const FVector2f& P) { return FMath::Abs(P.Y - D.RwyY) < 113.5f && P.X > D.RwyX0 && P.X < D.RwyX1; };
+	const bool bOn = InStrip(D, J.Nose) || InStrip(D, J.Main), bBy = ByStrip(J.Nose) || ByStrip(J.Main);
+	if (!bBy) { J.bCleared = false; J.HoldT = 0.f; }
+	else if (bOn) J.bCleared = true;
+	else if (!J.bCleared && bGo)
+	{
+		bMay = false;
+		if (ASimTraffic::RunwayBusy(W))
+		{
+			J.HoldT = 0.f; Why = TEXT("hold short of the runway - traffic on it or close in");
+			if ((J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s (yours) holds short of the runway - traffic"), *J.Reg); }
+		}
+		else if ((J.HoldT += J.V < 0.1f ? Dt : 0.f) >= 10.f) { J.bCleared = true; bMay = true; ADP_LOG(TEXT("HangarTow: %s (yours) cleared to cross the runway"), *J.Reg); AVehicleControls::Note(W, TEXT("Cleared to cross the runway")); }
+		else Why = J.V < 0.1f ? FString::Printf(TEXT("holding short of the runway - cleared to cross in %.0f s"), 10.f - J.HoldT) : FString(TEXT("hold short of the runway - stop for the crossing clearance"));
+	}
+	// wingtips: 3 m from every other aircraft
+	FString Who; const bool bWing = bGo && !Clear(J, J.Nose, J.Main, Who);
+	if (bWing) { if (Why.IsEmpty()) Why = TEXT("a wingtip within 3 m of another aircraft - back off"); if ((J.BlockT -= Dt) <= 0.f) { J.BlockT = 30.f; ADP_WARN(TEXT("HangarTow: %s (yours) - not clear of another aircraft: %s"), *J.Reg, *Who); } }
+	// the stop mark, at the wheel
+	FVector2f Mn, Md; Mark(J, Mn, Md);
+	const FVector2f Off = J.Nose - Mn; const float Along = FVector2f::DotProduct(Off, Md);
+	if (Off.Size() < 30.f) Say = FString::Printf(TEXT("Stop mark: nose wheel %.1f m %s, %.1f m aside - stop on it, then E at the tow bar"), FMath::Abs(Along), Along < 0.f ? TEXT("to go") : TEXT("past"), FMath::Abs(Md.X * Off.Y - Md.Y * Off.X));
+	else Say = FString::Printf(TEXT("Tow to %s %s via %s: %.0f m to the stop mark (8 km/h, 5 in turns)"), J.bBack ? TEXT("stand") : TEXT("hangar"), J.bBack ? *J.Stand : *J.Hangar, *J.Via, Off.Size());
+	const FVector2f Was = J.Nose;
+	Tg->YouTowFrame(J.Key, B, J.Nose, J.Main, bGo, bMay, Cap, bWing, Why, Say);
+	J.V = Dt > 0.f ? FVector2f::Distance(Was, J.Nose) / Dt : 0.f;
+	if (!J.Nose.Equals(Was, 0.0005f)) Pose(J);
 }

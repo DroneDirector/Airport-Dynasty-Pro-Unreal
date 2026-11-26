@@ -1022,3 +1022,19 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - `HangarHome`: from the hangar along the taxiways to the road, or from a stand by `Apron`, then the depot legs, reversed
   into its place. Beacons flash while it runs (Lamps). Not yet: you drive it, a HANGAR marking, an old save with a vehicle
   on place 11, any run in the game.
+
+## Your own hangar tow (to-do 311, step C)
+- The hangar tug has a seat ("hangar tug", AGSE `TugSeats`). Its coupling is at the nose of the aircraft waiting for its
+  tow (`AHangarTow::YouFit`, TugYou.cpp `YouHook`): the same three steps (bar head, bypass pin, headset).
+- Tugs.cpp `Assign`: if you coupled that aircraft and are still there, the `TOW/` job is yours (`bYouPush`). The ATC talk,
+  the stand's ground power and chocks (`PushYou` on the stand tug) and the brake rider are the same as for the crew.
+- HangarTow.cpp `YouRun` (every frame of your tow): you steer, and `ATugs::YouTowFrame` keeps the aircraft on the bar.
+  It stops you for the runway hold-short (busy, then 10 s standing), a door not yet fully open (sent up within 40-60 m of
+  the hall), the walkers (> 10 m stops, > 4 m caps 2.5 km/h), the hangar chocks and wingtips (reverse only). The cab line
+  says why, or the distance to the stop mark.
+- ServiceDrive: 8 km/h, 5 km/h with the bar turned past 8 deg.
+- E at the tow bar ends the tow if the nose wheel is within 0.5 m and 3 deg of the mark (`YouEnd` -> `Finish`).
+  Otherwise a hint says how far short or past, aside and turned. You uncouple by hand as after a push.
+- Left 2 min and 40 m: the crew take over (`YouTake`). `Rejoin` puts the job back on the nearest leg point that faces
+  the same way, within 40 m; further away it waits and logs it.
+- Not run in the game yet: the coupling distance at the nose, takeover, tow back, lamps while yours.

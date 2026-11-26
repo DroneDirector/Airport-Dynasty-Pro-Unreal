@@ -93,6 +93,11 @@ public:
 	 *  point of the path they go on to from there. */
 	void YouRejoin(const FString& Key, const FVector2f& Nose, const FVector2f& Main, const TArray<FVector2f>& Path, TArray<FVector2f>& Fwd, int32& Step) const;
 	bool YouDrive(const FString& Key, AActor* Plane, FVector2f& Nose, FVector2f& Main, const TArray<FVector2f>& Path, int32& Step, float& Speed, float& Bar, float TaxiY, float TaxiDir);
+	/** Your own hangar tow (to-do 311 step C), one frame of it (HangarTow.cpp): bGo the brakes off (the tow's crew, rider and ATC
+	 *  ready); bMay it may move this moment (no hold short, door, walker or chock in the way; Why: why not); Cap its speed
+	 *  (cm/s, 0: 8 km/h, 5 in turns); bWing another aircraft within 3 m (it may only be backed off); Say: the line at the wheel.
+	 *  Nose / Main (plan m): where the aircraft is now - it follows the bar's head as in your push. */
+	void YouTowFrame(const FString& Key, AActor* Plane, FVector2f& Nose, FVector2f& Main, bool bGo, bool bMay, float Cap, bool bWing, const FString& Why, const FString& Say);
 	/** The aircraft is gone: whatever is still out is cleared. */
 	void ChocksGone(float StandX);
 	/** An aircraft has parked on the stand (on blocks): its ground power is plugged in (GpuUnit in TugCrew.cpp). */
@@ -229,6 +234,9 @@ private:
 		FVehicleDirt Dirt;
 		bool bHangar = false; float HtRetry = 0.f;   // (the hangar tug: only hangar tows, parked in the vehicle area - TugTow.cpp)
 		bool bTow = false, bTowGpu = false; double TowSaid = -100.0; TArray<FVector> TowWay, TowBack; FString TowAsk, TowOk;   // (a hangar tow, to-do 311: TowPlan)
+		// your own hangar tow (to-do 311 step C, TugYou.cpp): the tow you coupled the hangar tug to; the speed it may go now (cm/s, 0: the
+		// tow's own 8 km/h, 5 in turns); what the tow says at the wheel
+		FString YouTowKey, YouTowSay; float YouCap = 0.f;
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
 	TArray<FTug> Tugs;
