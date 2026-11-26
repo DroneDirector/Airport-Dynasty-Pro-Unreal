@@ -1575,6 +1575,30 @@ void ABabylonModel::SeatSpots(TArray<FSeatSpot>& Out) const
 	}
 }
 
+bool ABabylonModel::SeatBox(const FSeatSpot& S, FVector& Center, FQuat& Rot, FVector& Half)
+{
+	const FVector X = S.Facing.GetSafeNormal2D(); if (X.IsNearlyZero()) return false;
+	Rot = FRotationMatrix::MakeFromX(X).ToQuat();
+	FBox L(ForceInit);   // (in the seat's frame, from its middle)
+	for (const auto& P : S.Parts)
+	{
+		FTransform T; const UInstancedStaticMeshComponent* K = P.Key;
+		if (!K || !K->GetStaticMesh() || !K->GetInstanceTransform(P.Value, T, true) || T.GetScale3D().GetMin() < 0.01f) continue;
+		const FBox M = K->GetStaticMesh()->GetBoundingBox();
+		for (int32 c = 0; c < 8; ++c)
+		{
+			const FVector V(c & 1 ? M.Max.X : M.Min.X, c & 2 ? M.Max.Y : M.Min.Y, c & 4 ? M.Max.Z : M.Min.Z);
+			L += Rot.UnrotateVector(T.TransformPosition(V) - S.At);
+		}
+	}
+	if (!L.IsValid) return false;
+	const FVector E = L.GetExtent();
+	// (a gate row's module is a few metres long; anything bigger, or taller than a person, is not a chair's footprint)
+	if (E.X > 150.f || E.Y > 400.f || E.Z > 125.f || E.X < 5.f || E.Y < 5.f) return false;
+	Center = S.At + Rot.RotateVector(L.GetCenter()); Half = E;
+	return true;
+}
+
 ABabylonModel* ABabylonModel::PlaceDoorPanel(UWorld* W, const FVector& From, const FVector& Dir, float FloorZ, const TArray<AActor*>& Ignore, float Proud)
 {
 	if (!W) return nullptr;

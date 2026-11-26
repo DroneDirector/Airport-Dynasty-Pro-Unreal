@@ -5,6 +5,7 @@
 #include "ADPWalker.h"
 #include "DriverPoseAnim.h"
 #include "InteractOutline.h"
+#include "PaxNav.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -247,6 +248,40 @@ void ASeats::LogFacing(const TCHAR* Who, int32 I, const FVector& At, const FVect
 		bSeatOk && bBodyOk ? TEXT("OK") : TEXT("FLIPPED"));
 }
 
+bool ASeats::FrontOf(int32 I, FVector& At)
+{
+	if (!One.IsValid() || !One->Spots.IsValidIndex(I)) return false;
+	ASeats& O = *One;
+	if (O.FrontOk.Num() < O.Spots.Num()) { O.FrontOk.SetNumZeroed(O.Spots.Num()); O.FrontAt.SetNumZeroed(O.Spots.Num()); }
+	if (O.FrontOk[I] == 0) O.CheckFront(I);
+	if (O.FrontOk[I] == -1) return false;
+	const ABabylonModel::FSeatSpot& S = O.Spots[I];
+	At = O.FrontOk[I] == 1 ? O.FrontAt[I] : S.At - FVector(0, 0, S.SeatH) + S.Facing.GetSafeNormal2D() * 60.f;
+	return true;
+}
+
+void ASeats::CheckFront(int32 I)
+{
+	UWorld* W = GetWorld();
+	const ABabylonModel::FSeatSpot& S = Spots[I];
+	if (S.At.Z < -1.0e6) { FrontOk[I] = 2; return; }   // (an empty place)
+	if (!PaxNav::Started(W)) return;   // (not known yet: the old spot for now)
+	if (!PaxNav::Covers(W, S.At) || PaxNav::Failed(W)) { FrontOk[I] = 2; return; }
+	if (!PaxNav::Ready(W)) return;
+	const FVector F = S.Facing.GetSafeNormal2D(), Floor = S.At - FVector(0, 0, S.SeatH);
+	// (the front edge of its footprint, as PaxNav cut it: + the cut's 12 cm, + the map's own 30 cm body radius round a hole)
+	float Edge = 30.f; FVector C, H; FQuat Q;
+	if (ABabylonModel::SeatBox(S, C, Q, H)) Edge = FVector::DotProduct(C - S.At, F) + H.X;
+	const float Hole = Edge + 12.f + 30.f;
+	for (const float Out : {Hole + 8.f, Hole + 25.f, Hole + 45.f})
+	{
+		FVector On;
+		if (PaxNav::Nearest(W, Floor + F * Out + FVector(0, 0, 10.f), 30.f, On) && FVector::DotProduct(On - Floor, F) > Hole - 5.f) { FrontOk[I] = 1; FrontAt[I] = On; return; }
+	}
+	FrontOk[I] = -1; ++Unusable;
+	ADP_WARN(TEXT("Seats: seat %d at (%.0f, %.0f, %.0f), facing (%.2f, %.2f), has no front on the walking map (against a window or wall, or the rows too close) - nobody is sent to it"), I, S.At.X, S.At.Y, S.At.Z, F.X, F.Y);
+}
+
 bool ASeats::StandSpot(int32 I, FVector& At, float& Yaw)
 {
 	if (!One.IsValid() || !One->Spots.IsValidIndex(I)) return false;
@@ -283,6 +318,7 @@ bool ASeats::Gather()
 		{
 			const int32 Si = Vacant.Num() ? Vacant.Pop() : Spots.AddDefaulted();
 			Spots[Si] = MoveTemp(N); Got[G].Slots.Add(Si);
+			if (FrontOk.IsValidIndex(Si)) { if (FrontOk[Si] == -1) --Unusable; FrontOk[Si] = 0; }   // (a new seat here: its front looked at again)
 			// a seat's pieces outlined when you're near
 			for (const auto& P : Spots[Si].Parts) { bool bKnown = false; Outlined.Add(P, &bKnown); if (!bKnown) AInteractOutline::Add(static_cast<UPrimitiveComponent*>(P.Key), P.Value, (uint64(1) << 62) + uint64(Si)); }
 		}
@@ -402,6 +438,15 @@ void ASeats::Tick(float Dt)
 	// only new buildings are gone through, a few milliseconds a frame: going through every piece of every building again
 	// whenever one aircraft or vehicle came took up to 590 ms (2026-11-25, seen by the performance log's stall watch)
 	if ((GatherIn -= Dt) <= 0.f && State == EState::None) GatherIn = Gather() ? 2.f : 0.f;
+	// each seat's front on the walking map, once it is there: a few milliseconds a frame, only the seats not looked at yet
+	if (PaxNav::Ready(GetWorld()))
+	{
+		if (FrontOk.Num() < Spots.Num()) { FrontOk.SetNumZeroed(Spots.Num()); FrontAt.SetNumZeroed(Spots.Num()); }
+		const double Until = FPlatformTime::Seconds() + 0.002;
+		bool bAll = true;
+		for (int32 i = 0; i < Spots.Num(); ++i) if (FrontOk[i] == 0) { if (FPlatformTime::Seconds() > Until) { bAll = false; break; } CheckFront(i); bAll &= FrontOk[i] != 0; }
+		if (bAll && Unusable != FrontSaid) { FrontSaid = Unusable; int32 On = 0; for (const int8 K : FrontOk) On += K == 1 || K == -1; ADP_LOG(TEXT("Seats: %d of the %d seats on the walking map have no front anyone can reach - nobody is sent to them"), Unusable, On); }
+	}
 	if (AADPWalker* W = Waiting.Get())
 	{
 		WaitT += Dt;

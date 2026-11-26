@@ -1534,7 +1534,7 @@ bool APaxFlow::WayToWait(FPx& P)
 		{
 			FVector SAt, SF; float SH;
 			if (!ASeats::SeatOf(s, SAt, SF, SH) || ASeats::IsTaken(s) || SH > 55.f || FMath::Abs(SAt.Z - SH - F2Z) > 60.f) continue;
-			if (P.NoSeat.Contains(s)) continue;   // (couldn't get to it)
+			if (P.NoSeat.Contains(s) || !ASeats::Usable(s)) continue;   // (couldn't get to it; no front on the map)
 			const FVector2D S2(SAt.X, SAt.Y);
 			if (bOwnGate ? !G.Box.IsInside(S2) : !WalkBox.IsInside(S2)) continue;
 			bool bOther = false; for (const FGate& O : Gates) if (&O != &G && O.Box.IsInside(S2)) { bOther = true; break; }
@@ -1553,7 +1553,8 @@ bool APaxFlow::WayToWait(FPx& P)
 			if (PaxNav::Ready(GetWorld()))
 			{
 				FVector On, Fr; TArray<FVector> Pn;
-				bool bGo = PaxNav::Nearest(GetWorld(), At, 100.f, On) && FVector::Dist2D(On, SAt) < 150.f;
+				// (just in front of the chair's hole in the map: the sit move covers the rest - nobody walks into a chair)
+				bool bGo = ASeats::FrontOf(I, On) && PaxNav::Nearest(GetWorld(), On, 100.f, On) && FVector::Dist2D(On, SAt) < 200.f;
 				if (bGo && PaxNav::Nearest(GetWorld(), A->GetActorLocation(), 250.f, Fr)) bGo = PaxNav::Path(GetWorld(), Fr, On, Pn) == PaxNav::Full;
 				if (!bGo) { ASeats::Release(A); P.Seat = INDEX_NONE; P.NoSeat.AddUnique(I); Free.Remove(I); ++NoWaySeats; continue; }
 				At = On;

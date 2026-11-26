@@ -787,7 +787,7 @@ void AADPPeople::StartWanderers()
 bool AADPPeople::SitOn(AActor* Who, int32 Seat, const TArray<FBox2D>& Area, float FloorZ)
 {
 	FVector SAt, SF; float SH;
-	if (!Who || !Find(Who) || !ASeats::SeatOf(Seat, SAt, SF, SH) || !ASeats::ClaimSeat(Who, Seat)) return false;   // (never on another's, nor yours)
+	if (!Who || !Find(Who) || !ASeats::SeatOf(Seat, SAt, SF, SH) || !ASeats::Usable(Seat) || !ASeats::ClaimSeat(Who, Seat)) return false;   // (never on another's, nor yours)
 	FStroll S; S.A = Who; S.Area = Area; S.FloorZ = FloorZ; S.Habit = EHabit::Bench; S.bHeld = true;
 	for (int32 i = 0; i < Area.Num(); ++i) S.AreaIds.Add(TEXT("PAXFLOW"));
 	S.Seat = Seat; SeatFor(S, SAt, SF, SH); S.To = FVector(SAt.X, SAt.Y, FloorZ) + SF * 60.f; S.Doing = EDoing::ToSeat; S.T = 0.f; S.SitPose = Rng.RandRange(0, 7);
@@ -900,7 +900,7 @@ void AADPPeople::NextThing(FStroll& S)
 		for (int32 i = 0; i < ASeats::Count(); ++i)
 		{
 			FVector SAt, SF; float SH;
-			if (!ASeats::SeatOf(i, SAt, SF, SH) || ASeats::IsTaken(i)) continue;
+			if (!ASeats::SeatOf(i, SAt, SF, SH) || ASeats::IsTaken(i) || !ASeats::Usable(i)) continue;
 			if (FMath::Abs(SAt.Z - SH - S.FloorZ) > 60.f || FVector::Dist2D(SAt, From) > 2000.f || SH > 55.f) continue;   // (no bar stools: too high to sit down on naturally)
 			const FVector Front = FVector(SAt.X, SAt.Y, S.FloorZ) + SF * 60.f;
 			if (!InArea(S, Front)) continue;

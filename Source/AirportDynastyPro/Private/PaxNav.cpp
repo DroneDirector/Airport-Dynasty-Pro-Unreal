@@ -56,7 +56,8 @@ namespace
 	FString GKey;
 	double GQuietFrom = -1.0, GAllInFrom = -1.0;
 	constexpr uint32 NavMagic = 0x564E5041;   // "APNV"
-	constexpr int32 NavRules = 3;             // raised when what is open and what is a barrier (below) changes: the map is made again
+	TArray<FBox> GAreas;   // (the walkable areas of this run)
+	constexpr int32 NavRules = 4;             // raised when what is open and what is a barrier (below) changes: the map is made again
 
 	/** The actors whose things move (or open, or come and go): never part of the navmesh. By class name, so this file
 	 *  needs none of their headers. */
@@ -143,6 +144,41 @@ namespace
 		M->FailsafeExtent = Half;
 		M->AreaClass = UNavArea_Null::StaticClass();
 		M->RegisterComponent();
+	}
+
+	/** Every chair, bench, stool and gate seat in the walkable areas out of the map (owner 2026-11-26: nobody walks into or
+	 *  gets stuck on a chair; only its sitter steps up to it, from the edge in front - ASeats::FrontOf): its footprint, all its
+	 *  pieces, and a hand's width round it; the map keeps a body's radius more from it by itself. Once, when everything stands
+	 *  (the seats come with the buildings), only while the map is made - baked into the ready-made one. */
+	int32 CutSeats(UWorld* W)
+	{
+		int32 N = 0, Seats = 0, Odd = 0; TSet<FIntVector> Done;
+		for (TActorIterator<ABabylonModel> It(W); It; ++It)
+		{
+			TArray<ABabylonModel::FSeatSpot> Ss; It->SeatSpots(Ss);
+			for (const ABabylonModel::FSeatSpot& S : Ss)
+			{
+				bool bIn = false; for (const FBox& B : GAreas) bIn |= B.IsInsideOrOn(S.At);
+				if (!bIn) continue;
+				++Seats;
+				FVector C, Half; FQuat Q;
+				if (!ABabylonModel::SeatBox(S, C, Q, Half)) { if (Odd++ < 6) ADP_WARN(TEXT("PaxNav: seat at (%.0f, %.0f, %.0f) of %s has no chair-sized footprint - not cut out of the walking map"), S.At.X, S.At.Y, S.At.Z, *It->GetName()); continue; }
+				// (a gate row's module is every one of its seats' piece: once)
+				bool bHad = false; Done.Add(FIntVector(FMath::RoundToInt(C.X / 5.f), FMath::RoundToInt(C.Y / 5.f), FMath::RoundToInt(C.Z / 5.f)), &bHad);
+				if (bHad) continue;
+				AActor* K = W->SpawnActor<AActor>(AActor::StaticClass(), FTransform(Q, C));
+				if (!K) continue;
+				USceneComponent* Rc = NewObject<USceneComponent>(K, TEXT("Root"));
+				K->SetRootComponent(Rc); Rc->RegisterComponent(); K->SetActorLocationAndRotation(C, Q);
+				UNavModifierComponent* M = NewObject<UNavModifierComponent>(K, TEXT("Seat"));
+				M->FailsafeExtent = Half + FVector(12.f, 12.f, 10.f);
+				M->AreaClass = UNavArea_Null::StaticClass();
+				M->RegisterComponent();
+				++N;
+			}
+		}
+		ADP_LOG(TEXT("PaxNav: %d seats in the walking areas, %d chair/bench footprints cut out of the map (%d without one)"), Seats, N, Odd);
+		return N;
 	}
 
 	/** A door passengers go through one way only: nothing walkable in the doorway, and links across it that lead one way
@@ -264,6 +300,7 @@ namespace
 				for (UProceduralMeshComponent* P : Ps) if (P->CanEverAffectNavigation()) { P->SetCanEverAffectNavigation(false); P->SetCanEverAffectNavigation(true); ++N; }
 			}
 			ADP_LOG(TEXT("PaxFlow: %d road sheets put into the walking map"), N);
+			CutSeats(RN->GetWorld());
 			GQuietFrom = -1.0;
 			return;
 		}
@@ -376,6 +413,7 @@ void PaxNav::Start(UWorld* W, const FTerminalPlan& Plan, const FBox& Landside)
 	(void)Landside;   // (PaxFlow's own landside box: the two above cover it, smaller)
 	// ready-made for exactly this terminal: loaded in a moment, nothing generated
 	GKey = MakeKey(NS, Boxes);
+	GAreas = Boxes;
 	if (LoadReady(W, NS)) return;
 	for (const FBox& B : Boxes) if (ANavMeshBoundsVolume* V = BoxVolume<ANavMeshBoundsVolume>(W, B)) { NS->OnNavigationBoundsUpdated(V); ++GVolumes; }
 	// the revolving doors' drums: no navmesh in them (owner 2026-11-21) - nobody is ever routed through the glass; the
@@ -605,6 +643,13 @@ bool PaxNav::Along(UWorld* W, const FVector& From, const FVector& To, FVector& O
 	FNavLocation A; if (!NS->ProjectPointToNavigation(From, A, FVector(25.f, 25.f, 100.f), ND)) return false;
 	FNavLocation R; if (!RM->FindMoveAlongSurface(A, FVector(To.X, To.Y, A.Location.Z), R)) return false;
 	Out = R.Location; return true;
+}
+
+bool PaxNav::Covers(UWorld* W, const FVector& P)
+{
+	if (!W || GNavWorld.Get() != W) return false;
+	for (const FBox& B : GAreas) if (B.IsInsideOrOn(P)) return true;
+	return false;
 }
 
 bool PaxNav::Nearest(UWorld* W, const FVector& From, float Reach, FVector& Out)

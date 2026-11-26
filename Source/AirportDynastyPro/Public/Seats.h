@@ -34,6 +34,12 @@ public:
 	/** Seat I itself: its middle (world), the way it faces, its height. */
 	static bool SeatOf(int32 I, FVector& At, FVector& Facing, float& SeatH);
 	static int32 NearestTo(const FVector& At);
+	/** Where seat I's sitter walks to (owner 2026-11-26: nobody walks into chairs; only its sitter steps up to it): on the walking
+	 *  map, just in front of the hole the seat is cut out of it with (PaxNav), on its floor; the sit move covers the rest, and
+	 *  standing up the same way back. False: it has no front anyone can reach (against a window, the rows too close) - logged
+	 *  once, and nobody is sent to it. A seat off the map (an office's) has its old spot, 60 cm in front. */
+	static bool FrontOf(int32 I, FVector& At);
+	static bool Usable(int32 I) { FVector A; return FrontOf(I, A); }
 	/** One line in the log per kind of seat and per sitter (AI / you): the seat's facing, the way the sitter's thighs really
 	 *  point (BodyDir), and the side its back is on - measured by the geometry that rises above the pan - with OK / FLIPPED. */
 	static void LogFacing(const TCHAR* Who, int32 Seat, const FVector& At, const FVector& Facing, float SeatH, const FVector& BodyDir, const AActor* Sitting);
@@ -78,6 +84,9 @@ private:
 	TSet<TPair<UInstancedStaticMeshComponent*, int32>> Outlined;
 	/** The new buildings' seats, for a few milliseconds; false while some are left for the next frame. */
 	bool Gather();
+	// each seat's front on the walking map: 0 not looked at yet, 1 found (FrontAt), 2 off the map (the old spot), -1 none
+	TArray<int8> FrontOk; TArray<FVector> FrontAt; int32 Unusable = 0, FrontSaid = -1;
+	void CheckFront(int32 I);
 
 	void Sit(AADPWalker* Me, int32 I);
 	void Stand();

@@ -42,6 +42,8 @@ namespace PaxNav
 	/** From a point on the map towards another, as far as the map goes, sliding along its edge (its edge keeps a body's clearance
 	 *  from the walls): false when From isn't on it. */
 	bool Along(UWorld* W, const FVector& From, const FVector& To, FVector& Out);
+	/** The point is inside the map's walkable areas (where the map is made at all: a seat outside them, an office's, keeps its old ways). */
+	bool Covers(UWorld* W, const FVector& P);
 	/** The nearest point of the map within Reach cm on the same floor. */
 	bool Nearest(UWorld* W, const FVector& From, float Reach, FVector& Out);
 	/** The check of the map: every leg a passenger walks - the car park, the forecourt, every entrance, check-in, each

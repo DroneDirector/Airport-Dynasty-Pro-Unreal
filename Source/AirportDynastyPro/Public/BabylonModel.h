@@ -80,6 +80,9 @@ public:
 	struct FSeatSpot { FVector At = FVector::ZeroVector; FVector Facing = FVector::ForwardVector; float SeatH = 46.f; bool bYours = false, bAisle = false; TArray<TPair<UInstancedStaticMeshComponent*, int32>> Parts; };
 	/** Every chair, stool, armchair, bench and gate seat in this model. */
 	void SeatSpots(TArray<FSeatSpot>& Out) const;
+	/** A seat's footprint (to-do: nobody walks into chairs): one box in the seat's own frame (X the way it faces, Z up) round all
+	 *  its pieces - Center and Half in the world, Rot its turn. False when it has no pieces, or they make no chair-sized box. */
+	static bool SeatBox(const FSeatSpot& S, FVector& Center, FQuat& Rot, FVector& Half);
 	/** Changes when the model's parts do (its seats are to be found again). */
 	uint32 SeatStamp() const { return uint32(NName.Num()) * 31u + uint32(ByMesh.Num()); }
 	/** The garage-door button panel (owner, 2026-11-14: inside the fire station by each bay door, inside each hangar by
