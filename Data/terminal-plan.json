@@ -398,9 +398,9 @@
    "id": "F2-OFFICE-1",
    "f": 2,
    "name": "Your office",
-   "x0": 118.7,
+   "x0": 114,
    "z0": 0,
-   "x1": 131,
+   "x1": 126.3,
    "z1": 9,
    "kind": "office"
   },
@@ -408,7 +408,7 @@
    "id": "F2-OFFICE-2",
    "f": 2,
    "name": "Office 2",
-   "x0": 131,
+   "x0": 126.3,
    "z0": 0,
    "x1": 139.1,
    "z1": 9,
@@ -442,16 +442,6 @@
    "z0": 9,
    "x1": 156,
    "z1": 12,
-   "kind": "corridor"
-  },
-  {
-   "id": "F2-STAFF-WALK",
-   "f": 2,
-   "name": "Walkway by the Grand Hall window",
-   "x0": 114,
-   "z0": 0,
-   "x1": 118.7,
-   "z1": 9,
    "kind": "corridor"
   },
   {
@@ -2236,7 +2226,7 @@
    "b": "F2-STAFF-CORR",
    "type": "swing",
    "w": 1.2,
-   "x": 120.5,
+   "x": 124.5,
    "z": 9,
    "along": "x"
   },
@@ -2304,17 +2294,6 @@
    "w": 1.2,
    "x": 152,
    "z": 12,
-   "along": "x"
-  },
-  {
-   "id": "D-F2-STAFF-WALK-1",
-   "f": 2,
-   "a": "F2-STAFF-WALK",
-   "b": "F2-STAFF-CORR",
-   "type": "open",
-   "w": 4.7,
-   "x": 116.35,
-   "z": 9,
    "along": "x"
   },
   {

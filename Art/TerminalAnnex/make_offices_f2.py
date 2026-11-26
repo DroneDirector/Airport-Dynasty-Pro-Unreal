@@ -2,8 +2,9 @@
 # over the old staff wing (Art/TerminalAnnex/make_annex_west.py: x 114..156, z 0..52, floor +6.01, ceiling +11.32)
 # partitioned - plaster to 1 m, glass to 3.3 m, plaster to the ceiling on the corridor sides, plaster full height between
 # the offices - into
-#   your office (x 118.7..131, z 0..9: by the forecourt windows, AWAY from the long Grand Hall window - a 4.7 m walkway
-#   stays clear along it, x 114..118.7, z 0..30), Offices 2, 3, 4 (x 131..139.1, 139.1..147.3, 147.3..156),
+#   your office (x 114..126.3, z 0..9; owner 2026-11-26, Tools/render_owner_office.py: moved onto the Grand Hall window,
+#   its west wall the window itself, its south wall the forecourt windows; the walkway's dead-end stretch x 114..118.7,
+#   z 0..9 went into it, the walkway north of the corridor stays), Offices 2, 3, 4 (x 126.3..139.1, 139.1..147.3, 147.3..156),
 #   the staff corridor (z 9..12) and its arm north (x 133..136) to the stair and lift,
 #   Operations (x 118.7..133, z 12..26) and the Academy (x 136..156, z 12..34.5),
 #   the staff lounge (x 114..133, z 26..52, open) and the stair and lift lobby (x 133..156, z 34.5..52).
@@ -123,10 +124,19 @@ def partition(axis, at, a, b, glass=True, doors=()):
             box(max(u0, u - 0.03), min(u1, u + 0.03), SILL, HEAD, 'MI_T_mullion', S, 0.04)
 
 # ---- your office and Offices 2-4, by the forecourt windows (between-office walls solid: pictures hang on them) ----
-XS = [118.7, 131.0, 139.1, 147.3]
-partition('x', 118.7, 0.1, 9.0, glass=True)                       # your office's side onto the walkway
+XS = [114.0, 126.3, 139.1, 147.3]
 for x in XS[1:]: partition('x', x, 0.1, 8.94, glass=False)
-partition('z', 9.0, 118.64, 155.9, doors=[(119.9, 121.1), (132.2, 133.4), (140.4, 141.6), (148.6, 149.8)])
+partition('z', 9.0, 114.014, 155.9, doors=[(123.9, 125.1), (132.2, 133.4), (140.4, 141.6), (148.6, 149.8)])
+# your office's west wall is the Grand Hall window (Art/TerminalAnnex/make_annex_west.py, floor to ceiling, 6 m over the
+# hall): a glass guard inside it, a stainless shoe, clear glass to 1.0 m and a steel handrail on top, 25 cm clear of the
+# window's frames (x 114.075) and of the forecourt wall and the corridor partition at its ends
+GX, GZ0, GZ1 = 114.32, 0.2, 8.84
+S.box(GX - 0.04, GX + 0.04, FY, FY + 0.1, GZ0, GZ1, 'MI_T_steel')
+G.box(GX - 0.006, GX + 0.006, FY + 0.1, FY + 0.96, GZ0, GZ1, 'MI_T_glass')
+S.box(GX - 0.025, GX + 0.025, FY + 0.96, FY + 1.0, GZ0, GZ1, 'MI_T_steel')
+for z in (GZ0, GZ1):                                             # the rail's ends into the walls
+    zc = z - 0.2 if z < 1 else z + 0.14
+    S.box(GX - 0.02, GX + 0.02, FY + 0.97, FY + 0.99, min(zc, z), max(zc, z), 'MI_T_steel')
 # ---- Operations (x 118.7..133, z 12..26) ----
 partition('z', 12.0, 118.64, 133.06, doors=[(125.4, 126.6)])
 partition('x', 118.7, 12.06, 26.0, glass=True)

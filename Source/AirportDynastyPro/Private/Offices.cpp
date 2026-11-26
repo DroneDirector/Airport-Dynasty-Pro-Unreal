@@ -29,11 +29,11 @@ namespace ADPOffices
 		// the four offices side by side along the forecourt windows (x 118.7..156, z 0..9), each with the old office's
 		// window side (its +z) turned to the forecourt wall (z 0) - yaw 180: you sit with your back to the windows, facing
 		// the door onto the staff corridor; the things 5.9 m across and 0.3..6.1 m from the windows, clear of the walls,
-		// the door's swing and the wardrobe. Yours is the west one, away from the Grand Hall's long window (a walkway
-		// stays clear along it, x 114..118.7)
+		// the door's swing and the wardrobe. Yours is the west one: since 2026-11-26 (owner, Tools/render_owner_office.py)
+		// x 114..126.3 on the Grand Hall window (its glass guard 0.32 m in), Office 2 x 126.3..139.1
 		struct FAt { float X, Z, Yaw; bool bMine; };
 		const float FY = 6.01f;                                       // Floor 2
-		const FAt At[] = { {124.f, 3.1f, 180.f, true}, {135.05f, 3.1f, 180.f, false}, {143.2f, 3.1f, 180.f, false}, {151.65f, 3.1f, 180.f, false} };
+		const FAt At[] = { {119.3f, 3.1f, 180.f, true}, {132.7f, 3.1f, 180.f, false}, {143.2f, 3.1f, 180.f, false}, {151.65f, 3.1f, 180.f, false} };
 		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		int32 Placed = 0;
 		for (const FAt& A : At)
@@ -54,11 +54,15 @@ namespace ADPOffices
 		// plan's -z is Unreal's +y), at the office's east end, clear of the desk and of the door at its west end. Its back
 		// stands 3 cm clear of the wall's face (the owner's rule for every wardrobe anywhere: never in the wall): the
 		// partition is 0.12 m thick about its line (Art/TerminalAnnex/make_offices_f2.py), the cabinet 0.6 m deep
-		struct FWd { float X, Wall; };
-		const FWd Wd[] = { {129.5f, 9.f}, {137.8f, 9.f}, {146.f, 9.f}, {154.6f, 9.f} };
+		// Yours (owner's render, 2026-11-26) against its east wall (the partition to Office 2, x 126.3) by the corridor, its
+		// front to the plan's -x (yaw -90); z 6.1..7.3 (doors hinged at +-0.58) so its open doors stay clear of the room door
+		// (x 123.9..125.1, its leaf down to z 7.8) and of the meeting table round (124.5, 4.0)
+		struct FWd { float X, Z, Yaw; };
+		const FWd Wd[] = { {126.3f - 0.06f - 0.3f - 0.03f, 6.7f, -90.f}, {137.8f, 9.f - 0.06f - 0.3f - 0.03f, 180.f},
+			{146.f, 9.f - 0.06f - 0.3f - 0.03f, 180.f}, {154.6f, 9.f - 0.06f - 0.3f - 0.03f, 180.f} };
 		int32 Wardrobes = 0;
 		for (const FWd& A : Wd)
-			if (AWardrobe* Wr = W->SpawnActor<AWardrobe>(FTerminalPlan::ToWorld(A.X, FY, A.Wall - 0.06f - 0.3f - 0.03f), FRotator(0, 180.f, 0), S)) { if (Wr->Build()) ++Wardrobes; else Wr->Destroy(); }
+			if (AWardrobe* Wr = W->SpawnActor<AWardrobe>(FTerminalPlan::ToWorld(A.X, FY, A.Z), FRotator(0, A.Yaw, 0), S)) { if (Wr->Build()) ++Wardrobes; else Wr->Destroy(); }
 		ADP_LOG(TEXT("Offices: %d wardrobes"), Wardrobes);
 		// the operations room (Floor 2, x 118.7-133, z 12-26, its door south onto the staff corridor): the old room's desk
 		// with the ultra-wide monitor, its window side (+z) to the room's west wall (onto the walkway by the Grand Hall's

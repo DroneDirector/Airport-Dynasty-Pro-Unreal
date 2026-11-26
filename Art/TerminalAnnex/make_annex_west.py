@@ -272,7 +272,11 @@ def floor_with_holes(x0, x1, z0, z1, holes, top, y):
             if any(h[0] <= xa and xb <= h[1] and h[2] <= za and zb <= h[3] for h in holes): continue
             S.box(xa, xb, y - 0.02, y, za, zb, top, sides=('+y',))
             S.box(xa, xb, y - 0.38, y - 0.02, za, zb, 'MI_T_concrete', sides=('-y',))
-floor_with_holes(OX0, OX1, OZ0, OZ1, [STAIR, SHAFT], 'MI_T_carpetGrey', 6.01)
+# your office (x 114..126.3, z 0..9; owner 2026-11-26, Tools/render_owner_office.py): the wide oak planks of the render
+# (M_WoodFloor, Art/WoodFloor) instead of the carpet, the same build-up
+MYOFFICE = (114.0, 126.25, 0.0, 9.0)               # (the join under the partition to Office 2, x 126.24..126.36)
+floor_with_holes(OX0, OX1, OZ0, OZ1, [STAIR, SHAFT, MYOFFICE], 'MI_T_carpetGrey', 6.01)
+floor_with_holes(*MYOFFICE, [], 'M_WoodFloor', 6.01)
 for h in (STAIR, SHAFT):                       # the openings' edges
     S.box(h[0], h[1], 5.63, 6.01, h[2] - 0.02, h[2], W); S.box(h[0], h[1], 5.63, 6.01, h[3], h[3] + 0.02, W)
     S.box(h[0] - 0.02, h[0], 5.63, 6.01, h[2], h[3], W); S.box(h[1], h[1] + 0.02, 5.63, 6.01, h[2], h[3], W)

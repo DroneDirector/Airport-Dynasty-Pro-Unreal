@@ -253,7 +253,8 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       (never baked), as on the coach. Private vehicles (taxi bus, coach, cars) keep their own colours.
 - [ ] **Your office moves onto the Grand Hall window, furnished as the owner's render** (owner, 2026-11-26: "I want a clean view
       over the Grand Hall"; renders in Blueprints/Terminal/Office/, made by Tools/render_owner_office.py):
-      - [ ] **The move:** your office F2-OFFICE-1 from x 118.7..131 to x 114..126.3 (same size, 12.3 x 9 m, z 0..9), its west
+      - [x] **The move** (done 2026-11-26: walls, door at x 124.5, glass guard + handrail on the hall window, oak floor; walking map and holomap walls not re-made yet):
+            your office F2-OFFICE-1 from x 118.7..131 to x 114..126.3 (same size, 12.3 x 9 m, z 0..9), its west
             wall the Grand Hall window itself (3 of its 10 panes, floor to ceiling) and its south wall the forecourt windows;
             the walkway's dead-end stretch F2-STAFF-WALK (x 114..118.7, z 0..9) goes into it (the walkway north of the
             corridor, z 12..30, stays); Office 2 grows west to x 126.3 (126.3..139.1). Its door from the staff corridor at

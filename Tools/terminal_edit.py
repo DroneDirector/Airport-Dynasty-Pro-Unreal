@@ -325,7 +325,7 @@ lamps('F1', 'F1-CARTLANE', [118, 124, 130], [43, 48], 5.33)
 add('F2', 'F2-OFFICES/SOLID', 'annex_offices_solid')
 add('F2', 'F2-OFFICES/GLASS', 'annex_offices_glass')
 F2Y = 6.01
-for name, x, z in (('D-F2-OFFICE-1-1', 120.5, 9.0), ('D-F2-OFFICE-2-1', 132.8, 9.0), ('D-F2-OFFICE-3-1', 141.0, 9.0),
+for name, x, z in (('D-F2-OFFICE-1-1', 124.5, 9.0), ('D-F2-OFFICE-2-1', 132.8, 9.0), ('D-F2-OFFICE-3-1', 141.0, 9.0),
                    ('D-F2-OFFICE-4-1', 149.2, 9.0), ('D-F2-OPS-1', 126.0, 12.0), ('D-F2-ACADEMY-1', 140.0, 12.0),
                    ('D-F2-ACADEMY-2', 152.0, 12.0)):
     d = copy_tree(byname['D-F1-WC-M-1'], skip=('sign',)); N[d]['name'] = name
@@ -344,13 +344,16 @@ def carry_set(room, tx, tz):
         t = N[byname[room + '/' + k]]['translation']
         carry_up(room + '/' + k, tx + (-t[0] - ox), tz + (t[2] - oz))
     log.append('moved up: %s meeting table and chairs to (%.1f, %.1f)' % (room, tx, tz))
-carry_set('F1-OFFICE-1', 129.2, 4.0)       # your office, beside your desk
+carry_set('F1-OFFICE-1', 124.5, 4.0)       # your office (x 114..126.3 since 2026-11-26), beside your desk
 carry_set('F1-OFFICE-2', 128.5, 22.5)      # Operations: a briefing table
 carry_set('F1-OFFICE-3', 125.0, 37.0)      # the staff lounge
 carry_set('F1-OFFICE-4', 140.5, 30.0)      # the Academy's back
 EAST = [0, -0.7071067811865475, 0, 0.7071067811865476]     # facing the plan's +x (on a room's west wall)
-for room, x in (('F1-OFFICE-1', 118.78), ('F1-OFFICE-2', 131.08), ('F1-OFFICE-3', 139.18), ('F1-OFFICE-4', 147.38)):
-    carry_up(room + '/PAINTING-001', x, 4.5, EAST); log.append('moved up: %s painting' % room)
+WEST = [0, 0.7071067811865475, 0, 0.7071067811865476]     # facing the plan's -x (on a room's east wall)
+# (owner 2026-11-26: your office moved onto the Grand Hall window, x 114..126.3 - its west wall is glass, so its painting
+#  hangs on its east wall, Office 2's on its new west wall at x 126.3)
+for room, x, rot in (('F1-OFFICE-1', 126.22, WEST), ('F1-OFFICE-2', 126.38, EAST), ('F1-OFFICE-3', 139.18, EAST), ('F1-OFFICE-4', 147.38, EAST)):
+    carry_up(room + '/PAINTING-001', x, 4.5, rot); log.append('moved up: %s painting' % room)
 carry_up('F1-OPS/CLOCKS-001', 132.72, 19.0); log.append('moved up: the operations clocks')
 for k in ('SOFA-001', 'SOFA-002', 'TABLE-001', 'COUNTER-001', 'COFFEE-MACHINE-001', 'LOCKERS-001', 'TV-001'):
     t = N[byname['F1-CREW/' + k]]['translation']; carry_up('F1-CREW/' + k, -t[0], t[2])
@@ -359,7 +362,7 @@ for k, (x, z) in enumerate(((120.8, 50.6), (131.9, 27.2), (132.0, 50.6), (155.0,
     p_ = copy_tree(byname['F2-WALK/PLANT-002']); N[p_]['name'] = 'F2-OFFICES/PLANT-%03d' % (k + 1)
     N[p_]['translation'] = [-x, F2Y, z]; N[byname['F2']]['children'].append(p_)
 log.append('new: 6 plants on the office floor')
-for nm, xs, zs in (('F2-OFFICE-1', [121.5, 127.5], [2.8, 6.4]), ('F2-OFFICE-2', [135.0], [2.8, 6.4]), ('F2-OFFICE-3', [143.2], [2.8, 6.4]),
+for nm, xs, zs in (('F2-OFFICE-1', [117.2, 123.2], [2.8, 6.4]), ('F2-OFFICE-2', [132.7], [2.8, 6.4]), ('F2-OFFICE-3', [143.2], [2.8, 6.4]),
                    ('F2-OFFICE-4', [151.6], [2.8, 6.4]), ('F2-STAFF-CORR', [116, 122, 128, 134.5, 140, 146, 152], [10.5]),
                    ('F2-STAFF-CORR-N', [134.5], [17, 23, 29]), ('F2-WALKWAY', [116.3], [16, 22, 28]), ('F2-OPS', [122, 128], [15.5, 22]),
                    ('F2-ACADEMY', [140, 146, 152], [16, 22, 28]), ('F2-LOUNGE', [118, 124, 130], [31, 37, 43, 49]),
