@@ -94,7 +94,8 @@ if (EMBED) {
     return ownClose(el, ev);
   };
   ACTIONS.exit = () => leaveAsk('quit', () => { try { saveNow(true); } catch (e) { /* saved already */ } embedTell('exit'); });
-  ACTIONS['title-open'] = () => { const from = (window as any).__ovFrom; if (from) { (window as any).__ovFrom = ''; try { (window.parent as any).__ueOverviewBack && (window.parent as any).__ueOverviewBack(from); } catch (e) { /* no Unreal */ } return; } leaveAsk('title', () => { closeAll(); try { saveNow(true); } catch (e) { /* saved already */ } embedTell('title'); }); };
+  ACTIONS['title-open'] = () => { if (typeof ueDeviceOn === 'function' && ueDeviceOn()) { if (Lap.app) { Lap.app = ''; lapRender(); } return; }   // (on a device: back to its desktop, never the title screen)
+    const from = (window as any).__ovFrom; if (from) { (window as any).__ovFrom = ''; try { (window.parent as any).__ueOverviewBack && (window.parent as any).__ueOverviewBack(from); } catch (e) { /* no Unreal */ } return; } leaveAsk('title', () => { closeAll(); try { saveNow(true); } catch (e) { /* saved already */ } embedTell('title'); }); };
   // the 3D places: coming on Babylon.js
   const soon = (name: string) => () => { try { Sound.tick(); } catch (e) { /* muted */ } toast(`${name}: coming to the Babylon.js edition`, 'info'); return false; };
   // the joined building on Babylon.js: your office and the Operations office off the staff corridor, the concourse and

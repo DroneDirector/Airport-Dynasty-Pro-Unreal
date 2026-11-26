@@ -447,7 +447,8 @@ void AADPHUD::HmiCommand(const FString& Action, const FString& Arg)
 // takes it up: it comes up from below into your view and you hold it, its screen showing your wallpaper; E brings it up
 // close and its screen opens (the game's own tablet screen over the room, as the phone's does), the room behind softly
 // blurred as in a portrait photo; Esc back to holding it; Tab again puts it away. Holding the phone blurs the room too.
-// The Overview opens only from the tablet and the computers (ADPHUD::OverviewFrom), and its logo brings you back here.
+// The Overview is an app on the tablet's and the computers' desktops and opens inside the device's own screen, as
+// every app does; its window's close button brings you back to the desktop (owner, 2026-11-26; game/src/screens/laptop.ts).
 
 namespace ADPTabletK
 {
@@ -571,6 +572,8 @@ void AADPHUD::TabletScreenClosed()
 }
 
 // ---- the Overview: only from your tablet and the computers (owner, 2026-11-18) ----------------------------------------
+// (no longer called by the devices' desktops: the Overview opens inside the device - owner, 2026-11-26. Kept for the
+// page's __ueOverviewFrom hook.)
 void AADPHUD::OverviewFrom(const FString& Kind)
 {
 	if (Kind == TEXT("phone")) return;   // (never from the phone)

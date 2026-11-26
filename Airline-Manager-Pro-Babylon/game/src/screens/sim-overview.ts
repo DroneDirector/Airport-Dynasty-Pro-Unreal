@@ -83,5 +83,5 @@ function simOverviewHtml(): string {
   S.ops.render = function () { if (!simLink() || (SimOv.data === null && SimOv.at && Date.now() - SimOv.at < 3000)) return old.call(this); return simOverviewHtml(); };
   S.ops.__sim = true;
   // (live: every 3 seconds while the Overview is on screen)
-  setInterval(() => { try { if ((State as any).screen === 'ops' && simLink()) simOvLoad(false); } catch (e) { /* */ } }, 3000);
+  setInterval(() => { try { if (((State as any).screen === 'ops' || (typeof Lap !== 'undefined' && Lap.root && Lap.root.isConnected && Lap.app === 'scr:ops')) && simLink()) simOvLoad(false); } catch (e) { /* */ } }, 3000);
 })();

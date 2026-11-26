@@ -551,7 +551,22 @@ ACTIONS['lap-web'] = el => {
 /* ---------- going to a screen from where you are working ---------- */
 /** A link to another screen (Needs you → hire crew, and so on) while you work at the Operations monitor, a screen in
  *  your office or your laptop: it opens right there. Returns true when it did. */
+/** Open one of the game's screens as a window on this device's own desktop (tablet, office or Operations computer, the
+ *  phone); its close button brings you back to the desktop. */
+function lapOpenScreen(screen: string) {
+  if (!SCREENS[screen] || !Lap.root) return;
+  if (Lap.app === 'browser') lapBrowserHide();
+  Lap.app = 'scr:' + screen; Lap.photo = ''; Lap.startOn = false; Lap.searchOn = false; Lap.startFolder = ''; LapFs.open = ''; LapFs.newDoc = false; LapFs.q = '';
+  try { Sound.tick(); } catch (e) { /* muted */ }
+  lapRender();
+  if (screen === 'ops') { try { if (typeof simOvLoad === 'function') simOvLoad(true); } catch (e) { /* the game's own figures */ } }
+}
 function roomGo(screen: string): boolean {
+  // the PC edition's devices (your tablet, phone, the computers): every screen opens inside the device, never over it
+  if (typeof ueDeviceOn === 'function' && ueDeviceOn() && Lap.root && Lap.root.isConnected) {
+    if (Lap.phone && screen === 'ops') return true;   // (never the Overview on the phone - owner, 2026-11-18)
+    lapOpenScreen(screen); return true;
+  }
   const O: any = typeof OpsRoom !== 'undefined' ? OpsRoom : null, F: any = typeof OfficeRoom !== 'undefined' ? OfficeRoom : null;
   if (O && O.on && O.overlay && !O.zoomAnim) { opsScreenFill(screen); return true; }
   const H: any = typeof HangarRoom !== 'undefined' ? HangarRoom : null;
@@ -571,7 +586,9 @@ function roomGo(screen: string): boolean {
 /* ---------- switching apps, closing ---------- */
 ACTIONS['lap-app'] = el => {
   const k = el.getAttribute('data-k') || '';
-  if (k === 'overview') { if (Lap.phone) return; try { (window.parent as any).__ueOverviewFrom && (window.parent as any).__ueOverviewFrom(lapDevKey()); } catch (e) { /* no Unreal */ } return; }
+  // the Overview opens inside this device's own screen, as every app does; its window's close button brings you back
+  // to the desktop (owner, 2026-11-26: it used to open full screen and its back led to the title screen)
+  if (k === 'overview') { if (Lap.phone) return; return lapOpenScreen('ops'); }
   if (k === Lap.app) return;
   if (Lap.app === 'browser') lapBrowserHide();
   Lap.app = k; Lap.photo = ''; Lap.startOn = false; Lap.searchOn = false; Lap.startFolder = ''; LapFs.open = ''; LapFs.newDoc = false; LapFs.q = ''; Sound.tick();
