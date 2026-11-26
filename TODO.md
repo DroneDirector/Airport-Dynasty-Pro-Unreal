@@ -679,6 +679,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
 - [ ] **NOTAMs** (2026-11-26): official notices the airport publishes - a taxiway closed, a stand out of use, a PAPI
       or ILS unserviceable, work in progress, a crane near the approach. The NPC airlines, ATC and the taxi routes really
       work around them; each has a start and end time; shown on the holographic map and in the tower.
+- [ ] **Delay codes** (2026-11-26): every delay gets the real IATA industry delay code (catering, technical, ATC,
+      weather, late incoming aircraft, passengers, baggage ...), worked out from what actually held the flight. A
+      monthly on-time report shows which department or partner caused how much delay.
+- [ ] **Load sheet** (2026-11-26): load control works out each departure's weight and balance (passengers, bags,
+      cargo, fuel) and issues the load sheet to the crew. A last-minute change - a late passenger, a bag offloaded,
+      extra cargo - means a new sheet and can hold the departure a few minutes (and gives it its delay code).
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
