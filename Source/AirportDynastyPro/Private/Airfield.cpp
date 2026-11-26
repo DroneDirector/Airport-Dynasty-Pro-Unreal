@@ -1305,6 +1305,16 @@ bool AAirfield::Build(bool bModelSite)
 				if (Lorry && Lorry->Place(TEXT("Lorry"))) ADP_LOG(TEXT("Airfield: a lorry parked at truck dock DOCK-01 at %s"), *At.ToString());
 				else { if (Lorry) Lorry->Destroy(); ADP_WARN(TEXT("Airfield: no lorry model (Tools/import_model.py ... Lorry)")); }
 			}
+			// one crate fetcher (rough-terrain mast forklift with a rear boom, Art/CrateFetcher; 8.2 x 3.1 m, 6.1 m to the
+			// boom head) parked in the build-up area between stations 2 and 3 (beds end at x 51.4 / 61.1), centred at x 56.25,
+			// lengthwise along y like the forklift: y 7.9..16.1, x 54.7..57.8; static for now.
+			{
+				const FTransform T = Cargo->GetRootComponent()->GetComponentTransform();
+				const FVector At = T.TransformPosition(FVector(56.25, -12.0, 0.0) * 100.0);
+				ABabylonModel* Crate = GetWorld()->SpawnActor<ABabylonModel>(At, FRotator(0.f, T.Rotator().Yaw + 90.f, 0.f), S);
+				if (Crate && Crate->Place(TEXT("CrateFetcher"))) ADP_LOG(TEXT("Airfield: a crate fetcher parked in the build-up area at %s"), *At.ToString());
+				else { if (Crate) Crate->Destroy(); ADP_WARN(TEXT("Airfield: no crate fetcher model (Tools/import_model.py ... CrateFetcher)")); }
+			}
 		}
 		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
 	}

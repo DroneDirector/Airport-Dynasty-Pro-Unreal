@@ -855,3 +855,48 @@ Slot_01..Slot_30 EUR 1.2 x 0.8 (3 across, 1.2 along, 10 rows); Slot_IND_01..Slot
 The trailer has no modelled inside yet: the rear opening is closed by a cap just behind the doors (the inside goes with the loading work).
 The driver gets in from the left (+y) door; the step points are taken from the modelled parts, not tried with a person. Wheel and step numbers are from
 the build log (`INFO` lines of `make_lorry.py`).
+
+## The crate fetcher model, as built (2026-11-26, imported, not run)
+`Art/CrateFetcher/make_cratefetcher.py` (+ `cratefetcher_details.py`, `make_cratefetcher_maps.py`) -> `cratefetcher.glb` -> `Content/Babylon/CrateFetcher`,
+parts listed in `Data/babylon-cratefetcher.json`. A heavy rough-terrain forklift: front mast with carriage and forks, a telescopic boom from a rear
+pin that lifts the inner mast, closed cab on the left. One is parked (static) in the export build-up area between stations 2 and 3, lengthwise
+along y like the forklift (`Airfield.cpp`, after the lorry). Driving, the driver and IK are later work.
+Axes as the forklift: x forward (forks at +x), y left, z up, metres; origin on the ground halfway between the axles. Size 8.19 x 3.10 x 6.08 m
+(scale from the class data in the script header; the mast top is a little tall). 250k faces; 0 surfaces fight (`Tools/find_zfight.py`).
+Materials: M_CrateFetcher_Body / Steel / Glass (glass: Nanite off) plus Paint / BlackSteel / Rubber / Chrome / RimGrey / LensClear / LensAmber /
+LensRed / MirrorSilver / CabLining / BlackPlastic / Tread for the modelled parts. The cab inside is only a dark placeholder (`CabLining`: floor,
+back wall, right console) - to be modelled later.
+Modelled again: 6 round wheels (twin front, single rear), rear steering knuckles, boom lift cylinder and two carriage tilt cylinders (barrel and
+rod separate), head / indicator / tail lamps (housing, reflector, ribbed lens) set where Meshy's melted lamps were cut, 2 roof work lamps, amber
+beacon, roof guard, mirrors on arms, two studded steps, grab handle on the flat rear door pillar, door handle, steering wheel and column,
+joystick, two levers, three pedals.
+
+| Part | Pivot (game m) | Moves |
+|---|---|---|
+| Wheel_FL / Wheel_FR (twin, d 1.44, 0.88 wide) | (2.067, +-0.938, 0.720) | spin about y |
+| Wheel_RL / Wheel_RR (single, steer, d 1.50) | (-2.067, +-1.158, 0.748) | spin about y, steer with the knuckle |
+| SteerKnuckle_L / _R | kingpin (-2.067, +-0.766, 0.748) | turn about z |
+| BoomBase | luff pin (-1.566, 0, 2.395) | turns about y |
+| BoomTele | foot (-0.097, 0, 4.603) | slides along (0.657, 0, 0.754) out of BoomBase; head pin (0.584, 0, 5.813) on the mast top |
+| LiftCyl_Barrel / LiftCyl_Rod | (-0.857, 0, 1.814) / (-0.018, 0, 3.900) | each turns about y; the rod pin rides on BoomBase |
+| MastOuter | tilt pin (1.614, 0, 1.447) | tilts about y |
+| MastInner | foot (1.591, 0, 2.567) | lifts along z (pulled by the boom head) |
+| Carriage | back-bottom (1.831, 0, 3.902) | lifts with MastInner, tilts about y |
+| TiltCyl_L/R_Barrel / _Rod | (1.491, +-0.620, 4.152) / (1.781, +-0.620, 5.067) | each turns about y; barrel on MastInner, rod on Carriage |
+| Fork_L / Fork_R (tine 2.20) | hook (1.836, +-0.744, 4.045) | ride with Carriage, slide along y |
+| Door + Door_Glass | hinge (0.480, 1.318, 1.338) at the front edge | turns about z, opens outwards |
+| DoorHandle | (-0.466, 1.318, 1.958) | rides with Door, pulls about x |
+| SteeringWheel | hub (0.128, 0.891, 2.458), rim r 0.170 | turns about its local z (column axis -0.91, 0, 0.42) |
+| Joystick | base (-0.272, 0.600, 2.198) | tips about x and y |
+| Lever_1 / Lever_2 | base (-0.442 / -0.512, 0.580, 2.198) | each tips about y |
+| Pedal_Inching / Pedal_Brake / Pedal_Accel | (0.470, 1.091 / 0.961 / 0.741, 1.618) | each tips about y |
+| Mirror_L / Mirror_R | arm root (0.610, 1.332 / 0.450, 2.525) | folds about z |
+| Beacon, Lamps, RoofGuard, Steps, GrabHandle, CabLining, SteeringColumn | - | static |
+
+IK empties: IK_Seat_Driver (-0.372, 0.891, 2.058), IK_Back_Driver (-0.632, 0.891, 2.378), IK_Hand_L/R (0.128, 1.061 / 0.721, 2.458),
+IK_Hand_Knob (0.128, 0.971, 2.601), IK_Hand_Joystick (-0.272, 0.600, 2.398), IK_Hand_Lever_1/2 (-0.442 / -0.512, 0.580, 2.418),
+IK_Foot_Inching / Brake / Accel (0.360, 1.091 / 0.961 / 0.741, 1.778), IK_Step_1/2 (-0.038, 1.451, 0.526 / 0.986),
+IK_Grab_Low/High (-0.656, 1.348, 1.588 / 2.436), IK_DoorHandle_Out (-0.466, 1.348, 1.958), IK_DoorHandle_In (-0.426, 1.238, 1.958),
+IK_HeadLamp_L/R, IK_Hand_DoorGlass. The driver gets in from the left (+y) door. Points are from the build log (`INFO` lines), not tried with a person.
+Known: the tilt-cylinder rod eyes sit on Meshy's carriage lugs (touch, by design); the steering wheel sits 0.5 m ahead of the seat point - check
+the reach when the cab inside is modelled.
