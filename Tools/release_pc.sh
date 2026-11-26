@@ -94,7 +94,7 @@ PYEOF
   IN=$(python -c "
 import re
 b=open(r'F:/ADP-Packaged/$V/Windows/AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe','rb').read()
-print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb'0\x00\.\x001\x00[0-9]\x00\.\x00[0-9]\x00(?:[0-9]\x00)?', b)))))")
+print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb'0\x00\.\x00[0-9]\x00(?:[0-9]\x00)?\.\x00[0-9]\x00(?:[0-9]\x00)?', b)))))")
   echo "inside: $IN"; echo "$IN" | grep -q "$V" || { echo "STOP: the exe doesn't carry $V"; exit 1; }
   echo "== the full game, and a start check"
   rm -rf $P/$V/Full; cp -r $P/$A/Full $P/$V/Full; cp -r $P/$V/Windows/. $P/$V/Full/   # (the earlier packs stay; this release's pack added)
