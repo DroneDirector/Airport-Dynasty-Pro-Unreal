@@ -387,6 +387,8 @@ USTRUCT() struct FADPUsedOffer
 	UPROPERTY() double Condition = 80.0;
 	UPROPERTY() double Price = 0.0;
 	UPROPERTY() FString Location;
+	UPROPERTY() bool bLease = false;        // offered to lease (a used one's rent), not to buy
+	UPROPERTY() double LeaseMonthly = 0.0;
 };
 
 /** A marketing campaign: more travellers choose the airline (on one route, or everywhere) until it ends. */

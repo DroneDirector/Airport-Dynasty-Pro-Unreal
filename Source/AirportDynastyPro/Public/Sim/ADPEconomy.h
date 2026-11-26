@@ -32,6 +32,8 @@ namespace ADPEconomy
 	double CampaignBoost(const FADPWorld& W, const FString& AirlineId, const FString& RouteId, const FDateTime& At);
 	/** Monthly lease rent for a type (about 0.7 % of its value a month). */
 	double LeaseRate(const FString& TypeId);
+	/** Owner 11-26: never an empty market - at least 5 A320 for sale and 4 to lease, from the first minute on. */
+	void FillMarket(FADPWorld& W, FRandomStream& R);
 }
 
 /** The weekly payroll (and later the monthly items: loans, insurance, rents). */

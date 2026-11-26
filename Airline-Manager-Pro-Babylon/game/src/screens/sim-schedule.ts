@@ -59,11 +59,11 @@ function simFleetHtml(market: boolean): string {
     <span class="cr-now"><small>new</small></span><span class="cr-rules"></span>
     <span class="cr-btns"><button class="btn sm primary" data-act="sim-buy" data-id="${esc(t.id)}" data-m="buy" ${d.balance < t.price ? 'disabled' : ''}>Buy ${money(t.price)}</button><button class="btn sm" data-act="sim-buy" data-id="${esc(t.id)}" data-m="lease" ${d.balance < t.deposit ? 'disabled' : ''}>Lease ${money(t.lease)} a month</button></span></div>`).join('');
   const used = (d.used || []).map((u: any) => `<div class="crew-row"><span class="cr-name"><b>${esc(u.name)}</b><small>${u.age} years old</small></span><span class="cr-now"><small>used</small></span><span class="cr-rules"><i class="chip ${u.condition >= 70 ? 'ok' : 'amber'}">condition ${u.condition}%</i></span>
-    <span class="cr-btns"><button class="btn sm primary" data-act="sim-buyused" data-id="${u.i}" ${d.balance < u.price ? 'disabled' : ''}>Buy ${money(u.price)}</button></span></div>`).join('');
+    <span class="cr-btns">${u.lease ? `<button class="btn sm" data-act="sim-buyused" data-id="${u.i}" ${d.balance < u.deposit ? 'disabled' : ''}>Lease ${money(u.rent)} a month</button>` : `<button class="btn sm primary" data-act="sim-buyused" data-id="${u.i}" ${d.balance < u.price ? 'disabled' : ''}>Buy ${money(u.price)}</button>`}</span></div>`).join('');
   return `<div class="pilot-hero"><div class="ph-main"><small>based at ${esc(d.hub || '')}</small><h1>${market ? 'Aircraft market' : 'Fleet'}</h1><p class="sub">${fl.length} aircraft · ${money(d.balance || 0)} in the bank</p></div></div>
     ${market ? '' : `<h4 class="grp-h">Your aircraft</h4><div class="crew-list">${rows || emptyState('No aircraft yet', 'Hire the crew one aircraft needs, then buy or lease it here.')}</div>`}
     <h4 class="grp-h">Buy or lease</h4><div class="crew-list">${shop}</div>
-    <h4 class="grp-h">Used aircraft (a new list every Monday)</h4><div class="crew-list">${used || emptyState('None offered just now', 'New offers come every Monday.')}</div>
+    <h4 class="grp-h">Used aircraft to buy or lease (more every Monday)</h4><div class="crew-list">${used || emptyState('None offered just now', 'New offers come every Monday.')}</div>
     <p class="fine-print">${icon('info')}An aircraft is delivered to your base and stands at a gate. A lease: two months' rent as the deposit; handed back early it costs three more.</p>`;
 }
 

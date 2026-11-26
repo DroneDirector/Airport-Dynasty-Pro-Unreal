@@ -389,12 +389,14 @@ FString UADPBridge::Sim(const FString& Action, const FString& Arg)
 			X->SetNumberField(TEXT("price"), FMath::RoundToDouble(T.ValueM * 1e6)); X->SetNumberField(TEXT("lease"), FMath::RoundToDouble(ADPEconomy::LeaseRate(T.Id))); X->SetNumberField(TEXT("deposit"), FMath::RoundToDouble(ADPEconomy::LeaseRate(T.Id) * 2.0));
 			X->SetNumberField(TEXT("fa"), ADPStaff::CabinCrewFor(T.Seats)); Ty.Add(MakeShared<FJsonValueObject>(X));
 		}
+		{ static FRandomStream MR(FPlatformTime::Cycles()); ADPEconomy::FillMarket(W, MR); }   // (never empty, even before the first market hour)
 		for (int32 i = 0; i < W.UsedMarket.Num(); ++i)
 		{
 			const FADPUsedOffer& U = W.UsedMarket[i]; if (!ADPWorldData::HasModel(U.TypeId)) continue;
 			const FADPTypeInfo* T = ADPWorldData::Type(U.TypeId);
 			TSharedRef<FJsonObject> X = MakeShared<FJsonObject>(); X->SetNumberField(TEXT("i"), i); X->SetStringField(TEXT("type"), U.TypeId); X->SetStringField(TEXT("name"), T ? T->Name : U.TypeId); X->SetNumberField(TEXT("age"), U.AgeYears);
-			X->SetNumberField(TEXT("condition"), FMath::RoundToDouble(U.Condition)); X->SetNumberField(TEXT("price"), FMath::RoundToDouble(U.Price)); Us.Add(MakeShared<FJsonValueObject>(X));
+			X->SetNumberField(TEXT("condition"), FMath::RoundToDouble(U.Condition)); X->SetNumberField(TEXT("price"), FMath::RoundToDouble(U.Price));
+			X->SetBoolField(TEXT("lease"), U.bLease); X->SetNumberField(TEXT("rent"), FMath::RoundToDouble(U.LeaseMonthly)); X->SetNumberField(TEXT("deposit"), FMath::RoundToDouble(U.LeaseMonthly * 2.0)); Us.Add(MakeShared<FJsonValueObject>(X));
 		}
 		for (const FADPAircraft& C : W.Aircraft) if (C.AirlineId == Me)
 		{

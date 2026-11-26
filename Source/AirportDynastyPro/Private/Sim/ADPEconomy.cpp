@@ -168,6 +168,7 @@ void FADPEconomyModule::Advance(UADPSim& Sim, const FDateTime& From, const FDate
 			WM.UsedMarket.Add(O);
 		}
 	}
+	ADPEconomy::FillMarket(WM, Rng);
 	// campaigns that ended
 	WM.Campaigns.RemoveAll([&](const FADPCampaign& C) { return C.Until <= To; });
 	if (To.GetDay() == 1 && To.GetHour() == 0 && From.GetDay() != 1) { MonthEnd(Sim.World, To); ++MonthEnds; }
@@ -210,11 +211,13 @@ FString ADPEconomy::BuyUsed(FADPWorld& W, const FString& AirlineId, int32 Offer,
 	if (!W.UsedMarket.IsValidIndex(Offer)) return FString();
 	const FADPUsedOffer O = W.UsedMarket[Offer];
 	FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == AirlineId; });
-	if (!Al || Al->Balance < O.Price) return FString();
+	const double Now = O.bLease ? O.LeaseMonthly * 2.0 : O.Price;   // (a lease: two months' rent as the deposit)
+	if (!Al || Al->Balance < Now) return FString();
 	FADPAircraft A; A.Reg = FString::Printf(TEXT("%s-U%02d"), Al->Icao.IsEmpty() ? TEXT("XX") : *Al->Icao.Left(2), W.NextReg++ % 100);
 	A.TypeId = O.TypeId; A.AirlineId = AirlineId; A.Base = A.Location = Base; A.Value = O.Price; A.Condition = O.Condition; A.HoursMin = O.AgeYears * 3000.0 * 60.0;
+	if (O.bLease) { A.Ownership = TEXT("leased"); A.LeaseMonthly = O.LeaseMonthly; A.Value = O.Price; }
 	W.Aircraft.Add(A); W.UsedMarket.RemoveAt(Offer);
-	Pay(W, AirlineId, At, TEXT("purchase"), -O.Price, FString::Printf(TEXT("Bought a used %s, %d years old (%s)"), *O.TypeId, O.AgeYears, *A.Reg), A.Reg);
+	Pay(W, AirlineId, At, O.bLease ? TEXT("lease") : TEXT("purchase"), -Now, (O.bLease ? FString::Printf(TEXT("Lease deposit for a used %s, %d years old (%s)"), *O.TypeId, O.AgeYears, *A.Reg) : FString::Printf(TEXT("Bought a used %s, %d years old (%s)"), *O.TypeId, O.AgeYears, *A.Reg)), A.Reg);
 	return A.Reg;
 }
 
@@ -242,4 +245,21 @@ double ADPEconomy::CampaignBoost(const FADPWorld& W, const FString& AirlineId, c
 	double B = 0.0;
 	for (const FADPCampaign& C : W.Campaigns) if (C.AirlineId == AirlineId && C.Until > At && (C.RouteId.IsEmpty() || C.RouteId == RouteId)) B += C.Boost;
 	return FMath::Min(B, 0.35);
+}
+
+void ADPEconomy::FillMarket(FADPWorld& W, FRandomStream& R)
+{
+	const FADPTypeInfo* T = ADPWorldData::Type(TEXT("A320")); if (!T) return;   // (types not read yet: the next look fills it)
+	int32 Sale = 0, Lease = 0;
+	for (const FADPUsedOffer& O : W.UsedMarket) if (O.TypeId == T->Id) { if (O.bLease) ++Lease; else ++Sale; }
+	auto Add = [&](bool bL)
+	{
+		FADPUsedOffer O; O.TypeId = T->Id; O.bLease = bL; O.AgeYears = R.RandRange(2, 22); O.Condition = R.FRandRange(55.0, 95.0);
+		const double K = FMath::Max(0.12, FMath::Pow(0.93, O.AgeYears)) * (0.55 + 0.45 * O.Condition / 100.0);
+		O.Price = T->ValueM * 1e6 * K;
+		O.LeaseMonthly = bL ? LeaseRate(T->Id) * FMath::Clamp(K * 1.4, 0.45, 1.0) : 0.0;   // (older: cheaper rent)
+		W.UsedMarket.Add(O);
+	};
+	for (; Sale < 5; ++Sale) Add(false);
+	for (; Lease < 4; ++Lease) Add(true);
 }
