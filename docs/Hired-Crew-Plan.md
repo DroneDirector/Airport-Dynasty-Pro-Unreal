@@ -787,3 +787,28 @@ is held a moment at its end; walking, climbing, pushing (`bMove`) and driving ke
 (less fluid a second, so the tanks last). Job time limits grow with it (`FSvcJob::Slow`, `ATugs::Late`). The gate and the bus doors have no timed step.
 Called in up to `OnShift` (40 % of a job) stays as it was: the simulation plans flights by that number, both would have to change.
 The shifts share the 30 built faces; a shift never has more of a sex than there are faces.
+
+## The cargo forklift model, as built (2026-11-26, imported, not run)
+`Art/CargoForklift/make_cargo_forklift.py` -> `cargoforklift.glb` -> `Content/Babylon/CargoForklift`, parts listed in `Data/babylon-cargoforklift.json`.
+One forklift is parked (static) in the export build-up area between stations 1 and 2, forks towards the roller-deck lane (`Airfield.cpp`, after
+`ACargoTerminalLife::Make`). Driving, the driver and IK are builder B's work.
+Axes as the pushback tug: x forward (forks at +x), y left, z up, metres; origin on the ground halfway between the axles. Size 4.00 x 1.50 x 2.50 m with the forks
+(the Meshy proportions: seat 1.29 m and roof sit a little high). 297k faces; round parts (wheels, cylinders, rollers, steering wheel, lamps) kept round.
+Materials: M_Forklift_Body / Tyre / Steel / Plastic.
+
+| Part | Pivot (game m) | Moves |
+|---|---|---|
+| Wheel_FL / Wheel_FR (drive, d 0.81) | (0.980, +-0.594, 0.407) | spin about y |
+| Wheel_RL / Wheel_RR (steer, d 0.85) | (-0.979, +-0.592, 0.421) | spin about y, steer with the knuckle |
+| SteerKnuckle_L / _R | (-0.972, 0.401, 0.446) / (-0.961, -0.398, 0.439) | turn about z (kingpin) |
+| MastOuter | tilt pin (0.980, 0, 0.407) | tilt about y |
+| MastInner | foot (1.444, 0, 0.155) | lifts along z |
+| Carriage | (1.463, 0, 0.065) | lifts along z |
+| Fork_L / Fork_R | hook (1.579, +-0.293, 0.748) | slide along y |
+| SteeringWheel | hub (0.330, 0, 1.500), rim r 0.168 | turns about its local z (column axis -0.50, 0, 0.86) |
+| Seat | bottom middle | static |
+| Lever_1 (the whole hydraulic lever bank, one part) | base (0.371, 0.146, 1.222) | tips about y |
+
+IK empties: IK_Seat_Driver (0.028, 0, 1.293), IK_Back_Driver (-0.318, 0, 1.593), IK_Hand_L/R (0.330, +-0.163, 1.500),
+IK_Hand_Lever_1 (0.349, 0.189, 1.411), IK_Foot_Accel (0.533, -0.120, 0.966), IK_Foot_Brake (0.533, 0.100, 0.966), IK_Step (0.144, 0.586, 0.654),
+IK_Grab_Outside (0.701, 0.511, 1.343). The driver gets on from the left (+y). Foot, step and grab points are estimated from the mesh, not tried.

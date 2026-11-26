@@ -1283,6 +1283,17 @@ bool AAirfield::Build(bool bModelSite)
 			// its lights (the model's lamp system: by day dimmed, no shadows, no flares) and its sounds where they happen
 			// (Data/cargo-lights.json, Art/CargoTerminal/cargo_lights.py)
 			ACargoTerminalLife::Make(Cargo);
+			// one cargo forklift parked in the export build-up area (Art/CargoForklift), between build-up stations 1 and 2
+			// (their roller beds end at x 38.3 / 47.9), forks lowered and towards the roller-deck transfer lane (model-local
+			// -y); static for now. Model-local (x, y, z) -> the root's Unreal frame (x, -y, z) cm; the forklift's front
+			// (Blender +x) faces the actor's forward.
+			{
+				const FTransform T = Cargo->GetRootComponent()->GetComponentTransform();
+				const FVector At = T.TransformPosition(FVector(43.1, -12.0, 0.0) * 100.0);
+				ABabylonModel* Fork = GetWorld()->SpawnActor<ABabylonModel>(At, FRotator(0.f, T.Rotator().Yaw + 90.f, 0.f), S);
+				if (Fork && Fork->Place(TEXT("CargoForklift"))) ADP_LOG(TEXT("Airfield: a cargo forklift parked in the build-up area at %s"), *At.ToString());
+				else { if (Fork) Fork->Destroy(); ADP_WARN(TEXT("Airfield: no cargo forklift model (Tools/import_model.py ... CargoForklift)")); }
+			}
 		}
 		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
 	}
