@@ -287,7 +287,7 @@ cx, cz = hinge.x + ux * 0.1075 + 0.0035 * math.cos(t_), hinge.z + uz * 0.1075 + 
 def lidpt(u, v):                                       # u across (y), v up the lid from its middle
     return (cx + ux * v + 0.0002, LY + u, cz + uz * v)
 uv_plane('LaptopScreen', [lidpt(-0.145, -0.095), lidpt(0.145, -0.095), lidpt(0.145, 0.095), lidpt(-0.145, 0.095)][::-1] if False else
-         [lidpt(0.145, -0.095), lidpt(-0.145, -0.095), lidpt(-0.145, 0.095), lidpt(0.145, 0.095)], SCR)
+         [lidpt(-0.145, -0.095), lidpt(0.145, -0.095), lidpt(0.145, 0.095), lidpt(-0.145, 0.095)], SCR)   # u from your left to right
 # desk lamp: weighted base, two arms, a shade with its LED
 lb = (DCX - 0.25, DCY + 0.78, 0.755)
 cyl('LampBase', lb, 0.08, 0.025, BLACKSTEEL, bevel=0.006)
