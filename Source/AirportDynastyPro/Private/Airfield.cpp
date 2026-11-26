@@ -1294,6 +1294,17 @@ bool AAirfield::Build(bool bModelSite)
 				if (Fork && Fork->Place(TEXT("CargoForklift"))) ADP_LOG(TEXT("Airfield: a cargo forklift parked in the build-up area at %s"), *At.ToString());
 				else { if (Fork) Fork->Destroy(); ADP_WARN(TEXT("Airfield: no cargo forklift model (Tools/import_model.py ... CargoForklift)")); }
 			}
+			// one lorry (tractor + box semi-trailer, Art/Lorry) backed onto truck dock DOCK-01 (Data/cargo-slots.json: door at
+			// x 36, wall y 70, truck bay towards +y); static for now. Its rear doors (model-local x -12.565) stop at y 71.2,
+			// 8 cm short of the dock shelter's curtains (y 71.12), so nothing passes through them; the cab faces away from the
+			// building (model-local +y), so the actor turns the other way from the forklift.
+			{
+				const FTransform T = Cargo->GetRootComponent()->GetComponentTransform();
+				const FVector At = T.TransformPosition(FVector(36.0, -(71.2 + 12.565), 0.0) * 100.0);
+				ABabylonModel* Lorry = GetWorld()->SpawnActor<ABabylonModel>(At, FRotator(0.f, T.Rotator().Yaw - 90.f, 0.f), S);
+				if (Lorry && Lorry->Place(TEXT("Lorry"))) ADP_LOG(TEXT("Airfield: a lorry parked at truck dock DOCK-01 at %s"), *At.ToString());
+				else { if (Lorry) Lorry->Destroy(); ADP_WARN(TEXT("Airfield: no lorry model (Tools/import_model.py ... Lorry)")); }
+			}
 		}
 		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
 	}

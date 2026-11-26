@@ -819,3 +819,39 @@ IK empties: IK_Seat_Driver (-0.080, 0, 1.288), IK_Back_Driver (-0.250, 0, 1.578)
 IK_Hand_Knob (0.247, 0.136, 1.515), IK_Hand_Lever_1/2/3 (0.353, 0.085 / 0.140 / 0.195, 1.399),
 IK_Foot_Inching / Brake / Accel (0.613, 0.215 / 0.115 / -0.130, 0.990), IK_Step (0.190, 0.590, 0.664),
 IK_Grab_Outside (0.677, 0.526, 1.425). The driver gets on from the left (+y). Points are taken from the modelled parts, not tried with a person.
+## The lorry model, as built (2026-11-26, imported, not run)
+`Art/Lorry/make_lorry.py` (+ `lorry_details.py`, `make_lorry_maps.py`) -> `lorry.glb` -> `Content/Babylon/Lorry`, parts in `Data/babylon-lorry.json`.
+A tractor unit with a 3-axle box semi-trailer, 16.50 x 2.55 m (3.26 m over the mirrors) x 4.00 m, 271,851 faces. One is parked (static) at truck dock
+DOCK-01 with its rear doors 8 cm short of the dock shelter (`Airfield.cpp`, after `ACargoTerminalLife::Make`). Driving, the driver and IK are builder B's work.
+Axes as the forklift: x forward, y left, z up, metres; the tractor's origin is on the ground halfway between the front axle and the drive tandem's centre.
+All 12 wheels are modelled again (Meshy's were lumpy): 1.20 m tyres on 22.5 in rims, 96 sides, 10 nuts; steer single, drive twin, trailer wide singles.
+Brands, badges and lettering are painted out of the texture. Replaced with modelled parts: mirrors on arms, head lamps and indicators (housing, chrome reflector,
+lens), tail-lamp clusters, amber side markers, cab steps with studs, grab handles on the pillar behind each door, mudflaps, fuel caps, fifth wheel and kingpin,
+landing gear. The glass (windscreen, door windows) is real see-through glass (Nanite off). `CabLining` is a dark placeholder box for the cab interior (next step).
+
+| Part | Pivot (game m) | Moves |
+|---|---|---|
+| Wheel_FL / FR (steer) | (2.326, +-1.12, 0.600) | spin about y, steer with the knuckle |
+| SteerKnuckle_L / R | (2.326, 0.901 / -0.914, 0.600) | turn about z |
+| Wheel_D1L/R, D2L/R (drive twins) | x -1.611 / -3.041, y +-1.11, z 0.600 | spin about y |
+| Trailer | kingpin (-1.975, 0, 1.251) | turns about z on the fifth wheel (top 1.247) |
+| Wheel_T1L/R, T2L/R, T3L/R | x -7.988 / -9.277 / -10.567, y +-1.09, z 0.600 (in the tractor's frame while coupled) | spin about y |
+| Door_L / R (+ Door_L/R_Glass) | hinge (2.616, +-1.38, 1.390) | open about z, outwards |
+| RearDoor_L / R | hinge (-12.545, +-1.223, 1.383) | open about z, up to 270 deg |
+| LandingLeg_L / R | top (-4.275, +-0.950, 0.950), foot 0.48 m up when raised | slide along z |
+| LandingCrank | (-4.275, -1.080, 1.300) | turns about y |
+| Mirror_L / R | arm root (3.266, +-1.57, 2.367) | fold about z |
+| FuelCap_L / R | hinge (1.002, +-1.199, 1.160) | flip about y |
+| FifthWheelHandle | (-1.925, 0.400, 1.212) | pulls along y |
+| LockBar_L / R (one per rear door, cam handle) | axis (-12.58, +-0.420, 1.383) | turns about its own z axis to unlock; rides with its RearDoor |
+| DoorHoldBack_L / R (hook on the trailer side) | static, at (-11.45, +-1.36, 2.38) | holds the door open at 270 deg |
+
+IK empties: IK_DoorHandle_L/R (1.45, +-1.40, 2.22), IK_Grab_L/R_Low / High (1.31, +-1.42, 1.68 / 2.38), IK_Step_L/R_1 / 2 (1.369, +-1.43, 0.506 / 0.926),
+IK_RearDoorHandle_L/R (-12.565, +-0.150, 1.600), IK_FifthWheelHandle (-1.925, 0.620, 1.212), IK_LandingCrank (-4.275, -1.240, 1.010).
+Loading: IK_LockHandle_L/R (-12.59, +-0.100, 2.01), IK_DoorHoldBack_L/R (-11.45, +-1.36, 2.38), IK_LoadEdge (-12.54, 0, 1.383: rear sill centre,
+where the leveller lip rests; cargo floor top 1.383 m), IK_FloorFront (0.280, 0, 1.383). Inside box 12.80 x 2.54 m (Meshy's proportions; a real one is 13.6 m).
+Pallet slots on the floor (empties, floor centre of each pallet), slot 01 front left, rows towards the doors (code fills back to front):
+Slot_01..Slot_30 EUR 1.2 x 0.8 (3 across, 1.2 along, 10 rows); Slot_IND_01..Slot_IND_24 1.2 x 1.0 (2 across, 1.0 along, 12 rows).
+The trailer has no modelled inside yet: the rear opening is closed by a cap just behind the doors (the inside goes with the loading work).
+The driver gets in from the left (+y) door; the step points are taken from the modelled parts, not tried with a person. Wheel and step numbers are from
+the build log (`INFO` lines of `make_lorry.py`).
