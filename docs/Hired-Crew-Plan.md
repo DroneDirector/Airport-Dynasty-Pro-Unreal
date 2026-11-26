@@ -950,7 +950,7 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Not done yet: the path points, hand positions and knock timing are not checked in a run; the knock sound needs `Tools/import_office_sounds.py` run in the editor if `Content/Office/Sounds/Knock.uasset` is missing (logged once).
 
 ## Hangar tow (to-do 311, step A)
-- A C or D check of ours at our airport (Sim/ADPMaint): HangarTow.cpp has the stand's own tug and its hired crew tow it to
+- A C or D check of ours at our airport (Sim/ADPMaint): HangarTow.cpp has the hangar tug and your hired crew tow it to
   the nearest free hangar. Key `TOW/<reg>`; the same calls as a pushback (Tugs.h `TowPlan`, `Push`, `Release`), so your
   own tow (step C) can use them with the same limits.
 - The way: pushed tail first onto T, pulled nose first T - P - A - A2 (over the runway) - B - Q - K past the hangar, then
@@ -994,3 +994,18 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Aboard he is hidden and attached to the aircraft; lights from his arrival: beacon on, nav at night, strobes off.
 - Back at the stand (MaintOff) he gets off by jetway or stair, walks to the van and drives it home.
 - Not yet (no hangar mobile stair model): he stays aboard through the check; the van stays parked at the stand.
+
+## Hangar tug (to-do 311)
+- Art/HangarTug: the pushback tug copied as it is (no marking yet), Content/Babylon/HangarTug, 0 flickering pairs.
+- One only, on place 11 of the vehicle area (by the bus chargers, nose out), kept for it: `"fixed": "Hangar tug"` in
+  Data/vehicle-area.json. Not spawned where there is no vehicle area (no remote stands): then no hangar tows.
+- Tugs.cpp `Assign`: a `TOW/` key goes only to the hangar tug (parked, free, your hired crew); stand tugs never tow.
+  Stand loops (chocks, GPU, arrivals, you) skip it; the stand's own GPU and chocks stay with its own tug (`StandTug`,
+  `JobTug`: its tow crew takes them off).
+- Its driver walks to it the vehicle area's way (AGSE `DepotGo`), the handler to the stand (`SafeWay`); after the job
+  the driver walks back by `DepotBack`.
+- TugTow.cpp `HangarOut`: out of its place the depot's own legs, then to a stand round the apron's things (AGSE `Apron`)
+  into the stand tug's way in, or to the hangar down the road onto T and the tow's taxiways. No way yet: retries every 5 s.
+- `HangarHome`: from the hangar along the taxiways to the road, or from a stand by `Apron`, then the depot legs, reversed
+  into its place. Beacons flash while it runs (Lamps). Not yet: you drive it, a HANGAR marking, an old save with a vehicle
+  on place 11, any run in the game.

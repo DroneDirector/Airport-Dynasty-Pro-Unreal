@@ -227,6 +227,7 @@ private:
 		FString YouWhy; FVector2f YouNose, YouMain, YouStart; TWeakObjectPtr<AActor> YouPlane;
 		int32 YouWheelG = INDEX_NONE; float YouWheelNow = 0.f, YouPedal[2] = {0.f, 0.f};
 		FVehicleDirt Dirt;
+		bool bHangar = false; float HtRetry = 0.f;   // (the hangar tug: only hangar tows, parked in the vehicle area - TugTow.cpp)
 		bool bTow = false, bTowGpu = false; double TowSaid = -100.0; TArray<FVector> TowWay, TowBack; FString TowAsk, TowOk;   // (a hangar tow, to-do 311: TowPlan)
 		TArray<int32> Walkers; int32 WalkersReady = 0; bool bWalkersOut = false; float WalkerLook = 0.f;              // the wing walkers and tail walker on this push (Crew[])
 	};
@@ -238,7 +239,19 @@ private:
 	float Flash = 0.f;
 	bool bReady = false;
 	void Setup();
-	bool SpawnAt(FTug& T);
+	bool SpawnAt(FTug& T, const TCHAR* Model = TEXT("PushbackTug"));
+	/** The hangar tug (to-do 311): one, on place 11 of the vehicle area by the bus chargers; it alone does the hangar tows. */
+	void HangarSetup();
+	/** Its way out of its place to the aircraft (Waiting to ToNose); false: no way yet, it waits and tries again. */
+	bool HangarOut(FTug& T, const FVector& F);
+	/** Its way home to its place after a leg; false: no way yet. */
+	bool HangarHome(FTug& T, const TArray<FVector>& TowHome);
+	/** Out of its place onto the depot road (bOut), or from the road back to just ahead of its place. */
+	void HangarLegs(TArray<FVector>& Out, bool bOut) const;
+	/** The stand's own tug (never the hangar tug), or INDEX_NONE. */
+	int32 StandTug(float StandX) const;
+	/** The tug doing the job at this tug's stand: the hangar tug while it is on a tow there, else this one. */
+	int32 JobTug(int32 Tug) const;
 	int32 Assign(const FString& Key, float StandX);
 	FVector Plan(float X, float Y) const;            // plan (x, y) m on the ground -> world
 	void Drive(FTug& T, float Dt);

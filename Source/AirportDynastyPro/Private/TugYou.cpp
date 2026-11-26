@@ -61,7 +61,7 @@ bool ATugs::YouFree(int32 Tug, FString& Why) const
 bool ATugs::YouHave(float StandX, FString& Why) const
 {
 	for (const FTug& T : Tugs)
-		if (T.State == EState::You && FMath::Abs(T.StandX - StandX) < 1.f && (T.bYouIn ? T.YouStep != 3 : T.YouStep == 0))
+		if (!T.bHangar && T.State == EState::You && FMath::Abs(T.StandX - StandX) < 1.f && (T.bYouIn ? T.YouStep != 3 : T.YouStep == 0))
 		{
 			Why = T.bYouCrew ? TEXT("its pushback tug is being fetched by its driver") : T.bYouIn ? TEXT("you are in its pushback tug") : TEXT("you have its pushback tug - bring it back, or leave it and its driver fetches it");
 			return true;

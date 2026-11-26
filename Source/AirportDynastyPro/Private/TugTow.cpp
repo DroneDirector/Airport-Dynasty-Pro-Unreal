@@ -1,8 +1,10 @@
-// A hangar tow by the stand's own tug and crew (to-do 311, docs/Hired-Crew-Plan.md): the same calls, limits and talk as a
-// pushback (Push, Release), with its own drive out along the taxiways to the aircraft and home again. HangarTow.cpp asks
+// A hangar tow by the hangar tug and your hired crew (to-do 311, docs/Hired-Crew-Plan.md): the same calls, limits and talk as a
+// pushback (Push, Release), with its own drive from its place by the bus chargers out to the aircraft and home again. HangarTow.cpp asks
 // for it; your own tow (step C) is to go through the same calls.
 #include "Tugs.h"
 #include "StaffPeople.h"
+#include "GSE.h"
+#include "Sim/ADPVehicleArea.h"
 #include "ADPLog.h"
 #include "CrewPose.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -10,6 +12,10 @@
 
 namespace
 {
+	// (the hangar tug's place and the vehicle area's lane and road, plan metres - GSESpare.cpp's DpLane/DpRoad; the tug's box
+	//  in front of the terminal, Tugs.cpp's BoxX/BoxY; taxilane T, HangarTow.cpp)
+	constexpr float HtLane = 273.5f, HtRoad = -245.f, HtR = 6.2f, HtK = 580.f, HtBoxX = -13.f, HtBoxY = 91.f, HtTY = 206.f;
+	constexpr float HtNone = -100000.f;   // (at no stand: home in its place)
 	ATugs::FCrewAct TwWalk(const FVector& To, float Stop = 20.f) { ATugs::FCrewAct A; A.Kind = ATugs::FCrewAct::Walk; A.To = [To] { return To; }; A.Stop = Stop; A.Max = 150.f; return A; }
 	ATugs::FCrewAct TwDo(TFunction<void()> F) { ATugs::FCrewAct A; A.Kind = ATugs::FCrewAct::Do; A.Fn = MoveTemp(F); return A; }
 	// down on the haunches at a chock, both hands on it (K 0..1 down and back up again)
@@ -32,7 +38,12 @@ bool ATugs::TowPlan(const FString& Key, float StandX, const TArray<FVector2f>& W
 {
 	Tows.Add(Key);
 	const int32 I = Assign(Key, StandX);
-	if (I == INDEX_NONE) { Why = TEXT("no tug or tow crew is free at that stand"); return false; }
+	if (I == INDEX_NONE)
+	{
+		const FTug* H = Tugs.FindByPredicate([](const FTug& U) { return U.bHangar; });
+		Why = !H ? TEXT("there is no hangar tug here (it stands in the vehicle area)") : !HiredJob(Key) ? TEXT("a hangar tow needs your own hired crew") : TEXT("the hangar tug is busy");
+		return false;
+	}
 	FTug& T = Tugs[I];
 	if (!T.bTow)
 	{
@@ -107,4 +118,106 @@ bool ATugs::TowChocks(const FString& Key, bool bOn, const FVector& Store, const 
 		return true;
 	}
 	return false;
+}
+
+void ATugs::HangarSetup()
+{
+	// one hangar tug, on place 11 of the vehicle area (kept for it: "fixed" in Data/vehicle-area.json), nose out to the lane
+	if (Tugs.ContainsByPredicate([](const FTug& U) { return U.bHangar; })) return;
+	const ADPVehicleArea::FPlace* P = ADPVehicleArea::Built() ? ADPVehicleArea::Place(TEXT("11")) : nullptr;
+	if (!P) { ADP_LOG(TEXT("Tugs: no vehicle area here - no hangar tug, no hangar tows")); return; }
+	FTug T; T.bHangar = true; T.StandX = HtNone; T.Home = T.At = Plan(P->X, P->Y); T.HomeYaw = T.Yaw = -P->Heading;
+	if (!SpawnAt(T, TEXT("HangarTug"))) return;
+	Pose(T); Tugs.Add(MoveTemp(T));
+	ADP_LOG(TEXT("Tugs: the hangar tug %d stands on place %s of the vehicle area (%.1f, %.1f)"), Tugs.Num() - 1, *P->Name, P->X, P->Y);
+}
+
+int32 ATugs::StandTug(float StandX) const
+{
+	return Tugs.IndexOfByPredicate([StandX](const FTug& U) { return !U.bHangar && FMath::Abs(U.StandX - StandX) < 1.f; });
+}
+
+int32 ATugs::JobTug(int32 Tug) const
+{
+	const FTug& T = Tugs[Tug];
+	if (T.bHangar || !T.Key.IsEmpty()) return Tug;
+	for (int32 i = 0; i < Tugs.Num(); ++i) if (Tugs[i].bHangar && !Tugs[i].Key.IsEmpty() && FMath::Abs(Tugs[i].StandX - T.StandX) < 1.f) return i;
+	return Tug;
+}
+
+void ATugs::HangarLegs(TArray<FVector>& Out, bool bOut) const
+{
+	// the vehicle area's own way (GSESpare.cpp HomeOut, SpareHome): out of the place forward to the lane, east along it,
+	// south onto the depot road; home the same in reverse, ending in line with the place beyond the lane - then reversed in
+	const FTug* H = Tugs.FindByPredicate([](const FTug& U) { return U.bHangar; });
+	const AGSE* G = AGSE::Find(GetWorld()); if (!H || !G) return;
+	const float x = float(H->Home.X / 100.), y = float(-H->Home.Y / 100.), r = HtR, k = HtK;
+	if (bOut)
+	{
+		G->Leg(Out, x, y, 0.f, 1.f, x, HtLane - r, 0.f, 1.f, k);
+		G->Leg(Out, x, HtLane - r, 0.f, 1.f, x + r + 0.4f, HtLane, 1.f, 0.f, k);
+		G->Leg(Out, x + r + 0.4f, HtLane, 1.f, 0.f, HtRoad - r, HtLane, 1.f, 0.f, k);
+		G->Leg(Out, HtRoad - r, HtLane, 1.f, 0.f, HtRoad, HtLane - (r + 2.f), 0.f, -1.f, k);
+	}
+	else
+	{
+		G->Leg(Out, HtRoad, HtLane - (r + 2.f), 0.f, 1.f, HtRoad - r, HtLane, -1.f, 0.f, k);
+		G->Leg(Out, HtRoad - r, HtLane, -1.f, 0.f, x + r + 0.4f, HtLane, -1.f, 0.f, k);
+		G->Leg(Out, x + r + 0.4f, HtLane, -1.f, 0.f, x, HtLane + r, 0.f, 1.f, k);
+	}
+}
+
+bool ATugs::HangarOut(FTug& T, const FVector& F)
+{
+	// out of its place, down the depot road; to an aircraft at its stand round the apron's things to the stand tug's own way in
+	// (AGSE::Apron: clear of the stands' lines, aircraft, tugs, ground power and vehicles), to one at the hangar along the taxiways
+	const double Now = GetWorld()->GetTimeSeconds(); if (Now < T.HtRetry) return false;
+	const AGSE* G = AGSE::Find(GetWorld()); if (!G) return false;
+	TArray<FVector> P; HangarLegs(P, true);
+	if (!P.Num()) return false;
+	if (T.TowWay.Num())
+	{
+		P.Add(Plan(HtRoad, HtTY));
+		for (int32 i = 1; i < T.TowWay.Num(); ++i) P.Add(T.TowWay[i]);
+		P.Add(T.HookAt + F * 1500.f); P.Add(T.HookAt);
+	}
+	else
+	{
+		TArray<FVector> A;
+		if (!G->Apron(A, P.Last(), Plan(T.StandX + HtBoxX * 0.5f, HtBoxY + 12.5f), nullptr))
+		{
+			T.HtRetry = float(Now + 5.0);
+			if (Now - T.TowSaid > 30.0) { T.TowSaid = Now; ADP_LOG(TEXT("Tugs: the hangar tug waits for %s - no clear way to the stand yet"), *T.Key); }
+			return false;
+		}
+		P.Append(A); P.Add(Plan(T.StandX, HtBoxY + 18.f)); P.Add(T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt);
+	}
+	T.Path = MoveTemp(P); T.HtRetry = 0.f;
+	ADP_LOG(TEXT("Tugs: the hangar tug drives out of its place to %s (%d points)"), *T.Key, T.Path.Num());
+	return true;
+}
+
+bool ATugs::HangarHome(FTug& T, const TArray<FVector>& TowHome)
+{
+	// home after a leg: from the hangar along the taxiways to the depot road, else round the apron's things to it; then into
+	// its place as the vehicle area's own do (the Home tick reverses it in)
+	const double Now = GetWorld()->GetTimeSeconds();
+	const AGSE* G = AGSE::Find(GetWorld());
+	TArray<FVector> P;
+	const FVector Road = Plan(HtRoad, HtLane - (HtR + 2.f));
+	if (TowHome.Num())
+	{
+		P = TowHome; if (P.Num() > 1) P.Pop();   // (not back to the stand's line: along taxilane T to the road)
+		P.Add(Plan(HtRoad, HtTY)); P.Add(Road);
+	}
+	else if (!G || !G->Apron(P, T.At, Road, nullptr))
+	{
+		T.HtRetry = FMath::Max(0.01f, float(Now + 5.0));
+		if (Now - T.TowSaid > 30.0) { T.TowSaid = Now; ADP_LOG(TEXT("Tugs: the hangar tug waits at x %.0f - no clear way home yet"), T.StandX); }
+		return false;
+	}
+	HangarLegs(P, false);
+	T.Path = MoveTemp(P); T.HtRetry = 0.f;
+	ADP_LOG(TEXT("Tugs: the hangar tug drives home to its place (%d points)"), T.Path.Num());
+	return true;
 }

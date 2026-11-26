@@ -171,16 +171,17 @@ void ATugs::Setup()
 	if (const int32 Cg = Tugs.IndexOfByPredicate([](const FTug& T) { return CargoStand(T.StandX); }); Cg > 4) { FTug Mv = MoveTemp(Tugs[Cg]); Tugs.RemoveAt(Cg); Tugs.Insert(MoveTemp(Mv), 4); }
 	ADP_LOG(TEXT("Tugs: %d tugs ready at the gates"), Tugs.Num());
 	SetupCrew();
+	HangarSetup();   // (after the gates' crews: it has none of its own - your hired people only, to-do 311)
 	// the baggage tractors and carts (GSE.h): the same ground crew, the same apron
 	AGSE::Get(GetWorld());
 	// the apron buses (ApronBus.h): parked, only where there are remote stands
 	AApronBuses::Get(GetWorld());
 }
 
-bool ATugs::SpawnAt(FTug& T)
+bool ATugs::SpawnAt(FTug& T, const TCHAR* Model)
 {
 	ABabylonModel* M = GetWorld()->SpawnActor<ABabylonModel>(T.At, FRotator::ZeroRotator);
-	if (!M || !M->Place(TEXT("PushbackTug"))) { if (M) M->Destroy(); ADP_WARN(TEXT("Tugs: the tug model is missing (Tools/import_model.py ... PushbackTug)")); return false; }
+	if (!M || !M->Place(Model)) { if (M) M->Destroy(); ADP_WARN(TEXT("Tugs: the tug model is missing (Tools/import_model.py ... %s)"), Model); return false; }
 	M->SetPartsCollision(false);
 	T.M = M;
 	// its windows: the fire truck's glass; its lenses: the fire truck's lens material, one glow value per lens
@@ -328,9 +329,24 @@ void ATugs::Lamps(FTug& T)
 int32 ATugs::Assign(const FString& Key, float StandX)
 {
 	for (int32 i = 0; i < Tugs.Num(); ++i) if (Tugs[i].Key == Key) return i;
+	if (Key.StartsWith(TEXT("TOW/")))
+	{
+		// (a hangar tow: the hangar tug alone, never the stand's own - from its place by the bus chargers, your hired crew, to-do 311)
+		const int32 H = Tugs.IndexOfByPredicate([](const FTug& U) { return U.bHangar; });
+		if (H == INDEX_NONE || !HiredJob(Key)) return INDEX_NONE;
+		FTug& T = Tugs[H];
+		if (T.State != EState::Parked || !T.Key.IsEmpty()) return INDEX_NONE;
+		if (T.bHired) { if (!HiredFree(T)) return INDEX_NONE; HiredEnd(T); }
+		T.StandX = StandX;
+		if (const int32 S = StandTug(StandX); S != INDEX_NONE) { T.StandNose = Tugs[S].StandNose; T.StandDir = Tugs[S].StandDir; }
+		T.Key = Key; T.Path.Reset(); T.Seq = 0; T.SeqT = 0.f; T.EngT = -1.f; T.bDeiced = T.bPushReq = T.bCleared = T.bEngines = false; T.PreSeq = 0; T.PreAt = 0.0; T.Talk.Reset(); T.TalkT = 0.f;
+		T.bHired = true; T.Driver = T.Handler = INDEX_NONE; T.CrewAsk = 0.f; T.HtRetry = 0.f;
+		ADP_LOG(TEXT("Tugs: the hangar tug %d gets ready for %s at x %.0f"), H, *Key, StandX);
+		return H;
+	}
 	// (coupled by you and you still there: your push, its driver stays where he is - TugYou.cpp)
 	for (int32 y = 0; y < Tugs.Num(); ++y)
-		if (FTug& Y = Tugs[y]; Y.State == EState::You && Y.YouStep == 3 && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f && Y.YouLeft < 120.f)
+		if (FTug& Y = Tugs[y]; !Y.bHangar && Y.State == EState::You && Y.YouStep == 3 && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f && Y.YouLeft < 120.f)
 		{
 			Y.Key = Key; Y.Path.Reset(); Y.Seq = 0; Y.SeqT = 0.f; Y.EngT = -1.f; Y.bDeiced = Y.bPushReq = Y.bCleared = Y.bEngines = false; Y.PreSeq = 0; Y.PreAt = 0.0; Y.Talk.Reset(); Y.TalkT = 0.f;
 			Y.bYouPush = true; Y.bYouDone = Y.bYouGo = Y.bYouCrewIn = false; Y.bYouRejoin = true; Y.YouUn = 0; Y.YouBend = 0.f; Y.YouBeat = GetWorld()->GetTimeSeconds(); Y.YouLeft = 0.f; Y.YouWhy.Reset();
@@ -340,10 +356,10 @@ int32 ATugs::Assign(const FString& Key, float StandX)
 			if (!Y.bHired && Y.Handler != INDEX_NONE) { if (Y.Gpu.bConnected) GpuDisconnect(y, Crew[Y.Handler]); }
 			return y;
 		}
-	for (FTug& Y : Tugs) if (Y.State == EState::You && Y.YouStep > 0 && !Y.bYouIn && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f) Y.State = EState::Parked;   // (coupled by you: its crew go on from there, TugYou.cpp)
+	for (FTug& Y : Tugs) if (!Y.bHangar && Y.State == EState::You && Y.YouStep > 0 && !Y.bYouIn && !Y.bYouCrew && Y.Key.IsEmpty() && FMath::Abs(Y.StandX - StandX) < 1.f) Y.State = EState::Parked;   // (coupled by you: its crew go on from there, TugYou.cpp)
 	// the gate's own tug (ready in front of the terminal): its engine on, waiting for off-blocks
 	int32 Best = INDEX_NONE;
-	for (int32 i = 0; i < Tugs.Num(); ++i) if ((Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && Tugs[i].Key.IsEmpty() && FMath::Abs(Tugs[i].StandX - StandX) < 1.f) Best = i;
+	for (int32 i = 0; i < Tugs.Num(); ++i) if (!Tugs[i].bHangar && (Tugs[i].State == EState::Parked || Tugs[i].State == EState::Manned) && Tugs[i].Key.IsEmpty() && FMath::Abs(Tugs[i].StandX - StandX) < 1.f) Best = i;
 	if (Best == INDEX_NONE) return INDEX_NONE;
 	FTug& T = Tugs[Best];
 	// (to-do 206: the last job's hired people still at it - not yet)
@@ -453,7 +469,7 @@ void ATugs::ReturnCrew(int32 Tug)
 	int32 Di = Tugs.IsValidIndex(T.LentFrom) && Open(T.LentFrom) ? T.LentFrom : INDEX_NONE;
 	if (Di == INDEX_NONE)
 		for (int32 i = 0; i < Tugs.Num(); ++i)
-			if (!RemoteStand(Tugs[i].StandX) && !CargoStand(Tugs[i].StandX) && Open(i) && (Di == INDEX_NONE || FMath::Abs(Tugs[i].StandX - Tugs[T.LentFrom].StandX) < FMath::Abs(Tugs[Di].StandX - Tugs[T.LentFrom].StandX))) Di = i;
+			if (!Tugs[i].bHangar && !RemoteStand(Tugs[i].StandX) && !CargoStand(Tugs[i].StandX) && Open(i) && (Di == INDEX_NONE || FMath::Abs(Tugs[i].StandX - Tugs[T.LentFrom].StandX) < FMath::Abs(Tugs[Di].StandX - Tugs[T.LentFrom].StandX))) Di = i;
 	T.BackT = 0.f;
 	if (Di == INDEX_NONE) return;
 	FTug& D = Tugs[Di];
@@ -478,18 +494,18 @@ void ATugs::ReturnCrew(int32 Tug)
 void ATugs::Arrived(float StandX)
 {
 	for (int32 i = 0; i < Tugs.Num(); ++i)
-		if (FMath::Abs(Tugs[i].StandX - StandX) < 1.f && !Tugs[i].bHired && Tugs[i].Driver == INDEX_NONE && Tugs[i].State == EState::Parked && Tugs[i].Key.IsEmpty() && CrewAny()) LendCrew(i);   // (its ground power)
+		if (!Tugs[i].bHangar && FMath::Abs(Tugs[i].StandX - StandX) < 1.f && !Tugs[i].bHired && Tugs[i].Driver == INDEX_NONE && Tugs[i].State == EState::Parked && Tugs[i].Key.IsEmpty() && CrewAny()) LendCrew(i);   // (its ground power)
 	for (int32 i = 0; i < Tugs.Num(); ++i)
-		if (const int32 Dr = Tugs[i].bHired ? Tugs[i].StandInDriver : Tugs[i].Driver; FMath::Abs(Tugs[i].StandX - StandX) < 1.f && !Tugs[i].Gpu.bConnected && Tugs[i].GpuCi == INDEX_NONE && Dr != INDEX_NONE)
+		if (const int32 Dr = Tugs[i].bHired ? Tugs[i].StandInDriver : Tugs[i].Driver; !Tugs[i].bHangar && FMath::Abs(Tugs[i].StandX - StandX) < 1.f && !Tugs[i].Gpu.bConnected && Tugs[i].GpuCi == INDEX_NONE && Dr != INDEX_NONE)
 		{ const int32 Hd = Tugs[i].bHired ? Tugs[i].StandInHandler : Tugs[i].Handler; const int32 Ci = Hd != INDEX_NONE ? Hd : Dr; GpuConnect(i, Crew[Ci]); ADP_LOG(TEXT("Tugs: aircraft on blocks at x %.0f - ground power going on"), StandX); }
 }
 
 void ATugs::Arriving(float StandX, bool bMine)
 {
 	if (bMine && UStaffPeople::On()) return;   // (your own people are not kept sitting in it through the whole turn-round: they come for the push)
-	for (FTug& T : Tugs) if (T.bHired && FMath::Abs(T.StandX - StandX) < 1.f && T.State == EState::Parked && T.Key.IsEmpty() && HiredFree(T)) HiredEnd(T);
+	for (FTug& T : Tugs) if (T.bHired && !T.bHangar && FMath::Abs(T.StandX - StandX) < 1.f && T.State == EState::Parked && T.Key.IsEmpty() && HiredFree(T)) HiredEnd(T);
 	for (int32 i = 0; i < Tugs.Num(); ++i)
-		if (Tugs[i].State == EState::Parked && Tugs[i].Driver != INDEX_NONE && FMath::Abs(Tugs[i].StandX - StandX) < 1.f)
+		if (!Tugs[i].bHangar && Tugs[i].State == EState::Parked && Tugs[i].Driver != INDEX_NONE && FMath::Abs(Tugs[i].StandX - StandX) < 1.f)
 		{
 			// (not the last crew that is free: it would sit in this tug the whole turn-round while another stand's aircraft waits for one)
 			int32 Free = 0; LendFrom(i, &Free); if (Free < 1 && Tugs.ContainsByPredicate([](const FTug& Q) { return Q.StandInDriver == INDEX_NONE; })) continue;
@@ -568,6 +584,7 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		if (HeadStand(StandX)) T.Path = {T.Handler != INDEX_NONE ? T.HookAt + F * 150.f : T.HookAt};   // (its box is on the centre line)
 		if (T.bTow && T.TowWay.Num())   // (a hangar tow: out along the taxiways to the aircraft, to-do 311)
 		{ T.Path = {Plan(StandX + BoxX, BoxY + 6.f)}; T.Path.Append(T.TowWay); T.Path.Add(T.HookAt + F * 1500.f); T.Path.Add(T.HookAt); }
+		if (T.bHangar && !HangarOut(T, F)) { T.State = EState::Waiting; T.Path.Reset(); return false; }   // (the hangar tug: from its place, no way clear yet - it tries again)
 		if (T.YouStep > 0) { T.Path.Reset(); if (FVector::Dist2D(T.At, T.HookAt) > 30.f) { T.Path = {T.HookAt}; T.YouStep = 0; } }   // (you coupled it: already there)
 		// (with a handler it stops 1.5 m short: he waves it in the last bit)   // (out of its box in a smooth S-curve onto the centre line, then straight in)
 	}
@@ -581,14 +598,16 @@ bool ATugs::Push(const FString& Key, float StandX, const FVector& Fitting, const
 		if (T.Driver == INDEX_NONE) return true;
 		// (a hangar tow never hangs unsaid: why it waits goes to the log every 30 s, to-do 311)
 		auto Hold = [this, &T, &Key](const TCHAR* Why) { const double Tn = GetWorld()->GetTimeSeconds(); if (T.bTow && Tn - T.TowSaid > 30.0) { T.TowSaid = Tn; ADP_LOG(TEXT("Tugs: the hangar tow %s waits - %s"), *Key, Why); } return false; };
-		if (T.bTow && T.Gpu.bConnected && !T.bTowGpu && !T.Gpu.bYou && !GpuCrewAt(T))
+		// (the hangar tug: the stand's own ground power and chocks - its own tug keeps them)
+		const int32 Si = T.bHangar ? StandTug(StandX) : I; FTug& Sg = Tugs.IsValidIndex(Si) ? Tugs[Si] : T;
+		if (T.bTow && Sg.Gpu.bConnected && !T.bTowGpu && !Sg.Gpu.bYou && !GpuCrewAt(Sg))
 		{
 			// (the ground power still on it - plugged in after its crew came, or no handler to unplug it: one of them does it now)
 			const int32 Gc = T.Handler != INDEX_NONE ? T.Handler : T.Walkers.Num() ? T.Walkers[0] : INDEX_NONE;
-			if (Crew.IsValidIndex(Gc)) { T.bTowGpu = true; GpuDisconnect(I, Crew[Gc]); ADP_LOG(TEXT("Tugs: the hangar tow %s - %s takes the ground power off first"), *Key, *Crew[Gc].Name); }
+			if (Crew.IsValidIndex(Gc)) { T.bTowGpu = true; GpuDisconnect(Tugs.IsValidIndex(Si) ? Si : I, Crew[Gc]); ADP_LOG(TEXT("Tugs: the hangar tow %s - %s takes the ground power off first"), *Key, *Crew[Gc].Name); }
 		}
-		if (T.Gpu.bConnected || T.Gpu.bYou || T.Gpu.bLying) return Hold(T.Gpu.bYou ? TEXT("you are at its ground power") : T.Gpu.bLying ? TEXT("the ground power cable still lies out") : TEXT("its ground power is still plugged in"));   // (the ground power off and its cable stowed before any push)
-		if (!ChkOut(T)) return Hold(TEXT("its cones and chocks are still being taken away"));   // (the cones in and the chocks off - the last ones once it is hooked on: TugChocks.cpp)
+		if (Sg.Gpu.bConnected || Sg.Gpu.bYou || Sg.Gpu.bLying) return Hold(Sg.Gpu.bYou ? TEXT("you are at its ground power") : Sg.Gpu.bLying ? TEXT("the ground power cable still lies out") : TEXT("its ground power is still plugged in"));   // (the ground power off and its cable stowed before any push)
+		if (!ChkOut(Sg)) return Hold(TEXT("its cones and chocks are still being taken away"));   // (the cones in and the chocks off - the last ones once it is hooked on: TugChocks.cpp)
 		if (T.WalkersReady < WalkNeed(T)) return Hold(TEXT("its wing walkers are not at the wingtips yet"));   // (no crew, no push - owner; your own people, to-do 206: the driver and the handler at least, and every walker there is)
 		if (T.Seq == 0) { T.Seq = 1; T.SeqT = 0.f; T.SeqWait = FMath::FRandRange(2.f, 5.f); }
 		return T.Seq >= 8;   // (brakes released, "commencing pushback" - the 11 steps, SeqTick)
@@ -843,13 +862,15 @@ void ATugs::Tick(float Dt)
 			break;
 		case EState::Home:
 			// (the way re-checked every 2 s: something new in it that shouldn't be there - and it goes round)
-			if (T.Path.Num() > 9 && !T.Pending.Num() && (T.RouteCheck += Dt) > 2.f) { T.RouteCheck = 0.f; if (PathBlocked(T, T.Path, T.At)) RouteHome(T); }
+			if (T.bHangar && T.HtRetry > 0.f) { if (GetWorld()->GetTimeSeconds() >= T.HtRetry) HangarHome(T, TArray<FVector>()); break; }   // (its way home not clear yet)
+			if (!T.bHangar && T.Path.Num() > 9 && !T.Pending.Num() && (T.RouteCheck += Dt) > 2.f) { T.RouteCheck = 0.f; if (PathBlocked(T, T.Path, T.At)) RouteHome(T); }
 			Drive(T, Dt);
 			if (!T.Path.Num() && T.Pending.Num()) { T.Path = T.Pending; T.Pending.Reset(); T.bReverse = T.bPendingReverse; }
 			if (!T.Path.Num())
 			{
 				if (!T.bReverse) { T.bReverse = true; T.Path = {T.Home}; break; }       // (the loop done: reversed into its box)
 				T.bReverse = false; T.State = EState::Parked; T.At = T.Home; T.Yaw = T.HomeYaw; Pose(T); Engine(T, false); ADP_LOG(TEXT("Tugs: parked in its box, engine off"));
+				if (T.bHangar) T.StandX = -100000.f;   // (the hangar tug home in its place: at no stand)
 				CrewParked(int32(&T - Tugs.GetData()));
 			}
 			break;
@@ -870,7 +891,7 @@ void ATugs::Tick(float Dt)
 		if (T.bYouPush) YouAfter(int32(&T - Tugs.GetData()), Dt);
 		GpuYouTick(T, Dt);
 		GpuTick(T, Dt);
-		ChkTick(int32(&T - Tugs.GetData()), Dt);
+		if (!T.bHangar) ChkTick(int32(&T - Tugs.GetData()), Dt);   // (the hangar tug: the stand's own chocks, JobTug)
 		// (short of walkers for a departure: look for free ones every 3 s)
 		if (T.bHired) HiredTick(int32(&T - Tugs.GetData()), Dt);
 		if (T.Driver != INDEX_NONE && !T.Key.IsEmpty() && T.Walkers.Num() < 3 && !T.bYouDone && !(T.bHired && T.Seq > 0) && T.State != EState::Unhook && T.State != EState::Backing && T.State != EState::Home && (T.WalkerLook += Dt) > 3.f) { T.WalkerLook = 0.f; CrewWalkers(int32(&T - Tugs.GetData())); }
@@ -1017,6 +1038,7 @@ void ATugs::StartHome(FTug& T)
 	// only if something is in the way that shouldn't be there (owner 2026-11-21): round it (RouteHome)
 	const TArray<FVector> TowHome = T.bTow ? T.TowBack : TArray<FVector>(); T.bTow = false; T.bTowGpu = false; T.TowWay.Reset(); T.TowBack.Reset(); Tows.Remove(T.Key);
 	ADP_LOG(TEXT("Tugs: clear of %s, home to the park"), *T.Key); T.State = EState::Home; T.Key.Reset(); T.bReverse = false; T.RouteCheck = 0.f;
+	if (T.bHangar) { T.Path.Reset(); T.HtRetry = 0.f; HangarHome(T, TowHome); return; }   // (the hangar tug: home to its place by the bus chargers)
 	float Bs = 0.f, Run = -1.f, By = BoxY, Rl = 6.f, Ly = 0.f; BoxT(T.StandX, Bs, Run, By, Rl, Ly);
 	const float Sx = T.StandX, Rt = HeadStand(Sx) ? -Rl : Rl;
 	T.Path = {StandT(Sx, Sx + Run, Ly + 40.f), StandT(Sx, Sx + Run, Ly)};

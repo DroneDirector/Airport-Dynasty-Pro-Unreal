@@ -296,7 +296,7 @@ void ATugs::ChkWork(int32 Tug, int32 Ci)
 		{
 			FTug& U = Tugs[Tug]; U.Ck.Stage = 0; U.Ck.bLoose = false; U.Ck.Ci = INDEX_NONE;
 			ADP_LOG(TEXT("Chocks: off and back on the rack at x %.0f"), U.StandX);
-			if (AtNose(U)) CrewWalkers(Tug);   // (now the walkers go out to their places)
+			if (const int32 J = JobTug(Tug); AtNose(Tugs[J])) CrewWalkers(J);   // (now the walkers go out to their places - the hangar tug's on a tow)
 		}));
 	}
 	// and what they go on to
@@ -316,11 +316,11 @@ int32 ATugs::ChkWorker(int32 Tug)
 		if (!Crew.IsValidIndex(i)) return false;
 		const FCrew& C = Crew[i]; return C.A.IsValid() && !C.bSlotFree && !C.bLeave && !C.Q.Num() && !C.Hold && !C.bLost;
 	};
-	if (!T.Key.IsEmpty() && Ck.Stage >= 3)
+	if (const FTug& Jb = Tugs[JobTug(Tug)]; !Jb.Key.IsEmpty() && Ck.Stage >= 3)
 	{
-		// the pushback crew: a walker standing by, else the handler
-		for (const int32 W : T.Walkers) if (Idle(W)) return W;
-		if (!T.Walkers.Num() && Idle(T.Handler)) return T.Handler;
+		// the pushback crew (the hangar tug's on a tow here): a walker standing by, else the handler
+		for (const int32 W : Jb.Walkers) if (Idle(W)) return W;
+		if (!Jb.Walkers.Num() && Idle(Jb.Handler)) return Jb.Handler;
 		return INDEX_NONE;
 	}
 	Ck.bOwn = true;
@@ -373,7 +373,8 @@ void ATugs::ChkTick(int32 Tug, float Dt)
 		Ck.Ci = INDEX_NONE;
 	}
 	if (Ck.Ci != INDEX_NONE) return;
-	const bool bCrew = !T.Key.IsEmpty() && (T.State == EState::Waiting || AtNose(T));
+	const FTug& Jb = Tugs[JobTug(Tug)];   // (the hangar tug on a tow here: its crew, to-do 311)
+	const bool bCrew = !Jb.Key.IsEmpty() && (Jb.State == EState::Waiting || AtNose(Jb));
 	// (never set in time: the departure's crew is here already - nothing more is put out)
 	if (Ck.Stage == 1 && bCrew)
 	{
@@ -385,7 +386,7 @@ void ATugs::ChkTick(int32 Tug, float Dt)
 		const AGSE* G = AGSE::Find(GetWorld());
 		if (Ck.bLoose || (bCrew && !(G && G->BusyAt(T.StandX)))) Ck.Stage = 3;   // (the vehicles gone first)
 	}
-	if (Ck.Stage == 4 && (Ck.bLoose || (bCrew && AtNose(T)))) Ck.Stage = 5;   // (the tug connected)
+	if (Ck.Stage == 4 && (Ck.bLoose || (bCrew && AtNose(Jb)))) Ck.Stage = 5;   // (the tug connected)
 	if (Ck.Stage != 1 && Ck.Stage != 3 && Ck.Stage != 5) { Ck.WaitT = 0.f; return; }
 	const int32 Ci = ChkWorker(Tug);
 	if (Ci == INDEX_NONE)
@@ -405,7 +406,7 @@ bool ATugs::ChocksOn(float StandX, const FString& Reg, const FDateTime& When, bo
 	for (FTug& T : Tugs)
 	{
 		FChk& Ck = T.Ck;
-		if (FMath::Abs(T.StandX - StandX) >= 1.f) continue;
+		if (T.bHangar || FMath::Abs(T.StandX - StandX) >= 1.f) continue;
 		if (Ck.Stage != 0) return (Ck.Stage == 1 || Ck.Stage == 2) && !Ck.bLoose;   // (else: the last ones are still being cleared)
 		if (!bHired && (T.bHired ? T.StandInDriver : T.Driver) == INDEX_NONE) return true;   // (a gate without a crew)
 		Ck.Reg = Reg; Ck.When = When; Ck.bHired = bHired; Ck.bLong = bLong; Ck.bLoose = false; Ck.Clock = 0.f; Ck.Stage = 1;
@@ -422,7 +423,7 @@ bool ATugs::ChocksOn(float StandX, const FString& Reg, const FDateTime& When, bo
 
 bool ATugs::ChocksIn(float StandX) const
 {
-	for (const FTug& T : Tugs) if (FMath::Abs(T.StandX - StandX) < 1.f && T.Ck.Stage == 1)
+	for (const FTug& T : Tugs) if (!T.bHangar && FMath::Abs(T.StandX - StandX) < 1.f && T.Ck.Stage == 1)
 		for (int32 p = 0; p < (T.Ck.bLong ? 3 : 2); ++p) if (T.Ck.Items[p].Where != CkOut || T.Ck.Items[p].Bl < 1.f) return false;
 	return true;
 }
@@ -430,7 +431,7 @@ bool ATugs::ChocksIn(float StandX) const
 void ATugs::ChocksGone(float StandX)
 {
 	// (the aircraft left without its pushback crew: somebody clears the stand)
-	for (FTug& T : Tugs) if (FMath::Abs(T.StandX - StandX) < 1.f && T.Ck.Stage > 0)
+	for (FTug& T : Tugs) if (!T.bHangar && FMath::Abs(T.StandX - StandX) < 1.f && T.Ck.Stage > 0)
 	{
 		bool bOut = T.Ck.Ci != INDEX_NONE; for (const FChkItem& I : T.Ck.Items) if (I.Where != CkRack) bOut = true;
 		if (bOut) T.Ck.bLoose = true; else T.Ck.Stage = 0;

@@ -619,7 +619,7 @@ void ATugs::CrewParked(int32 Tug)
 	D.Q.Add(WaitAct(Pause()));
 	ClimbOut(D, Tug);
 	// (back round the tug's rear to the crew spot)
-	if (D.bHired) LeaveAct(D);
+	if (D.bHired) { if (AGSE* G = T.bHangar ? AGSE::Find(GetWorld()) : nullptr) G->DepotBack(T.Driver); LeaveAct(D); }   // (from the vehicle area: back to the terminal's front first)
 	else { const FVector Home = D.Spot; D.Q.Add(WalkAct([Home] { return Home; }, 30.f)); D.Q.Add(DoAct([&D] { D.AnchorYaw = D.SpotYaw; })); }
 }
 
@@ -646,7 +646,8 @@ void ATugs::CrewWalkers(int32 Tug)
 	const bool bHooked = AtNose(T);
 	// out to their places now that it is hooked on (the ones already standing by)
 	// (the chocks off first: one of them does it - ChkWork calls this again)
-	if (bHooked && !T.bWalkersOut && ChkOut(T)) { T.bWalkersOut = true; for (int32 r = 0; r < T.Walkers.Num(); ++r) GoOut(T.Walkers[r], r); }
+	const int32 Ks = T.bHangar ? StandTug(T.StandX) : Tug;   // (the hangar tug: the stand's own chocks)
+	if (bHooked && !T.bWalkersOut && ChkOut(Tugs.IsValidIndex(Ks) ? Tugs[Ks] : T)) { T.bWalkersOut = true; for (int32 r = 0; r < T.Walkers.Num(); ++r) GoOut(T.Walkers[r], r); }
 	const float Sx = T.StandX;
 	if (T.bHired)
 	{

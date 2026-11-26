@@ -208,7 +208,9 @@ void ATugs::HiredTick(int32 Tug, float Dt)
 		}
 		ADP_LOG(TEXT("Tugs: %s at x %.0f - %s drives the tug, %s is the pushback handler"), *Flight, T.StandX, *Crew[T.Driver].Name, *Crew[T.Handler].Name);
 		Crew[T.Driver].bDriver = true;
-		SafeWay(Crew[T.Driver], T.StandX); if (!bHas) SafeWay(Crew[T.Handler], T.StandX);
+		// (the hangar tug: its driver on foot to its place by the bus chargers, the way the vehicle area's crews walk - GSESpare.cpp)
+		if (AGSE* G = T.bHangar ? AGSE::Find(GetWorld()) : nullptr) G->DepotGo(T.Driver, T.At); else SafeWay(Crew[T.Driver], T.StandX);
+		if (!bHas) SafeWay(Crew[T.Handler], T.StandX);
 		T.State = EState::Boarding; CrewBoard(Tug);
 		return;
 	}
@@ -297,7 +299,7 @@ bool ATugs::ArrivedHired(float StandX, const FString& Reg, const FDateTime& When
 	for (int32 i = 0; i < Tugs.Num(); ++i)
 	{
 		FTug& T = Tugs[i];
-		if (FMath::Abs(T.StandX - StandX) >= 1.f) continue;
+		if (T.bHangar || FMath::Abs(T.StandX - StandX) >= 1.f) continue;
 		if (!T.Gpu.M.IsValid() || T.Gpu.bConnected || T.Gpu.bInHand || T.GpuCi != INDEX_NONE) return true;
 		UStaffPeople* Sp = UStaffPeople::Get(GetWorld()); if (!Sp) return true;
 		TArray<UStaffPeople::FTaken> Team;
