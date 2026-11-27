@@ -1,0 +1,251 @@
+{
+ "asset": "TyreCage",
+ "kind": "tyre inflation safety cage",
+ "blend": "Art/HangarEquipment/TyreCage/TyreCage.blend",
+ "glb": "Art/HangarEquipment/TyreCage/tyrecage.glb",
+ "sizes": {
+  "inner_m": [
+   1.44,
+   0.76,
+   1.43
+  ],
+  "tyre_max": "A320 main 46x17.0R20, 1.17 m",
+  "air": "up to 25 bar via regulator, remote clip-on chuck",
+  "bars_mm": 32
+ },
+ "bounds_min": [
+  -0.82,
+  -0.48,
+  -0.21
+ ],
+ "bounds_max": [
+  0.926,
+  0.678,
+  1.566
+ ],
+ "size_m": [
+  1.746,
+  1.158,
+  1.776
+ ],
+ "footprint": {
+  "x_min": -0.82,
+  "x_max": 1.0,
+  "y_min": -0.47,
+  "y_max": 1.25,
+  "note": "bolted to the floor; the gate swings out over +y"
+ },
+ "reference": "No usable free photo found; published sizes of aircraft tyre inflation cages and A320 tyres",
+ "tris": 23230,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the cage, bolted to the hangar floor"
+  },
+  {
+   "name": "Gate",
+   "mesh": "Gate",
+   "parent": "Frame",
+   "pivot": [
+    -0.75,
+    0.472,
+    0.4
+   ],
+   "move": "swings about z on the left hinge pins: 0 = shut and latched .. 100 deg open (wheel in / out)"
+  },
+  {
+   "name": "Chuck",
+   "mesh": "Chuck",
+   "parent": "Frame",
+   "pivot": [
+    0.86,
+    0.41,
+    0.72
+   ],
+   "move": "off the hook by hand, clipped onto the tyre valve (hose follows); back on the hook after"
+  },
+  {
+   "name": "Gauge_Line",
+   "mesh": "GaugeBody_40",
+   "parent": "Frame",
+   "pivot": [
+    0.806,
+    0.27,
+    1.2
+   ],
+   "move": "fixed: air line pressure (0..25 bar)"
+  },
+  {
+   "name": "Needle_Line",
+   "mesh": "Needle_40",
+   "parent": "Gauge_Line",
+   "pivot": [
+    0.806,
+    0.27,
+    1.2
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: air line pressure (0..25 bar)"
+  },
+  {
+   "name": "Gauge_Tyre",
+   "mesh": "GaugeBody_40",
+   "parent": "Frame",
+   "pivot": [
+    0.806,
+    0.43,
+    1.2
+   ],
+   "move": "fixed: tyre pressure read through the hose (0..25 bar)"
+  },
+  {
+   "name": "Needle_Tyre",
+   "mesh": "Needle_40",
+   "parent": "Gauge_Tyre",
+   "pivot": [
+    0.806,
+    0.43,
+    1.2
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: tyre pressure read through the hose (0..25 bar)"
+  },
+  {
+   "name": "Regulator",
+   "mesh": "Knob_Regulator",
+   "parent": "Frame",
+   "pivot": [
+    0.806,
+    0.35,
+    1.2
+   ],
+   "move": "turns about the panel normal 0..270 deg: sets the fill pressure, never above the tyre limit"
+  },
+  {
+   "name": "InflateValve",
+   "mesh": "Lever_InflateValve",
+   "parent": "Frame",
+   "pivot": [
+    0.806,
+    0.29,
+    1.04
+   ],
+   "move": "quarter turn about the panel normal 0..90 deg: open = air flows to the tyre"
+  },
+  {
+   "name": "DeflateValve",
+   "mesh": "T_DeflateValve",
+   "parent": "Frame",
+   "pivot": [
+    0.806,
+    0.43,
+    1.04
+   ],
+   "move": "turns about the panel normal 0..270 deg (open): bleeds the tyre down"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_Gate_Handle",
+   "kind": "hand",
+   "parent": "Gate",
+   "pos": [
+    0.715,
+    0.632,
+    1.015
+   ]
+  },
+  {
+   "name": "IK_Chuck",
+   "kind": "hand",
+   "parent": "Chuck",
+   "pos": [
+    0.86,
+    0.41,
+    0.64
+   ]
+  },
+  {
+   "name": "IK_Regulator",
+   "kind": "hand",
+   "parent": "Regulator",
+   "pos": [
+    0.851,
+    0.35,
+    1.2
+   ]
+  },
+  {
+   "name": "IK_InflateValve",
+   "kind": "hand",
+   "parent": "InflateValve",
+   "pos": [
+    0.851,
+    0.29,
+    1.04
+   ]
+  },
+  {
+   "name": "IK_DeflateValve",
+   "kind": "hand",
+   "parent": "DeflateValve",
+   "pos": [
+    0.851,
+    0.43,
+    1.04
+   ]
+  },
+  {
+   "name": "IK_Operator",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    1.35,
+    0.35,
+    0
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Safety gate",
+   "part": "Gate",
+   "ik": "IK_Gate_Handle",
+   "by": "hand",
+   "does": "lift the latch and swing open to roll the wheel in; shut and latch before filling"
+  },
+  {
+   "control": "Tyre chuck",
+   "part": "Chuck",
+   "ik": "IK_Chuck",
+   "by": "hand",
+   "does": "clip onto the wheel valve through the bars, then step back to the panel"
+  },
+  {
+   "control": "Regulator",
+   "part": "Regulator",
+   "ik": "IK_Regulator",
+   "by": "hand",
+   "does": "sets the fill pressure, never above the tyre limit"
+  },
+  {
+   "control": "InflateValve",
+   "part": "InflateValve",
+   "ik": "IK_InflateValve",
+   "by": "hand",
+   "does": "open = air flows to the tyre"
+  },
+  {
+   "control": "DeflateValve",
+   "part": "DeflateValve",
+   "ik": "IK_DeflateValve",
+   "by": "hand",
+   "does": "bleeds the tyre down"
+  }
+ ]
+}

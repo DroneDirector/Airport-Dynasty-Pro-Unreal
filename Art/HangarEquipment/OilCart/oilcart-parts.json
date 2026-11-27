@@ -1,0 +1,400 @@
+{
+ "asset": "OilCart",
+ "kind": "oil / fluids dispensing cart",
+ "blend": "Art/HangarEquipment/OilCart/OilCart.blend",
+ "glb": "Art/HangarEquipment/OilCart/oilcart.glb",
+ "sizes": {
+  "drums": "2 x 60 l (390 x 580 mm)",
+  "tray_l": 50,
+  "hose": "6 m on a hand-crank reel",
+  "pump": "lever drum pump, 0.3 l per stroke",
+  "deck_m": [
+   0.7,
+   1.25
+  ],
+  "castors_mm": 200
+ },
+ "bounds_min": [
+  -0.42,
+  -0.862,
+  0.0
+ ],
+ "bounds_max": [
+  0.42,
+  0.6,
+  1.325
+ ],
+ "size_m": [
+  0.84,
+  1.462,
+  1.325
+ ],
+ "footprint": {
+  "x_min": -0.43,
+  "x_max": 0.36,
+  "y_min": -0.75,
+  "y_max": 0.62,
+  "note": "pushed by the handle at -y; operator stands behind it"
+ },
+ "reference": "No usable free photo found; published sizes of hangar oil dispensing carts and 60 l steel drums",
+ "tris": 32500,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the cart, pushed on its castors"
+  },
+  {
+   "name": "Castor_FL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.325,
+    0.48,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.325,
+    0.435,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_FL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.325,
+    0.435,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_FR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.325,
+    0.48,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.325,
+    0.435,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_FR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.325,
+    0.435,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.325,
+    -0.55,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.325,
+    -0.595,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_RL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.325,
+    -0.595,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.325,
+    -0.55,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.325,
+    -0.595,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_RR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.325,
+    -0.595,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "HoseReel",
+   "mesh": "HoseReel",
+   "parent": "Frame",
+   "pivot": [
+    0.0,
+    -0.48,
+    0.524
+   ],
+   "move": "turns about x: the crank winds the 6 m hose back in"
+  },
+  {
+   "name": "PumpLever",
+   "mesh": "PumpLever",
+   "parent": "Frame",
+   "pivot": [
+    0.09,
+    -0.14,
+    1.246
+   ],
+   "move": "rocks about x 0..30 deg: each stroke pumps about 0.3 l into the hose"
+  },
+  {
+   "name": "DrumCap",
+   "mesh": "DrumCap",
+   "parent": "Frame",
+   "pivot": [
+    0.09,
+    0.33,
+    0.91
+   ],
+   "move": "unscrews about z and lifts off: open to top up or check the level"
+  },
+  {
+   "name": "Nozzle",
+   "mesh": "Nozzle",
+   "parent": "Frame",
+   "pivot": [
+    -0.395,
+    -0.79,
+    0.83
+   ],
+   "move": "lifted out of the holster by its grip; the hose pays off the reel"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_Brake_FL",
+   "kind": "foot",
+   "parent": "Brake_FL",
+   "pos": [
+    -0.26,
+    0.525,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_FR",
+   "kind": "foot",
+   "parent": "Brake_FR",
+   "pos": [
+    0.39,
+    0.525,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_RL",
+   "kind": "foot",
+   "parent": "Brake_RL",
+   "pos": [
+    -0.26,
+    -0.505,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_RR",
+   "kind": "foot",
+   "parent": "Brake_RR",
+   "pos": [
+    0.39,
+    -0.505,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    -0.25,
+    -0.697,
+    0.98
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    0.25,
+    -0.697,
+    0.98
+   ]
+  },
+  {
+   "name": "IK_Operator",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    -1.15,
+    0
+   ]
+  },
+  {
+   "name": "IK_ReelCrank",
+   "kind": "hand",
+   "parent": "HoseReel",
+   "pos": [
+    0.235,
+    -0.48,
+    0.614
+   ]
+  },
+  {
+   "name": "IK_PumpLever",
+   "kind": "hand",
+   "parent": "PumpLever",
+   "pos": [
+    0.09,
+    -0.44,
+    1.301
+   ]
+  },
+  {
+   "name": "IK_DrumCap",
+   "kind": "hand",
+   "parent": "DrumCap",
+   "pos": [
+    0.09,
+    0.33,
+    0.94
+   ]
+  },
+  {
+   "name": "IK_Nozzle",
+   "kind": "hand",
+   "parent": "Nozzle",
+   "pos": [
+    -0.395,
+    -0.79,
+    0.83
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Castor brake FL",
+   "part": "Brake_FL",
+   "ik": "IK_Brake_FL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake FR",
+   "part": "Brake_FR",
+   "ik": "IK_Brake_FR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RL",
+   "part": "Brake_RL",
+   "ik": "IK_Brake_RL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RR",
+   "part": "Brake_RR",
+   "ik": "IK_Brake_RR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Reel crank",
+   "part": "HoseReel",
+   "ik": "IK_ReelCrank",
+   "by": "hand",
+   "does": "wind the hose back onto the reel after use"
+  },
+  {
+   "control": "Pump lever",
+   "part": "PumpLever",
+   "ik": "IK_PumpLever",
+   "by": "hand",
+   "does": "pump oil from the drum to the nozzle"
+  },
+  {
+   "control": "Drum cap",
+   "part": "DrumCap",
+   "ik": "IK_DrumCap",
+   "by": "hand",
+   "does": "open the front drum"
+  },
+  {
+   "control": "Nozzle",
+   "part": "Nozzle",
+   "ik": "IK_Nozzle",
+   "by": "hand",
+   "does": "take the nozzle to the engine filler and squeeze the trigger"
+  }
+ ]
+}

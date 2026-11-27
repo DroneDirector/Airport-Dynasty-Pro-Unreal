@@ -1,0 +1,426 @@
+{
+ "asset": "WheelDolly",
+ "kind": "aircraft wheel and brake dolly",
+ "blend": "Art/HangarEquipment/WheelDolly/WheelDolly.blend",
+ "glb": "Art/HangarEquipment/WheelDolly/wheeldolly.glb",
+ "sizes": {
+  "capacity_kg": 450,
+  "tyres": "up to 46x17.0R20 (A320 main)",
+  "lift_m": 0.25,
+  "arm_spread_m": [
+   0.3,
+   0.7
+  ],
+  "castors_mm": 150
+ },
+ "bounds_min": [
+  -0.502,
+  -0.87,
+  0.0
+ ],
+ "bounds_max": [
+  0.543,
+  0.566,
+  1.28
+ ],
+ "size_m": [
+  1.045,
+  1.436,
+  1.28
+ ],
+ "footprint": {
+  "x_min": -0.52,
+  "x_max": 0.52,
+  "y_min": -0.9,
+  "y_max": 0.58,
+  "note": "pushed in along the axle, arms either side of the tyre"
+ },
+ "reference": "No usable free photo found; published sizes of airliner wheel and brake dollies and A320 tyres",
+ "tris": 24184,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the chassis and mast, pushed on its castors"
+  },
+  {
+   "name": "Castor_FL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.45,
+    0.48,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.45,
+    0.446,
+    0.075
+   ],
+   "move": "spin about x, rolls r=0.075 m"
+  },
+  {
+   "name": "Brake_FL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.45,
+    0.446,
+    0.075
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_FR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.45,
+    0.48,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.45,
+    0.446,
+    0.075
+   ],
+   "move": "spin about x, rolls r=0.075 m"
+  },
+  {
+   "name": "Brake_FR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.45,
+    0.446,
+    0.075
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.45,
+    -0.48,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.45,
+    -0.514,
+    0.075
+   ],
+   "move": "spin about x, rolls r=0.075 m"
+  },
+  {
+   "name": "Brake_RL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.45,
+    -0.514,
+    0.075
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.45,
+    -0.48,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.45,
+    -0.514,
+    0.075
+   ],
+   "move": "spin about x, rolls r=0.075 m"
+  },
+  {
+   "name": "Brake_RR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.45,
+    -0.514,
+    0.075
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Carriage",
+   "mesh": "Carriage",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    -0.445,
+    0.3
+   ],
+   "move": "slides up z 0..0.25 m on the mast (hydraulic ram), lifts the wheel"
+  },
+  {
+   "name": "SpreadCrank",
+   "mesh": "SpreadCrank",
+   "parent": "Carriage",
+   "pivot": [
+    0.36,
+    -0.38,
+    0.235
+   ],
+   "move": "turns about x (lead screw): both fork arms move in / out together, 4 mm per turn"
+  },
+  {
+   "name": "ForkArm_L",
+   "mesh": "ForkArm_L",
+   "parent": "Carriage",
+   "pivot": [
+    -0.25,
+    -0.4,
+    0.3
+   ],
+   "move": "slides along x on the beam (lead screw): -0.15 .. -0.35 m from the centre"
+  },
+  {
+   "name": "Roller_L",
+   "mesh": "Roller_L",
+   "parent": "ForkArm_L",
+   "pivot": [
+    -0.182,
+    0.07,
+    0.14
+   ],
+   "move": "spins about y: the tyre turns on it (to line up the wheel with the axle)"
+  },
+  {
+   "name": "ForkArm_R",
+   "mesh": "ForkArm_R",
+   "parent": "Carriage",
+   "pivot": [
+    0.25,
+    -0.4,
+    0.3
+   ],
+   "move": "slides along x on the beam (lead screw): 0.15 .. 0.35 m from the centre"
+  },
+  {
+   "name": "Roller_R",
+   "mesh": "Roller_R",
+   "parent": "ForkArm_R",
+   "pivot": [
+    0.182,
+    0.07,
+    0.14
+   ],
+   "move": "spins about y: the tyre turns on it (to line up the wheel with the axle)"
+  },
+  {
+   "name": "PumpPedal",
+   "mesh": "PumpPedal",
+   "parent": "Frame",
+   "pivot": [
+    0.3,
+    -0.655,
+    0.335
+   ],
+   "move": "tips about x 0..25 deg: each stroke raises the carriage about 8 mm"
+  },
+  {
+   "name": "ReleaseValve",
+   "mesh": "Knob_ReleaseValve",
+   "parent": "Frame",
+   "pivot": [
+    0.35,
+    -0.603,
+    0.33
+   ],
+   "move": "turns about the panel normal 0..270 deg: open: the carriage comes down slowly"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_Brake_FL",
+   "kind": "foot",
+   "parent": "Brake_FL",
+   "pos": [
+    -0.388,
+    0.536,
+    0.087
+   ]
+  },
+  {
+   "name": "IK_Brake_FR",
+   "kind": "foot",
+   "parent": "Brake_FR",
+   "pos": [
+    0.513,
+    0.536,
+    0.087
+   ]
+  },
+  {
+   "name": "IK_Brake_RL",
+   "kind": "foot",
+   "parent": "Brake_RL",
+   "pos": [
+    -0.388,
+    -0.424,
+    0.087
+   ]
+  },
+  {
+   "name": "IK_Brake_RR",
+   "kind": "foot",
+   "parent": "Brake_RR",
+   "pos": [
+    0.513,
+    -0.424,
+    0.087
+   ]
+  },
+  {
+   "name": "IK_SpreadCrank",
+   "kind": "hand",
+   "parent": "SpreadCrank",
+   "pos": [
+    0.41,
+    -0.38,
+    0.335
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    -0.1,
+    -0.72,
+    1.0
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    0.1,
+    -0.72,
+    1.0
+   ]
+  },
+  {
+   "name": "IK_PumpPedal",
+   "kind": "foot",
+   "parent": "PumpPedal",
+   "pos": [
+    0.3,
+    -0.835,
+    0.31
+   ]
+  },
+  {
+   "name": "IK_ReleaseValve",
+   "kind": "hand",
+   "parent": "ReleaseValve",
+   "pos": [
+    0.395,
+    -0.603,
+    0.33
+   ]
+  },
+  {
+   "name": "IK_Operator",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    -1.15,
+    0
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Castor brake FL",
+   "part": "Brake_FL",
+   "ik": "IK_Brake_FL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake FR",
+   "part": "Brake_FR",
+   "ik": "IK_Brake_FR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RL",
+   "part": "Brake_RL",
+   "ik": "IK_Brake_RL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RR",
+   "part": "Brake_RR",
+   "ik": "IK_Brake_RR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Spread crank",
+   "part": "SpreadCrank",
+   "ik": "IK_SpreadCrank",
+   "by": "hand",
+   "does": "set the arms to the tyre: rollers just under the tyre either side of its footprint"
+  },
+  {
+   "control": "Lift pedal",
+   "part": "PumpPedal",
+   "ik": "IK_PumpPedal",
+   "by": "foot",
+   "does": "pump to lift the wheel off the floor"
+  },
+  {
+   "control": "ReleaseValve",
+   "part": "ReleaseValve",
+   "ik": "IK_ReleaseValve",
+   "by": "hand",
+   "does": "open: the carriage comes down slowly"
+  }
+ ]
+}

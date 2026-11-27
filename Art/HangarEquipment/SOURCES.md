@@ -19,4 +19,7 @@ Reference photos looked at (not copied), Wikimedia Commons, US government work, 
 - Batch 1: "374 AW MXS, AMXS perform engine maintenance operations in Sri Lanka" (engine stand).
 No usable free photo was found for the wheel dolly, the tyre inflation cage, the oil cart and the hangar GPU: they are
 built from published sizes (A320 tyres 46x17.0R20 main, 30x8.8R15 nose; 50 l 200 bar nitrogen bottles; 3000 psi
-hydraulics; 400 Hz 115/200 V 90 kVA ground power with its 6-pin aircraft plug).
+hydraulics; 400 Hz 115/200 V 90 kVA ground power with its 6-pin aircraft plug; 60 l steel drums 390 x 580 mm).
+
+Batch 2 joints (hq_joints.py, own code): welded gussets, clevis pins with head and split pin, end caps on tube
+ends, foot plates with anchor bolts. OilCart, WheelDolly and TyreCage use the same CC0 sets and own pictures as above.

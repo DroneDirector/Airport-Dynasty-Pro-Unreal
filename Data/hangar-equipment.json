@@ -5463,6 +5463,1026 @@
    ],
    "reference": "No free photo found; published sizes of mobile 90 kVA 400 Hz frequency converters",
    "root_part": "Frame"
+  },
+  {
+   "name": "OilCart",
+   "asset": "/Game/Babylon/OilCart/oilcart",
+   "kind": "oil / fluids dispensing cart",
+   "glb": "Art/HangarEquipment/OilCart/oilcart.glb",
+   "blend": "Art/HangarEquipment/OilCart/OilCart.blend",
+   "size_m": [
+    0.84,
+    1.462,
+    1.325
+   ],
+   "sizes": {
+    "drums": "2 x 60 l (390 x 580 mm)",
+    "tray_l": 50,
+    "hose": "6 m on a hand-crank reel",
+    "pump": "lever drum pump, 0.3 l per stroke",
+    "deck_m": [
+     0.7,
+     1.25
+    ],
+    "castors_mm": 200
+   },
+   "footprint": {
+    "x_min": -0.43,
+    "x_max": 0.36,
+    "y_min": -0.75,
+    "y_max": 0.62,
+    "note": "pushed by the handle at -y; operator stands behind it"
+   },
+   "tris": 32500,
+   "moving_parts": [
+    {
+     "name": "Castor_FL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.325,
+      0.48,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.325,
+      0.435,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_FL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.325,
+      0.435,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_FR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.325,
+      0.48,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.325,
+      0.435,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_FR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.325,
+      0.435,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.325,
+      -0.55,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.325,
+      -0.595,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_RL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.325,
+      -0.595,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.325,
+      -0.55,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.325,
+      -0.595,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_RR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.325,
+      -0.595,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "HoseReel",
+     "mesh": "HoseReel",
+     "parent": "Frame",
+     "pivot": [
+      0.0,
+      -0.48,
+      0.524
+     ],
+     "move": "turns about x: the crank winds the 6 m hose back in"
+    },
+    {
+     "name": "PumpLever",
+     "mesh": "PumpLever",
+     "parent": "Frame",
+     "pivot": [
+      0.09,
+      -0.14,
+      1.246
+     ],
+     "move": "rocks about x 0..30 deg: each stroke pumps about 0.3 l into the hose"
+    },
+    {
+     "name": "DrumCap",
+     "mesh": "DrumCap",
+     "parent": "Frame",
+     "pivot": [
+      0.09,
+      0.33,
+      0.91
+     ],
+     "move": "unscrews about z and lifts off: open to top up or check the level"
+    },
+    {
+     "name": "Nozzle",
+     "mesh": "Nozzle",
+     "parent": "Frame",
+     "pivot": [
+      -0.395,
+      -0.79,
+      0.83
+     ],
+     "move": "lifted out of the holster by its grip; the hose pays off the reel"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Brake_FL",
+     "kind": "foot",
+     "parent": "Brake_FL",
+     "pos": [
+      -0.26,
+      0.525,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_Brake_FR",
+     "kind": "foot",
+     "parent": "Brake_FR",
+     "pos": [
+      0.39,
+      0.525,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_Brake_RL",
+     "kind": "foot",
+     "parent": "Brake_RL",
+     "pos": [
+      -0.26,
+      -0.505,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_Brake_RR",
+     "kind": "foot",
+     "parent": "Brake_RR",
+     "pos": [
+      0.39,
+      -0.505,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_Push_L",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      -0.25,
+      -0.697,
+      0.98
+     ]
+    },
+    {
+     "name": "IK_Push_R",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      0.25,
+      -0.697,
+      0.98
+     ]
+    },
+    {
+     "name": "IK_Operator",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      -1.15,
+      0
+     ]
+    },
+    {
+     "name": "IK_ReelCrank",
+     "kind": "hand",
+     "parent": "HoseReel",
+     "pos": [
+      0.235,
+      -0.48,
+      0.614
+     ]
+    },
+    {
+     "name": "IK_PumpLever",
+     "kind": "hand",
+     "parent": "PumpLever",
+     "pos": [
+      0.09,
+      -0.44,
+      1.301
+     ]
+    },
+    {
+     "name": "IK_DrumCap",
+     "kind": "hand",
+     "parent": "DrumCap",
+     "pos": [
+      0.09,
+      0.33,
+      0.94
+     ]
+    },
+    {
+     "name": "IK_Nozzle",
+     "kind": "hand",
+     "parent": "Nozzle",
+     "pos": [
+      -0.395,
+      -0.79,
+      0.83
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Castor brake FL",
+     "part": "Brake_FL",
+     "ik": "IK_Brake_FL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake FR",
+     "part": "Brake_FR",
+     "ik": "IK_Brake_FR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RL",
+     "part": "Brake_RL",
+     "ik": "IK_Brake_RL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RR",
+     "part": "Brake_RR",
+     "ik": "IK_Brake_RR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Reel crank",
+     "part": "HoseReel",
+     "ik": "IK_ReelCrank",
+     "by": "hand",
+     "does": "wind the hose back onto the reel after use"
+    },
+    {
+     "control": "Pump lever",
+     "part": "PumpLever",
+     "ik": "IK_PumpLever",
+     "by": "hand",
+     "does": "pump oil from the drum to the nozzle"
+    },
+    {
+     "control": "Drum cap",
+     "part": "DrumCap",
+     "ik": "IK_DrumCap",
+     "by": "hand",
+     "does": "open the front drum"
+    },
+    {
+     "control": "Nozzle",
+     "part": "Nozzle",
+     "ik": "IK_Nozzle",
+     "by": "hand",
+     "does": "take the nozzle to the engine filler and squeeze the trigger"
+    }
+   ],
+   "reference": "No usable free photo found; published sizes of hangar oil dispensing carts and 60 l steel drums",
+   "root_part": "Frame"
+  },
+  {
+   "name": "WheelDolly",
+   "asset": "/Game/Babylon/WheelDolly/wheeldolly",
+   "kind": "aircraft wheel and brake dolly",
+   "glb": "Art/HangarEquipment/WheelDolly/wheeldolly.glb",
+   "blend": "Art/HangarEquipment/WheelDolly/WheelDolly.blend",
+   "size_m": [
+    1.045,
+    1.436,
+    1.28
+   ],
+   "sizes": {
+    "capacity_kg": 450,
+    "tyres": "up to 46x17.0R20 (A320 main)",
+    "lift_m": 0.25,
+    "arm_spread_m": [
+     0.3,
+     0.7
+    ],
+    "castors_mm": 150
+   },
+   "footprint": {
+    "x_min": -0.52,
+    "x_max": 0.52,
+    "y_min": -0.9,
+    "y_max": 0.58,
+    "note": "pushed in along the axle, arms either side of the tyre"
+   },
+   "tris": 24184,
+   "moving_parts": [
+    {
+     "name": "Castor_FL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.45,
+      0.48,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.45,
+      0.446,
+      0.075
+     ],
+     "move": "spin about x, rolls r=0.075 m"
+    },
+    {
+     "name": "Brake_FL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.45,
+      0.446,
+      0.075
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_FR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.45,
+      0.48,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.45,
+      0.446,
+      0.075
+     ],
+     "move": "spin about x, rolls r=0.075 m"
+    },
+    {
+     "name": "Brake_FR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.45,
+      0.446,
+      0.075
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.45,
+      -0.48,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.45,
+      -0.514,
+      0.075
+     ],
+     "move": "spin about x, rolls r=0.075 m"
+    },
+    {
+     "name": "Brake_RL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.45,
+      -0.514,
+      0.075
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.45,
+      -0.48,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.45,
+      -0.514,
+      0.075
+     ],
+     "move": "spin about x, rolls r=0.075 m"
+    },
+    {
+     "name": "Brake_RR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.45,
+      -0.514,
+      0.075
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Carriage",
+     "mesh": "Carriage",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      -0.445,
+      0.3
+     ],
+     "move": "slides up z 0..0.25 m on the mast (hydraulic ram), lifts the wheel"
+    },
+    {
+     "name": "SpreadCrank",
+     "mesh": "SpreadCrank",
+     "parent": "Carriage",
+     "pivot": [
+      0.36,
+      -0.38,
+      0.235
+     ],
+     "move": "turns about x (lead screw): both fork arms move in / out together, 4 mm per turn"
+    },
+    {
+     "name": "ForkArm_L",
+     "mesh": "ForkArm_L",
+     "parent": "Carriage",
+     "pivot": [
+      -0.25,
+      -0.4,
+      0.3
+     ],
+     "move": "slides along x on the beam (lead screw): -0.15 .. -0.35 m from the centre"
+    },
+    {
+     "name": "Roller_L",
+     "mesh": "Roller_L",
+     "parent": "ForkArm_L",
+     "pivot": [
+      -0.182,
+      0.07,
+      0.14
+     ],
+     "move": "spins about y: the tyre turns on it (to line up the wheel with the axle)"
+    },
+    {
+     "name": "ForkArm_R",
+     "mesh": "ForkArm_R",
+     "parent": "Carriage",
+     "pivot": [
+      0.25,
+      -0.4,
+      0.3
+     ],
+     "move": "slides along x on the beam (lead screw): 0.15 .. 0.35 m from the centre"
+    },
+    {
+     "name": "Roller_R",
+     "mesh": "Roller_R",
+     "parent": "ForkArm_R",
+     "pivot": [
+      0.182,
+      0.07,
+      0.14
+     ],
+     "move": "spins about y: the tyre turns on it (to line up the wheel with the axle)"
+    },
+    {
+     "name": "PumpPedal",
+     "mesh": "PumpPedal",
+     "parent": "Frame",
+     "pivot": [
+      0.3,
+      -0.655,
+      0.335
+     ],
+     "move": "tips about x 0..25 deg: each stroke raises the carriage about 8 mm"
+    },
+    {
+     "name": "ReleaseValve",
+     "mesh": "Knob_ReleaseValve",
+     "parent": "Frame",
+     "pivot": [
+      0.35,
+      -0.603,
+      0.33
+     ],
+     "move": "turns about the panel normal 0..270 deg: open: the carriage comes down slowly"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Brake_FL",
+     "kind": "foot",
+     "parent": "Brake_FL",
+     "pos": [
+      -0.388,
+      0.536,
+      0.087
+     ]
+    },
+    {
+     "name": "IK_Brake_FR",
+     "kind": "foot",
+     "parent": "Brake_FR",
+     "pos": [
+      0.513,
+      0.536,
+      0.087
+     ]
+    },
+    {
+     "name": "IK_Brake_RL",
+     "kind": "foot",
+     "parent": "Brake_RL",
+     "pos": [
+      -0.388,
+      -0.424,
+      0.087
+     ]
+    },
+    {
+     "name": "IK_Brake_RR",
+     "kind": "foot",
+     "parent": "Brake_RR",
+     "pos": [
+      0.513,
+      -0.424,
+      0.087
+     ]
+    },
+    {
+     "name": "IK_SpreadCrank",
+     "kind": "hand",
+     "parent": "SpreadCrank",
+     "pos": [
+      0.41,
+      -0.38,
+      0.335
+     ]
+    },
+    {
+     "name": "IK_Push_L",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      -0.1,
+      -0.72,
+      1.0
+     ]
+    },
+    {
+     "name": "IK_Push_R",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      0.1,
+      -0.72,
+      1.0
+     ]
+    },
+    {
+     "name": "IK_PumpPedal",
+     "kind": "foot",
+     "parent": "PumpPedal",
+     "pos": [
+      0.3,
+      -0.835,
+      0.31
+     ]
+    },
+    {
+     "name": "IK_ReleaseValve",
+     "kind": "hand",
+     "parent": "ReleaseValve",
+     "pos": [
+      0.395,
+      -0.603,
+      0.33
+     ]
+    },
+    {
+     "name": "IK_Operator",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      -1.15,
+      0
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Castor brake FL",
+     "part": "Brake_FL",
+     "ik": "IK_Brake_FL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake FR",
+     "part": "Brake_FR",
+     "ik": "IK_Brake_FR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RL",
+     "part": "Brake_RL",
+     "ik": "IK_Brake_RL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RR",
+     "part": "Brake_RR",
+     "ik": "IK_Brake_RR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Spread crank",
+     "part": "SpreadCrank",
+     "ik": "IK_SpreadCrank",
+     "by": "hand",
+     "does": "set the arms to the tyre: rollers just under the tyre either side of its footprint"
+    },
+    {
+     "control": "Lift pedal",
+     "part": "PumpPedal",
+     "ik": "IK_PumpPedal",
+     "by": "foot",
+     "does": "pump to lift the wheel off the floor"
+    },
+    {
+     "control": "ReleaseValve",
+     "part": "ReleaseValve",
+     "ik": "IK_ReleaseValve",
+     "by": "hand",
+     "does": "open: the carriage comes down slowly"
+    }
+   ],
+   "reference": "No usable free photo found; published sizes of airliner wheel and brake dollies and A320 tyres",
+   "root_part": "Frame"
+  },
+  {
+   "name": "TyreCage",
+   "asset": "/Game/Babylon/TyreCage/tyrecage",
+   "kind": "tyre inflation safety cage",
+   "glb": "Art/HangarEquipment/TyreCage/tyrecage.glb",
+   "blend": "Art/HangarEquipment/TyreCage/TyreCage.blend",
+   "size_m": [
+    1.746,
+    1.158,
+    1.776
+   ],
+   "sizes": {
+    "inner_m": [
+     1.44,
+     0.76,
+     1.43
+    ],
+    "tyre_max": "A320 main 46x17.0R20, 1.17 m",
+    "air": "up to 25 bar via regulator, remote clip-on chuck",
+    "bars_mm": 32
+   },
+   "footprint": {
+    "x_min": -0.82,
+    "x_max": 1.0,
+    "y_min": -0.47,
+    "y_max": 1.25,
+    "note": "bolted to the floor; the gate swings out over +y"
+   },
+   "tris": 23230,
+   "moving_parts": [
+    {
+     "name": "Gate",
+     "mesh": "Gate",
+     "parent": "Frame",
+     "pivot": [
+      -0.75,
+      0.472,
+      0.4
+     ],
+     "move": "swings about z on the left hinge pins: 0 = shut and latched .. 100 deg open (wheel in / out)"
+    },
+    {
+     "name": "Chuck",
+     "mesh": "Chuck",
+     "parent": "Frame",
+     "pivot": [
+      0.86,
+      0.41,
+      0.72
+     ],
+     "move": "off the hook by hand, clipped onto the tyre valve (hose follows); back on the hook after"
+    },
+    {
+     "name": "Gauge_Line",
+     "mesh": "GaugeBody_40",
+     "parent": "Frame",
+     "pivot": [
+      0.806,
+      0.27,
+      1.2
+     ],
+     "move": "fixed: air line pressure (0..25 bar)"
+    },
+    {
+     "name": "Needle_Line",
+     "mesh": "Needle_40",
+     "parent": "Gauge_Line",
+     "pivot": [
+      0.806,
+      0.27,
+      1.2
+     ],
+     "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: air line pressure (0..25 bar)"
+    },
+    {
+     "name": "Gauge_Tyre",
+     "mesh": "GaugeBody_40",
+     "parent": "Frame",
+     "pivot": [
+      0.806,
+      0.43,
+      1.2
+     ],
+     "move": "fixed: tyre pressure read through the hose (0..25 bar)"
+    },
+    {
+     "name": "Needle_Tyre",
+     "mesh": "Needle_40",
+     "parent": "Gauge_Tyre",
+     "pivot": [
+      0.806,
+      0.43,
+      1.2
+     ],
+     "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: tyre pressure read through the hose (0..25 bar)"
+    },
+    {
+     "name": "Regulator",
+     "mesh": "Knob_Regulator",
+     "parent": "Frame",
+     "pivot": [
+      0.806,
+      0.35,
+      1.2
+     ],
+     "move": "turns about the panel normal 0..270 deg: sets the fill pressure, never above the tyre limit"
+    },
+    {
+     "name": "InflateValve",
+     "mesh": "Lever_InflateValve",
+     "parent": "Frame",
+     "pivot": [
+      0.806,
+      0.29,
+      1.04
+     ],
+     "move": "quarter turn about the panel normal 0..90 deg: open = air flows to the tyre"
+    },
+    {
+     "name": "DeflateValve",
+     "mesh": "T_DeflateValve",
+     "parent": "Frame",
+     "pivot": [
+      0.806,
+      0.43,
+      1.04
+     ],
+     "move": "turns about the panel normal 0..270 deg (open): bleeds the tyre down"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Gate_Handle",
+     "kind": "hand",
+     "parent": "Gate",
+     "pos": [
+      0.715,
+      0.632,
+      1.015
+     ]
+    },
+    {
+     "name": "IK_Chuck",
+     "kind": "hand",
+     "parent": "Chuck",
+     "pos": [
+      0.86,
+      0.41,
+      0.64
+     ]
+    },
+    {
+     "name": "IK_Regulator",
+     "kind": "hand",
+     "parent": "Regulator",
+     "pos": [
+      0.851,
+      0.35,
+      1.2
+     ]
+    },
+    {
+     "name": "IK_InflateValve",
+     "kind": "hand",
+     "parent": "InflateValve",
+     "pos": [
+      0.851,
+      0.29,
+      1.04
+     ]
+    },
+    {
+     "name": "IK_DeflateValve",
+     "kind": "hand",
+     "parent": "DeflateValve",
+     "pos": [
+      0.851,
+      0.43,
+      1.04
+     ]
+    },
+    {
+     "name": "IK_Operator",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      1.35,
+      0.35,
+      0
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Safety gate",
+     "part": "Gate",
+     "ik": "IK_Gate_Handle",
+     "by": "hand",
+     "does": "lift the latch and swing open to roll the wheel in; shut and latch before filling"
+    },
+    {
+     "control": "Tyre chuck",
+     "part": "Chuck",
+     "ik": "IK_Chuck",
+     "by": "hand",
+     "does": "clip onto the wheel valve through the bars, then step back to the panel"
+    },
+    {
+     "control": "Regulator",
+     "part": "Regulator",
+     "ik": "IK_Regulator",
+     "by": "hand",
+     "does": "sets the fill pressure, never above the tyre limit"
+    },
+    {
+     "control": "InflateValve",
+     "part": "InflateValve",
+     "ik": "IK_InflateValve",
+     "by": "hand",
+     "does": "open = air flows to the tyre"
+    },
+    {
+     "control": "DeflateValve",
+     "part": "DeflateValve",
+     "ik": "IK_DeflateValve",
+     "by": "hand",
+     "does": "bleeds the tyre down"
+    }
+   ],
+   "reference": "No usable free photo found; published sizes of aircraft tyre inflation cages and A320 tyres",
+   "root_part": "Frame"
   }
  ]
 }
