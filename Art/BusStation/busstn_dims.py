@@ -107,3 +107,43 @@ def arch_pt(t, dr=0.0):
 def row_t(k):
     """The t of glazing row line k (0 = south eaves, N_ROW = north eaves)."""
     return -TE + k * (2 * TE / N_ROW)
+
+
+# ---- the waiting hall on the platform (step: hall + platform furniture, 2026-11-27)
+# The plan asks for 30 x 9 m. The deck is only 8.00 m wide (y -4..+4) and of that the two kerbs (0.30),
+# the two tactile strips, the two slot drains (y +-2.25..2.55) and the south column line with its 1.30 m
+# footing pads (y -3.65..-2.35) are not buildable, so a 9 m wide hall cannot stand on this platform.
+# The hall keeps its 30 m length and is 3.60 m wide, between the two drains, leaving a 1.9 m walking
+# corridor on each side. Any change to that needs a wider platform in roads.json.
+HALL_X0 = 60.0
+HALL_X1 = 90.0
+HALL_YN = 1.80           # north wall line (terminal side)
+HALL_YS = -1.80          # south wall line (coach side)
+HALL_BAY = 2.5           # mullion spacing: 12 bays over the 30 m
+HALL_SILL_W = 0.16       # sill channel width
+HALL_SILL_Z = 0.30       # sill top
+HALL_POST = (0.10, 0.12)  # mullion: across x, deep in y
+HALL_BEAM = (0.16, 0.22)  # head beam: across, deep in z
+HALL_HEAD_Z = 3.23       # head beam soffit (3.05 m clear over the deck)
+HALL_CEIL_Z = 3.25       # ceiling panel soffit
+HALL_ROOF_Z = 3.65       # roof deck top
+HALL_DOOR_N_X = 66.25    # the two sliding door sets, on the bay centre lines
+HALL_DOOR_S_X = 83.75
+HALL_DOOR_CLEAR = 2.40   # clear opening between the jamb mullions
+SEAT_Z = 0.63            # every seat surface: 0.45 m over the deck, as Art/CoachSeat (cushion top 0.45)
+
+# ---- the bays the signs belong to: Data/Sites/chablais/roads.json, roads[0].paint "bays"
+# n 12, bay width 3.60, sawtooth angle 25 deg -> pitch 3.60 / sin(25) = 8.518 m (the lamp spacing in the same file).
+# The 12-bay run is centred on the 150 m platform; sign posts stand on the deck's bus side, clear of the drain.
+N_BAYS = 12
+BAY_PITCH = 3.6 / math.sin(math.radians(25.0))       # 8.518
+BAY_RUN = N_BAYS * BAY_PITCH
+BAY_X0 = (PL_LEN - BAY_RUN) / 2
+SIGN_POST_Y = -2.08      # sign post centre (between the hall's south sill and the south slot drain)
+SIGN_Z = 3.05            # sign box centre height over ground
+SIGN_BOX = (0.90, 0.22, 0.52)   # lit box: x, y, z
+
+
+def bay_x(i):
+    """Centre of bay i (0..11) along the platform."""
+    return BAY_X0 + BAY_PITCH * (i + 0.5)
