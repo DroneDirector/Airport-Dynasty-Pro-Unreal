@@ -38,6 +38,12 @@ public:
 	/** The manager (made once, when the airport has loaded - AADPPeople::StartWanderers). */
 	static APaxFlow* Get(UWorld* W);
 	static APaxFlow* Find(const UWorld* W);
+	/** The town hub (TownHub.h): a passenger it brought, off the coach with their own bag in hand - on as before (the check-in
+	 *  bag, the way in, desks, security, gates). False: not one of the hub's. */
+	bool FromCoach(AActor* A);
+	/** The town hub: a passenger who missed every coach in time - gone home (unseen, their body taken away). */
+	void HubGone(AActor* A, const TCHAR* Why);
+	double SimNow() const { return SimT; }
 	/** True when this flight's departing passengers walk here: the boarding call is made by the passenger flow (at the
 	 *  turnaround's board task), not by the announcer's 40-minute rule - never called twice. */
 	static bool CallsBoarding(const UWorld* W, const FString& Flight);
@@ -85,7 +91,7 @@ public:
 	enum : int32 { VisibleDep = 36, VisibleArr = 30 };
 
 private:
-	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, Apron, ClaimWait, ToBag, Revolve, Gone };   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
+	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, Apron, ClaimWait, ToBag, Revolve, Gone, Coach };   // (Coach: at the town hub / on its coach - ATownHub has them until FromCoach)   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
 	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn, ToTaxi, ApronOut };
 	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; bool bNav = false; int8 Rev = -1, RevSide = 0; };   // Mode 0 walk, 1 slow, 2 ride, 3 a revolving door (Rev: ATerminalDoors' revolving door, RevSide: the side they come from, +-1 along its axis; P: the queue's head spot); bNav: the leg to it already walked out on the navmesh
 	struct FPx
@@ -108,6 +114,7 @@ private:
 		FVector LooseFrom = FVector::ZeroVector, LooseTo = FVector::ZeroVector; float LooseT = -1.f;       // (truly held by geometry: eased back to the nearest free point)
 		int32 Hide = INDEX_NONE, HideTries = 0; float HideIn = 0.f;   // (leaving, to-do 294: the unseen place they walk to - ADPUnseen; how many were seen when they got there)
 		bool bHome = false;          // (on the way home: too late, or their flight is off)
+		bool bHubBag = false;        // (came by the town coach with a suitcase: it becomes their check-in bag at FromCoach)
 		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
 	/** The inside of a docked jetway as it stands now, cut every 40 cm from the aircraft's door to the gate: its middle on the floor,
@@ -126,6 +133,7 @@ private:
 		int32 NBags = 0, NDesk = 0, NLane = 0, NF2 = 0, NBag = 0;   // (how many have a bag to check in, have checked it in, been screened, come up to Floor 2; taken their bag)
 		TArray<double> SpawnAt;     // (departures: when each walker gets out of their car; arrivals: off the aircraft)
 		TArray<int32> Desks;
+		TArray<int32> HubRun; TArray<uint8> HubBag;   // (departures, beside SpawnAt: the town coach run each is booked on (INDEX_NONE: the airport, as before), a suitcase)
 		bool bCalled = false, bFinal = false, bClosed = false, bAllLogged = false, bDeplaning = false, bBagsTagged = false;
 		float CallBefore = -1.f;
 		double CallT = 0.0, BoardSpanS = 0.0, ArrStart = -1.0, NextArr = 0.0, HoldSince = -1.0, SaidAt = -1.0e9; bool bNoShowGo = false, bLateTun = false;   // (arrivals: HoldSince, bNoShowGo - the wait for the last ones off, given up)
@@ -205,6 +213,7 @@ private:
 
 	// people
 	int32 SpawnDep(int32 Ri, const FVector& At, bool bTerminalSide);
+	int32 SpawnHub(int32 Ri, const FVector& At, int32 Trip, bool bBag);   // (to-do 373: at the town hub's shelter, for their coach run)
 	void StepAppear(int32 Ri, double Now);   // (to-do 294: the next departing passenger, at a landside place no camera sees)
 	int32 SpawnArr(int32 Ri);
 	int32 NewPx();

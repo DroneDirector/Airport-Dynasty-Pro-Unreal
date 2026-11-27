@@ -685,7 +685,7 @@ int32 ACoaches::RouteHits(int32 Ci, const FTransform& From, const TArray<FVector
 	return INDEX_NONE;
 }
 
-bool ACoaches::SendOnRoute(int32 Ci, bool bToTown, int32 Bay)
+bool ACoaches::SendOnRoute(int32 Ci, bool bToTown, int32 Bay, float LimitMs)
 {
 	using namespace CoachLoop;
 	const TCHAR* Way = bToTown ? TEXT("to the town hub") : TEXT("back to the terminal");
@@ -721,7 +721,7 @@ bool ACoaches::SendOnRoute(int32 Ci, bool bToTown, int32 Bay)
 	}
 	if (Hit != INDEX_NONE) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - still touches coach %d after backing %.1f m"), Ci, Way, Hit, LoopMaxBack / 100.f); return false; }
 	float Len = 0.f; for (int32 i = 1; i < Path.Num(); ++i) Len += float(FVector::Dist2D(Path[i], Path[i - 1]));
-	FRouteGo& G = RouteGo.Add(Ci); G.Path = MoveTemp(Path); G.BackLeft = Backed; G.bToTown = bToTown; G.Bay = Bay;
+	FRouteGo& G = RouteGo.Add(Ci); G.Path = MoveTemp(Path); G.BackLeft = Backed; G.bToTown = bToTown; G.Bay = Bay; G.LimitMs = FMath::Clamp(LimitMs, 5.f, LoopTownLimit);
 	if (bToTown) HubBayOf.Add(Ci, Bay); else HubBayOf.Remove(Ci);
 	const FString BayS = bToTown ? FString::Printf(TEXT(" (hub bay %d)"), Bay) : FString();
 	const FString BackS = Backed > 0.f ? FString::Printf(TEXT(", backing up %.2f m first (coach %d in front)"), Backed / 100.f, FirstHit) : FString(TEXT(", straight out"));
@@ -765,7 +765,7 @@ void ACoaches::RouteTick(float Dt)
 		const FTransform Parent = C.RootBase.Inverse() * RootW(C);
 		TArray<FVector> Local; Local.Reserve(G.Path.Num());
 		for (const FVector& P : G.Path) Local.Add(Parent.InverseTransformPosition(P));
-		if (!R->Drive(Local, LoopTownLimit)) { ADP_WARN(TEXT("Coaches: coach %d's riders won't drive the loop (someone not seated, or you aboard)"), Ci); It.RemoveCurrent(); continue; }
+		if (!R->Drive(Local, G.LimitMs)) { ADP_WARN(TEXT("Coaches: coach %d's riders won't drive the loop (someone not seated, or you aboard)"), Ci); It.RemoveCurrent(); continue; }
 		G.bDriving = true;
 	}
 }

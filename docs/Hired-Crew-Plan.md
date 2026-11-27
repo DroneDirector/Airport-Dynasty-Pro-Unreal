@@ -1099,3 +1099,12 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 
 ### Hangar clear path (owner 2026-11-27)
 Nothing stands in the aircraft's way when it is towed in or out of a hall. Before a tow the mechanics move every stand, jack, cart, ladder, tool chest and the hangar stair out of the swept path (wingtips, tail, nose plus a margin) to wall spots, and people step clear. The doors open and the tug moves only once the path is checked clear; otherwise the tow waits and says why. After parking, chocks and doors closed, the equipment is moved into place at the fault, and all moved away again before the tow out. The player uses the same rule.
+
+## Town coach hub, departures (to-do 373 step B, 2026-11-27, compiled, NOT run)
+- ATownHub (Source/.../TownHub.h/.cpp): departing passengers appear unseen along the hub shelter (roads.json TOWN-HUB) and come by coach.
+- Timetable: every walker is booked on one coach run worked back from the flight: at the terminal adp.TownHubBufferMin (120) before, 7 min drive + 5 min margin; each run a random 0-90 s delay and 41-50 km/h. They appear 10-18 min before their run leaves.
+- Missed coach (still at the shelter or walking when the bays shut, no seat, bays full, no coach free): logged with why, rebooked on a later run in time, else home unseen.
+- Drivers are the coach operator's own (appear unseen by the door), not airport hired staff - owner to decide.
+- At the terminal: off, own bag from the bay, then PaxFlow::FromCoach (check-in bag, desks, security, gates as before).
+- Fallback: adp.TownHub 0, test runs, no hub data, no coach or no loop: the old airport spawn, logged once. Taxis: ATownHub::TaxiFor hook only.
+- Arrivals back to town: step C.

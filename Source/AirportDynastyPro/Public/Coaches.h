@@ -83,7 +83,7 @@ public:
 	 *  hub (bToTown), or from the hub back to its own stand, arriving the way the parked coaches face. Forward only: if it
 	 *  cannot pull out without touching the coach in front it first backs up only as far as it needs, the reverse beep
 	 *  sounding. Bay: the hub bay (INDEX_NONE: the first free one). False (logged) when it cannot go. */
-	bool SendOnRoute(int32 Coach, bool bToTown, int32 Bay = INDEX_NONE);
+	bool SendOnRoute(int32 Coach, bool bToTown, int32 Bay = INDEX_NONE, float LimitMs = 13.9f);   // (LimitMs: its top speed, m/s - the town hub's traffic)
 	/** Being sent (backing up, or its riders driving the loop)? */
 	bool OnRoute(int32 Coach) const { return RouteGo.Contains(Coach); }
 	/** The loop's path from a root place (world cm, the front axle's way; tests). Empty, Why said, when there is none. */
@@ -132,7 +132,7 @@ private:
 	void ReachTick(float Dt);
 	void ReachEnd();
 	// the loop (to-do 373)
-	struct FRouteGo { TArray<FVector> Path; float BackLeft = 0.f, Backed = 0.f; UAudioComponent* Beep = nullptr; bool bToTown = false; bool bDriving = false; int32 Bay = INDEX_NONE; };
+	struct FRouteGo { TArray<FVector> Path; float BackLeft = 0.f, Backed = 0.f; UAudioComponent* Beep = nullptr; bool bToTown = false; bool bDriving = false; int32 Bay = INDEX_NONE; float LimitMs = 13.9f; };
 	TMap<int32, FRouteGo> RouteGo;
 	TMap<int32, FTransform> HomeStand;     // a coach's terminal stand (world root): where it was when first sent to town
 	TMap<int32, int32> HubBayOf;           // the hub bay a coach went to

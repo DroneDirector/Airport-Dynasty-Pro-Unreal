@@ -1,6 +1,7 @@
 // The passengers' trips through the airport, both ways (PaxFlow.h). Plan metres: x east, z north (airside), height up -
 // FTerminalPlan::ToWorld(x, height, z); the roads' plan (x, y) is the same frame (y = plan z).
 #include "PaxFlow.h"
+#include "TownHub.h"
 #include "PeopleLayers.h"
 #include "UI/AirportCalls.h"
 #include "ADPLog.h"
@@ -500,19 +501,31 @@ void APaxFlow::Poll()
 		}
 		if (P.State != TEXT("planned") || P.Pax() <= 0) continue;
 		const double Dep = PxSec(P.Sched), MinTo = (PxSec(P.Est) - SimT) / 60.0;
-		if ((Dep - SimT) / 60.0 > 122.0 || MinTo < 25.0) continue;   // (too early yet, or too late to walk the whole way now)
+		const bool bHub = ATownHub::Use(GetWorld());   // (to-do 373: they come from town by coach - the window opens earlier, for the coach's buffer)
+		if ((Dep - SimT) / 60.0 > (bHub ? double(ATownHub::BufferMin()) + 45.0 : 122.0) || MinTo < 25.0) continue;   // (too early yet, or too late to walk the whole way now)
 		FRun R; R.Key = Key; R.PlanId = P.Id; R.Label = P.FlightNo; R.Reg = P.Reg; R.AirlineId = P.AirlineId; R.Gate = PaxGate(P.Stand, P.Reg); R.DepT = PxSec(P.Est);
 		R.bPlayer = P.AirlineId == UADPSim::Me();
 		R.Pax = P.Pax();
 		R.Visible = FMath::Min(R.Pax, int32(VisibleDep));
-		int32 Missed = 0;
+		int32 Missed = 0, ByCoach = 0;
+		struct FSp { double T; int32 Trip; uint8 Bag; };
+		TArray<FSp> Sp;
+		ATownHub* Hub = bHub ? ATownHub::Get(GetWorld()) : nullptr;
 		for (int32 i = 0; i < R.Visible; ++i)
 		{
+			if (Hub)   // (booked on one coach run of the timetable, worked back from the flight; none in time: the airport, as before)
+			{
+				const bool bB = Rng.FRand() < 0.75f; double T = 0.0;
+				const int32 Tr = Hub->Book(R.Label, R.DepT, bB, SimT, T);
+				if (Tr != INDEX_NONE) { Sp.Add({T, Tr, uint8(bB)}); ++ByCoach; continue; }
+			}
 			const double At = Dep - Rng.FRandRange(75.f, 120.f) * 60.0;   // (each at their own time before the flight)
 			if (At < SimT - 8.0 * 60.0) { ++Missed; continue; }   // (they would be inside already - never popped in there)
-			R.SpawnAt.Add(At);
+			Sp.Add({At, INDEX_NONE, 0});
 		}
-		R.SpawnAt.Sort();
+		Sp.Sort([](const FSp& X, const FSp& Y) { return X.T < Y.T; });
+		for (const FSp& S : Sp) { R.SpawnAt.Add(S.T); R.HubRun.Add(S.Trip); R.HubBag.Add(S.Bag); }
+		if (ByCoach) ADP_LOG(TEXT("PaxFlow: %d passengers of %s come from town by coach"), ByCoach, *R.Label);
 		R.Visible = R.SpawnAt.Num();
 		if (!R.Visible) continue;
 		SetStand(R, P.Stand); ChooseDesks(R); R.Jet = R.Way ? INDEX_NONE : JetwayFor(GateRoom(R.Gate));
@@ -724,9 +737,30 @@ void APaxFlow::StepAppear(int32 Ri, double Now)
 	// (too late for the desks and security: they stay data - the flight never waits for them)
 	if (Now > R.DepT - (R.bTest ? 3.0 : 50.0) * 60.0)
 	{
+		if (R.HubRun.IsValidIndex(R.Spawned) && R.HubRun[R.Spawned] != INDEX_NONE) if (ATownHub* Hub = ATownHub::Get(GetWorld())) Hub->Unbook(R.HubRun[R.Spawned], R.HubBag[R.Spawned] != 0, TEXT("too late for the desks before they appeared"));
+		if (R.HubRun.IsValidIndex(R.Spawned)) { R.HubRun.RemoveAt(R.Spawned); R.HubBag.RemoveAt(R.Spawned); }
 		R.SpawnAt.RemoveAt(R.Spawned); R.Visible = FMath::Max(R.Spawned, R.Visible - 1); R.bHideWait = false; ++NDropped;
 		if (!R.Visible) R.bNoShowGo = true;
 		ADP_LOG(TEXT("PaxFlow: a passenger of %s stays data - no unseen place in time (%d of them so far)"), *R.Label, NDropped);
+		return;
+	}
+	if (R.HubRun.IsValidIndex(R.Spawned) && R.HubRun[R.Spawned] != INDEX_NONE)   // (to-do 373: at the town hub, for their coach run)
+	{
+		ATownHub* Hub = ATownHub::Get(GetWorld());
+		const int32 Tr = R.HubRun[R.Spawned]; const bool bB = R.HubBag[R.Spawned] != 0;
+		if (Hub && Now <= Hub->LatestSpawn(Tr))
+		{
+			if (SpawnGap > 0.f || !FaceReady()) return;
+			FVector At; if (!Hub->SpawnSpot(At)) return;   // (no free place nobody sees along the shelter: the next frame)
+			SpawnGap = 0.8f;
+			if (SpawnHub(Ri, At, Tr, bB) != INDEX_NONE) ++NAppear;
+			return;
+		}
+		if (Hub) Hub->Unbook(Tr, bB, TEXT("no place at the shelter nobody sees in time to make their coach"));
+		R.HubRun.RemoveAt(R.Spawned); R.HubBag.RemoveAt(R.Spawned); R.SpawnAt.RemoveAt(R.Spawned);
+		R.Visible = FMath::Max(R.Spawned, R.Visible - 1); ++NDropped;
+		if (!R.Visible) R.bNoShowGo = true;
+		ADP_LOG(TEXT("PaxFlow: a town coach passenger of %s stays data - missed their coach before appearing"), *R.Label);
 		return;
 	}
 	if (SpawnGap > 0.f || HideRetry > 0.f || !FaceReady()) return;
@@ -752,6 +786,51 @@ void APaxFlow::StepAppear(int32 Ri, double Now)
 	++NAppear;
 	const FVector At = PlanOf(Pl.P);
 	if (Runs[Ri].bTest || NAppear <= 20) ADP_LOG(TEXT("PaxFlow: appeared unseen at plan (%.1f, %.1f), %s%s"), At.X, At.Z, Pl.bTerminalSide ? TEXT("the terminal's side") : TEXT("the car park"), Pl.bCover ? TEXT(", behind something") : TEXT(""));
+}
+
+int32 APaxFlow::SpawnHub(int32 Ri, const FVector& At, int32 Trip, bool bBag)
+{
+	FRun& R = Runs[Ri];
+	++R.Spawned;
+	const int32 i = NewPx(); FPx& P = Pax[i];
+	P.Run = Ri; P.Id = FString::Printf(TEXT("%s-%02d"), *R.Label, R.Spawned);
+	ATownHub* Hub = ATownHub::Get(GetWorld());
+	AActor* A = Hub ? Body(At, -90.f, P) : nullptr;
+	if (!A) { P.St = EPx::Gone; FreePx.Add(i); if (Hub) Hub->Unbook(Trip, bBag, TEXT("no body could be made at the shelter")); return INDEX_NONE; }
+	P.St = EPx::Coach; P.bHubBag = bBag; P.Stage = TEXT("at the town hub, waiting for the coach");
+	Hub->Take(A, bBag, R.Label, Trip, R.DepT);
+	if (R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s (%s) appears at the town hub for %s, coach run %d%s"), *P.Id, *P.Name, *R.Label, Trip, bBag ? TEXT(", a suitcase") : TEXT(""));
+	return i;
+}
+
+bool APaxFlow::FromCoach(AActor* A)
+{
+	const int32 i = Pax.IndexOfByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
+	if (i == INDEX_NONE || !A) return false;
+	FPx& P = Pax[i]; FRun& R = Runs[P.Run];
+	ADepartureBelts* Dep = ADepartureBelts::Get(GetWorld());
+	if (P.bHubBag && Dep && R.Desks.Num())   // (their suitcase from the coach's bay: now the check-in bag, by its handle)
+	{
+		int32 Best = R.Desks[0], Bn = MAX_int32;
+		for (const int32 D : R.Desks) { int32 N = 0; for (const FPx& O : Pax) if (O.St != EPx::Gone && O.Desk == D) ++N; if (N < Bn) { Bn = N; Best = D; } }
+		P.Desk = Best;
+		P.Bag = Dep->PassengerDrop(A, P.Desk, P.Id, R.Label, P.Holder, NAME_None, false);
+		if (P.Bag != INDEX_NONE) { P.bHasBag = true; const FDepBagGrips G = Dep->Grips(P.Bag); P.Handle = Dep->BagTransform(P.Bag).InverseTransformPosition(G.Handle); }
+	}
+	if (P.bHasBag) ++R.NBags;
+	P.St = EPx::Walk; P.Stage = TEXT("off the town coach to the entrance");
+	WayToHall(P, PlanOf(A->GetActorLocation()).Z > -21.f);
+	P.Do = P.bHasBag ? EDo::JoinDesk : EDo::JoinLane;
+	if (!P.bHasBag) WayToSecurity(P);
+	if (R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s off the town coach for %s%s"), *P.Id, *R.Label, P.bHasBag ? *FString::Printf(TEXT(", bag #%d for desk %d"), P.Bag, P.Desk) : TEXT(", no bag"));
+	return true;
+}
+
+void APaxFlow::HubGone(AActor* A, const TCHAR* Why)
+{
+	const int32 i = Pax.IndexOfByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
+	if (i == INDEX_NONE) return;
+	++Runs[Pax[i].Run].Home; Finish(i, Why);
 }
 
 int32 APaxFlow::SpawnDep(int32 Ri, const FVector& At, bool bTerminalSide)
@@ -1889,6 +1968,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	AActor* A = P.A.Get();
 	if (!A) { if (P.St != EPx::Gone) { P.St = EPx::Gone; FreePx.Add(i); } return; }
 	FRun& R = Runs[P.Run];
+	if (P.St == EPx::Coach) return;   // (to-do 373: the town hub and its coach have them - ATownHub, until FromCoach)
 	AADPPeople* People = AADPPeople::Get(GetWorld());
 	// (you talk with them: they stop, turned to you, and go on after it - never on an escalator, in a revolving door, the jetway or on the apron)
 	if (People && People->TalksToYou(A) && P.LooseT < 0.f)

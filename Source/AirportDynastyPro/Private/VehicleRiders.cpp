@@ -171,7 +171,7 @@ UVehicleRiders::~UVehicleRiders() {}
 bool UVehicleRiders::LineOn()
 {
 	static const bool bTest = FParse::Param(FCommandLine::Get(), TEXT("CoachIKTest"));
-	return bTest || CVarCoachLine.GetValueOnGameThread() != 0;
+	return bTest || bTownLine || CVarCoachLine.GetValueOnGameThread() != 0;
 }
 
 UVehicleRiders* UVehicleRiders::Make(AActor* Vehicle, const FString& SpecName, TUniquePtr<IVehicleBody> InBody)
@@ -853,10 +853,10 @@ FVector UVehicleRiders::BaySpot(int32 Bay, float Out) const { const TArray<FVect
 
 FTransform UVehicleRiders::BagInBay(int32 Bay) const
 {
-	// lying on its back on the bay's floor, its handle to the door; one beside the other
+	// lying on its back on the bay's floor, its handle to the door; one beside the other, a second pair further in (four a bay)
 	int32 N = 0; for (const TSharedPtr<FRider>& R : Riders) if (R->BagState == 3 && R->Bay == Bay) ++N;
 	const float Sd = BaySide(Bay); FVector P = BaySpot(Bay, 0.f);
-	P.X += (N % 2 == 0 ? -1.f : 1.f) * 30.f; P.Y -= Sd * 18.f; P.Z = Spec.At(TEXT("bay_floor")).Z + VrBagHandle.Z;
+	P.X += (N % 2 == 0 ? -1.f : 1.f) * 30.f; P.Y -= Sd * (18.f + 55.f * float((N / 2) % 2)); P.Z = Spec.At(TEXT("bay_floor")).Z + VrBagHandle.Z;
 	return FTransform(FRotator(0.f, Sd > 0.f ? 180.f : 0.f, 0.f), P);
 }
 
@@ -1295,6 +1295,21 @@ void UVehicleRiders::TickComponent(float Dt, ELevelTick Type, FActorComponentTic
 	Riders.RemoveAll([this](const TSharedPtr<FRider>& R) { if (R->A.IsValid() || R.Get() == Driver) return false; if (R->BagHold) { R->Bag->DestroyComponent(); R->BagHold->DestroyComponent(); } if (OnSteps == R.Get()) OnSteps = nullptr; return true; });
 	TickDriver(Dt); TickDrive(Dt); TickParts();
 	for (int32 i = 0; i < Riders.Num(); ++i) Step(*Riders[i], Dt);
+}
+
+bool UVehicleRiders::Leave(AActor* Who)
+{
+	const int32 i = Riders.IndexOfByPredicate([Who](const TSharedPtr<FRider>& R) { return R->A.Get() == Who; });
+	if (i == INDEX_NONE) return false;
+	FRider& R = *Riders[i];
+	if (R.bAboard || R.bDriver || R.Q.Num() > 0) return false;
+	ASeats::Release(Who); Unpose(R);
+	if (R.Bag) R.Bag->DestroyComponent();
+	if (R.BagHold) R.BagHold->DestroyComponent();
+	if (R.Mesh) R.Mesh->DestroyComponent();
+	if (OnSteps == &R) OnSteps = nullptr;
+	Riders.RemoveAt(i);
+	return true;
 }
 
 void UVehicleRiders::PutBack()

@@ -82,6 +82,8 @@ public:
 	virtual ~UVehicleRiders();
 	/** The one switch: adp.CoachLine (0 by default), or the developer test's command line. */
 	static bool LineOn();
+	/** The town coach hub (TownHub.h) runs the coaches: their riders on even with adp.CoachLine 0. */
+	static inline bool bTownLine = false;
 	/** Makes it for a vehicle (null while the switch is off or its points file is missing). It takes the body over. */
 	static UVehicleRiders* Make(AActor* Vehicle, const FString& SpecName, TUniquePtr<IVehicleBody> Body);
 	virtual void OnUnregister() override;
@@ -106,6 +108,8 @@ public:
 	/** Gets up now (holding a grab handle while the vehicle moves), gets off once it stands with its door open. */
 	bool Alight(AActor* Who);
 	bool TakeBag(AActor* Who);
+	/** Lets someone standing outside go (the town hub: handed back to PaxFlow) - their pose, seat and bag of this vehicle gone. */
+	bool Leave(AActor* Who);
 	bool IsSeated(const AActor* Who) const;
 	bool IsBusy(const AActor* Who) const;
 	bool IsAboard(const AActor* Who) const;
