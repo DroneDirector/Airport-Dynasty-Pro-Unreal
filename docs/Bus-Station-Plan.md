@@ -100,6 +100,24 @@ Built by script in Blender 3.3, real metres, one object per part, named `BusStn_
 
 No game run and no publish without the owner's word.
 
+## The ground truth - measured from the laid-out forecourt, 2026-11-27
+Any builder touching the station or the deck uses THESE numbers, not its own. Read off
+`Data/Sites/chablais/roads.json` at the station run; `y` is the world y, the terminal's landside wall is y 0.
+
+| | y from | y to | width |
+|---|---|---|---|
+| Driving / Shoulder / Island / Driving / Driving | -46.75 | -31.60 | the through forecourt |
+| Parking (closed over the run) | -31.60 | -31.55 | 0.05 |
+| Bus through lane | -31.55 | -28.05 | 3.50 |
+| **bay apron** - coaches stand and swing here | -28.05 | -18.35 | 9.70 |
+| **island platform** - centreline y -14.35 | -18.35 | -10.35 | 8.00 |
+| pavement to the terminal doors | -10.35 | +0.05 | 10.40 |
+
+The vault's columns are at **y -17.35 and y -1.35** (16 m span, leaning toward the terminal), one metre in from the
+platform's bus-side kerb and 1.35 m clear of the terminal wall, with the roof cantilevering 3.5 m south over the bay
+noses. A vault centred on the platform instead puts a column line at y -25.35, in the middle of the apron where the
+coaches park - that was built once and had to be redone. Nothing structural stands between y -28.05 and y -18.35.
+
 ## Pictures - the owner's go, 2026-11-27
 "You're welcome to send some renders of the bus station area with buses and people when you get to that point."
 
