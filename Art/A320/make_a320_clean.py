@@ -84,6 +84,7 @@ M_TRACK = pmat('A320C_FlapTrack', (0.56, 0.58, 0.60), 0.6, 0.42)    # flap track
 M_BOOT = pmat('A320C_TrackBoot', (0.17, 0.17, 0.18), 0.0, 0.8)     # rubber boots, dark grey
 M_COVE = pmat('A320C_Cove', (0.45, 0.47, 0.46), 0.2, 0.6)            # flap cove, ribs
 M_PAINT = pmat('A320C_CanoePaint', (0.80, 0.81, 0.83), 0.0, 0.45)   # canoe bulkheads: his paint
+M_FLAPPAINT = pmat('A320C_FlapPaint', (0.80, 0.81, 0.83), 0.0, 0.45)   # flap lower skin where it is not on his surface
 MATS = {}
 
 # ------------------------------------------------------------------ mesh helpers
@@ -418,7 +419,7 @@ def bake(ob, m, ims):
 SKINS = {}
 def finish(M, name, pivot):
     m, ims = skin_mat(name); SKINS[name] = (m, ims)
-    if 'CANOE' in M.m: m2 = m.copy(); m2.name = 'A320C_%s_CanoeSkin' % name; m2['share'] = 1     # same baked pictures, own check
+    if 'CANOE' in M.m: m2 = M_PAINT.copy(); m2.name = 'A320C_%s_CanoeSkin' % name     # clean paint like the fixed canoe (owner 11-27: no scan texture), own check
     M.m = [m if x == 'SKIN' else m2 if x == 'CANOE' else x for x in M.m]
     ob = M.obj(name)
     me = ob.data; me.transform(Matrix.Translation(-Vector(pivot))); ob.location = pivot
@@ -691,10 +692,23 @@ def build_flap():
         for j in range(n):
             j2 = (j + 1) % n; q = [rows[i][j], rows[i][j2], rows[i + 1][j2], rows[i + 1][j]]
             u = [uvr[i][j], uvr[i][j2], uvr[i + 1][j2], uvr[i + 1][j]]
-            M.face(q[::-1], 'SKIN' if j < nT + nB - 1 else M_EDGE, u[::-1])
-    for row, fl in ((rows[0], False), (rows[-1], True)):      # end ribs
-        c = M.add(sum((M.v[k] for k in row), Vector()) / len(row))
-        for j in range(n): M.face([row[j], row[(j + 1) % n], c][::-1] if fl else [row[j], row[(j + 1) % n], c], M_EDGE)
+            M.face(q[::-1], 'SKIN' if j < nT + nB - 1 else M_PAINT, u[::-1])     # the nose (hidden closed, seen open): painted like the skin
+    for row, fl in ((rows[0], False), (rows[-1], True)):      # end ribs: top joined straight down to bottom (a fan to one centre made dark wedges)
+        def ef(q): M.face(q[::-1] if fl else q, M_FLAPPAINT)   # end ribs painted like the skin (owner 11-27: no dark wedges)
+        for j in range(NL - 2): ef([row[j], row[j + 1], row[2 * NL - 3 - j], row[2 * NL - 2 - j]])
+        ef([row[NL - 2], row[NL - 1], row[NL]])
+        fr_ = row[2 * NL - 2:] + [row[0]]; c = M.add(sum((M.v[k] for k in fr_), Vector()) / len(fr_))
+        for j in range(len(fr_) - 1): ef([fr_[j], fr_[j + 1], c])
+        ef([fr_[-1], fr_[0], c])
+    # lower-skin faces not on his surface (over the canoe / his hole): the bake finds no skin of his there (dark smears), so
+    # they get the clean paint instead; closed they are inside the canoe or under the flap
+    if SK:
+        kd_ = mathutils.kdtree.KDTree(len(SK))
+        for k_, (q_, _) in enumerate(SK): kd_.insert(q_, k_)
+        kd_.balance(); npaint = 0
+        for fi, f_ in enumerate(M.f):
+            if M.m[fi] == 'SKIN' and any(kd_.find(M.v[k_])[2] < 0.002 for k_ in f_): M.m[fi] = M_FLAPPAINT; npaint += 1
+        REPORT['flap_lower_faces_painted'] = npaint
     # Fowler: aft and down on curved tracks in the canoes. 30 deg = landing: the nose goes 0.42 m aft and 0.14 m down; that motion is
     # one turn about a point under the wing (hp), so the tracks are arcs about hp and the carriage stays on them all the way.
     SX = np.array([q[0] for q in STN])
@@ -803,7 +817,7 @@ def build_flap():
         def fillsm(a, k=5):
             a = np.array(a, float); ok_ = np.isfinite(a); a = np.interp(np.arange(len(a)), np.nonzero(ok_)[0], a[ok_])
             p_ = np.pad(a, k // 2, mode='edge'); return np.convolve(p_, np.ones(k) / k, mode='valid')
-        ZB = fillsm(ZB); ZT = np.array(ZT, float)
+        ZB = fillsm(fillsm(ZB, 9), 9); ZT = np.array(ZT, float)
         ZT[NF + 1:] = fillsm(ZT[NF + 1:])
         ZTOP = np.array(ZTOP, float); ZTOP = np.where(np.isfinite(ZTOP), ZTOP, ZT); ZC = (ZT + ZB) / 2
         R = np.full((NS, NA), np.nan); TH = 2 * np.pi * np.arange(NA) / NA
@@ -825,13 +839,28 @@ def build_flap():
         for _ in range(3):
             R = (np.roll(R, 1, 1) + R + np.roll(R, -1, 1)) / 3
             Rp = np.pad(R, ((1, 1), (0, 0)), mode='edge'); R = (Rp[:-2] + Rp[1:-1] + Rp[2:]) / 3
+        # a clean lofted body (owner 11-27: no scan lumps): each ring kept to its first 4 harmonics, the harmonics smoothed
+        # along the length; then lifted where his canoe would stick out more than 8 mm (his inside it is cut away)
+        Rraw = R.copy(); FT = np.fft.rfft(R, axis=1); FT[:, 5:] = 0; R = np.fft.irfft(FT, n=NA, axis=1)
+        for _ in range(4):
+            Rp = np.pad(R, ((3, 3), (0, 0)), mode='edge'); R = sum(Rp[k:k + NS] for k in range(7)) / 7
+        lift = np.maximum((Rraw - R).max(axis=1) - 0.008, 0.0)
+        lp = np.pad(lift, 3, mode='edge'); lift = np.max([lp[k:k + NS] for k in range(7)], axis=0)
+        lp = np.pad(lift, 3, mode='edge'); lift = sum(lp[k:k + NS] for k in range(7)) / 7
+        R = R + lift[:, None]
+        REPORT.setdefault('flap_canoe_smooth_mm', []).append(dict(lift_max=round(float(lift.max()) * 1000, 1), dev_max=round(float(np.abs(R - Rraw).max()) * 1000, 1)))
         R = R + 0.003; R[0] = np.maximum(R[0], R0 + 0.002)       # 3 mm over his canoe (it stays inside); his cut ring at yA under the new front
-        R[-1] = np.minimum(R[-1], 0.003)
+        # the tail closes in a smooth round point over its last 0.3 m (no pinch on the last ring)
+        yt0 = ytip + 0.30; i0 = max(i for i in range(NS) if YS[i] >= yt0); Rt = R[i0].copy()
+        for i in range(i0 + 1, NS):
+            t_ = min((yt0 - YS[i]) / max(yt0 - ytip, 1e-3), 1.0); R[i] = np.minimum(R[i], Rt * max(math.sqrt(max(1 - t_ ** 2, 0.0)), 0.03))
         PTS = []; RF = np.zeros_like(R); TOPF = []
         for i, y in enumerate(YS):
             row = []; tf = []
             for j, th in enumerate(TH):
-                z = ZC[i] + R[i, j] * math.sin(th); top = z >= ZT[i] - 0.0005
+                z = ZC[i] + R[i, j] * math.sin(th)
+                if y > TEy + 0.004: z = ZT[i] - 0.018 * float(np.logaddexp(0.0, -(z - ZT[i]) / 0.018))     # a flat top meets the sides in a rounded edge
+                top = z >= ZT[i] - (0.0015 if y > TEy + 0.004 else 0.0005)
                 p = V(cx + R[i, j] * math.cos(th), y, ZTOP[i] if top else z); row.append(p); tf.append(top)
                 RF[i, j] = math.hypot(p.x - cx, min(z, ZT[i]) - ZC[i])
             PTS.append(row); TOPF.append(tf)
@@ -898,26 +927,63 @@ def build_flap():
             return (np.abs(P[:, 0] - cx) < 0.35) & (P[:, 1] < yA + 0.05) & (P[:, 1] > y1 - 0.1) & (P[:, 2] > 1.9) & (P[:, 2] < 3.6)
         cut_hole(csdf, lambda P: cband(P) & (P[:, 1] > yA - 0.06) & (np.abs(P[:, 0] - cx) < 0.25), name + '_CanoeFront%d' % len(CARS), refine=0.012)
         cut_hole(csdf, cband, name + '_Canoe%d' % len(CARS), islands=((cx - 0.3, YS[-1] - 0.1, 1.9), (cx + 0.3, yA - 0.002, 3.45)))
+        # his gear-leg door (a ~5 cm plate under the fixed canoe, x cx-0.13..cx-0.02) ends aft in a torn scan edge near y -13.03:
+        # trimmed straight at Yd, the cut closed flat and finished with a rolled half-round edge (owner 11-27, like the door cut)
+        Yd = -12.985
+        def zbot(y, YS=YS, ZC=ZC, RF=RF): return float(np.interp(-y, -YS, ZC - RF[:, 3 * NA // 4]))
+        dband = lambda P, cx=cx: ((P[:, 0] > cx - 0.20) & (P[:, 0] < cx + 0.06) & (P[:, 1] < Yd + 0.06) & (P[:, 1] > -13.7) & (P[:, 2] > 1.6)
+                                  & (P[:, 2] < np.array([zbot(y) for y in P[:, 1]]) + 0.004))
+        cut_hole(lambda P: P[:, 1] - Yd, dband, name + '_GearDoorTrim%d' % len(CARS), cap=((cx - 0.07, Yd, 2.2), V(0, -1, 0)),
+                 islands=((cx - 0.2, -13.7, 1.6), (cx + 0.06, Yd + 0.001, zbot(Yd) + 0.01)))
+        prof_ = []; zc_top = zbot(Yd) + 0.006
+        for z in np.arange(1.78, zc_top + 1e-4, 0.006):
+            ho = shoot(V(cx + 0.3, Yd + 0.004, z), V(-1, 0, 0), hi=0.45, test=lambda q: cx - 0.2 < q.x < cx + 0.06)
+            hi_ = shoot(V(cx - 0.45, Yd + 0.004, z), V(1, 0, 0), hi=0.45, test=lambda q: cx - 0.2 < q.x < cx + 0.06)
+            if ho is None or hi_ is None or ho.x - hi_.x < 0.006 or ho.x - hi_.x > 0.12:
+                if prof_ and z < zc_top - 0.05: prof_ = []          # only the run that goes up into the canoe counts
+                continue
+            prof_.append((z, hi_.x, ho.x))
+        if len(prof_) > 4:
+            zs_ = np.array([q[0] for q in prof_]); xi_ = fillsm([q[1] for q in prof_], 7); xo_ = fillsm([q[2] for q in prof_], 7)
+            if zs_[-1] < zc_top - 0.01: zs_ = np.r_[zs_, zc_top]; xi_ = np.r_[xi_, xi_[-1]]; xo_ = np.r_[xo_, xo_[-1]]
+            rows_ = []
+            for z, a_, b_ in zip(zs_, xi_, xo_):
+                xm, rr_ = (a_ + b_) / 2 , (b_ - a_) / 2 + 0.0015
+                rows_.append([FX.add(V(xm + rr_ * math.cos(ph), Yd + 0.0005 - min(rr_, 0.02) * math.sin(ph), z)) for ph in np.linspace(0, math.pi, 13)])
+            FX.grid(rows_, M_PAINT, flip=True)
+            b0 = rows_[0]; cb = FX.add(sum((FX.v[k] for k in b0), Vector()) / len(b0))
+            for j in range(len(b0) - 1): FX.face([b0[j], b0[j + 1], cb], M_PAINT)
+            REPORT.setdefault('flap_gear_door_edge', []).append(dict(y=Yd, z=[round(float(zs_[0]), 3), round(float(zs_[-1]), 3)], n=len(zs_)))
     REPORT['flap_carriages'] = [[round(cx, 3), [round(c, 3) for c in car], k0, o_] for cx, car, k0, o_ in CARS]
     REPORT['flap_rail_points_outside_canoe'] = rail_out
     ob = finish(M, name, hp)
     PARTS[name] = (ob, ('rot', hp, V(1, 0, 0), OPEN))
     # the cove: shroud lip under the top skin, ceiling, front wall, floor, end ribs; lips under his bottom skin. His skins at the
     # front line are noisy: the lip follows a smooth line along the span (moved under / over his skin so it never pokes through)
-    F = Mesh(); crow = []
-    CS = [min(secs, key=lambda q, x=x: abs(q[0] - x)) for x in np.linspace(a0 - 0.008, a1 + 0.008, 60)]
+    F = Mesh(); crow = []; FS = {}; FE = {}
+    def fillet(pr, r, nseg=4):   # the profile's inner corners rounded (r), so the cove reads as one bent sheet, not planks
+        out = [pr[0]]; FS[0] = FE[0] = 0
+        for k in range(1, len(pr) - 1):
+            a, b, c = np.array(pr[k - 1]), np.array(pr[k]), np.array(pr[k + 1])
+            u = (a - b) / np.linalg.norm(a - b); w = (c - b) / np.linalg.norm(c - b); FS[k] = len(out)
+            p0 = b + u * r; p1 = b + w * r
+            for t in np.linspace(0, 1, nseg + 1):     # quadratic Bezier from p0 over the corner to p1
+                q = (1 - t) ** 2 * p0 + 2 * (1 - t) * t * b + t ** 2 * p1; out.append((float(q[0]), float(q[1])))
+            FE[k] = len(out) - 1
+        FS[len(pr) - 1] = FE[len(pr) - 1] = len(out); out.append(pr[-1]); return out
+    CS = [min(secs, key=lambda q, x=x: abs(q[0] - x)) for x in np.linspace(a0 - 0.012, a1 + 0.012, 60)]; XL = np.linspace(a0 - 0.012, a1 + 0.012, 60)   # 4 mm clear of the flap's end ribs (no z-fight closed)
     XC = np.array([q[0] for q in CS]); ZTr = np.array([q[1][0][1] for q in CS]); ZBr = np.array([q[2][0][1] for q in CS])
     ft = np.polyval(np.polyfit(XC, ZTr, 2), XC); fb = np.polyval(np.polyfit(XC, ZBr, 2), XC)
     ZTs = np.minimum(ft - min(max((ft - ZTr).max(), 0.0), 0.008), ZTr); ZBs = np.maximum(fb + min(max((ZBr - fb).max(), 0.0), 0.008), ZBr)
     REPORT['flap_cove_lip_dev_mm'] = [round(float(np.abs(ZTs - ft).max()) * 1000, 1), round(float(np.abs(ZBs - fb).max()) * 1000, 1)]
-    for (x, top, bot), zt, zb in zip(CS, ZTs, ZBs):
+    for x, (_, top, bot), zt, zb in zip(XL, CS, ZTs, ZBs):     # its own x (a station's x would sit on the flap's end ribs)
         h = (zt - zb) / 2; b = min(0.10, 0.6 * h); yW = yF + b + 0.03
         prof = [(yF + 0.004 + 0.02, zt - 0.004), (yF + 0.004, zt - 0.004), (yF + 0.004, zt - 0.03), (yW, zt - 0.03), (yW, zb + 0.03), (yF + 0.004, zb + 0.03),
                 (yF + 0.004, zb + 0.004), (yF + 0.004 + 0.02, zb + 0.004)]
-        crow.append([F.add(V(x, y, z)) for y, z in prof])
+        crow.append([F.add(V(x, y, z)) for y, z in fillet(prof, 0.009)])
     F.grid(crow, M_COVE)
-    for row in (crow[0], crow[-1]): F.face(row[2:6], M_COVE)
-    for x, row in ((a0 - 0.008, crow[0]), (a1 + 0.008, crow[-1])):        # end ribs of the cove behind the flap ends, from the front wall to the trailing edge
+    for row in (crow[0], crow[-1]): F.face(row[FS[2]:FE[5] + 1], M_COVE)
+    for x, row in ((a0 - 0.012, crow[0]), (a1 + 0.012, crow[-1])):        # end ribs of the cove behind the flap ends, from the front wall to the trailing edge
         _, top, bot = min(secs, key=lambda q: abs(q[0] - x))
         if len(top) < 3: continue
         nn = min(len(top), len(bot)); pr = [(top[k][0], top[k][1] - 0.004, bot[k][1] + 0.004) for k in range(nn)]
@@ -926,7 +992,7 @@ def build_flap():
         fl_ = x > (a0 + a1) / 2      # faces look into the hole
         for j in range(len(pr) - 1):
             q = [it[j], it[j + 1], ib[j + 1], ib[j]]; F.face(q if fl_ else q[::-1], M_COVE)
-        q = [it[0], row[1], row[2], row[5], row[6], ib[0]]; F.face(q[::-1] if fl_ else q, M_COVE)   # joined to the cove's end row
+        q = [it[0]] + row[FS[1]:FE[2] + 1] + row[FS[5]:FE[6] + 1] + [ib[0]]; F.face(q[::-1] if fl_ else q, M_COVE)   # joined to the cove's end row
     STATIC.append(F.obj('FlapInner_R_Cove'))
     STATIC.append(TR.obj('FlapInner_R_Tracks'))
     STATIC.append(FX.obj('FlapInner_R_CanoeFixed'))
@@ -1121,7 +1187,7 @@ VIEWS = dict(cowl=((10.2, -4.6, 3.1), (5.6, -7.9, 1.9), 30), flap=((7.6, -18.4, 
              door=((-7.4, -0.6, 2.9), (-2.0, -2.8, 3.0), 32), wheels=((-7.2, -10.3, 1.1), (-3.9, -12.8, 0.62), 40))
 OPENVIEWS = dict(door_side=((-4.6, 1.2, 2.0), (-1.9, -2.8, 3.0), 30), door_edge=((-3.3, -1.5, 2.7), (-1.9, -2.9, 2.95), 45),
                  flap_under=((7.8, -16.6, 1.3), (4.3, -13.4, 3.0), 30), flap_side=((8.6, -13.3, 3.0), (4.3, -13.4, 3.1), 30),
-                 flap_edge=((5.6, -15.2, 2.6), (4.3, -13.2, 3.0), 45))
+                 flap_edge=((7.4, -15.9, 2.15), (5.4, -13.3, 3.0), 35))
 def shot(cam, view, path):
     pos, tgt, lens = VIEWS[view]; cam.location = pos; cam.data.lens = lens; cam.data.clip_start = 0.05
     cam.rotation_euler = (Vector(tgt) - Vector(pos)).to_track_quat('-Z', 'Y').to_euler()
@@ -1158,13 +1224,14 @@ if os.environ.get('ADP_GLB'):
         if ob.type == 'MESH' and any(ob.name.startswith(k) for k in os.environ.get('ADP_GLB_PARTS', 'CargoDoorFwd,FlapInner_R').split(',')): ob.select_set(True)
     _exp(filepath=os.environ['ADP_GLB'], export_format='GLB', use_selection=True, export_apply=True)
 if os.environ.get('ADP_RENDER', '1') == '1':
-    cam = setup_render()
-    for v in [x for x in VIEWS if x == 'wheels' or x in built]: shot(cam, v, os.path.join(PIC, 'A320-clean-%s-AFTER%s.png' % (v, '-closed' if v != 'wheels' else '')))
+    cam = setup_render(); RO = os.environ.get('ADP_RENDER_ONLY', '')      # e.g. 'flap': only those parts' pictures are rewritten
+    want = lambda v: not RO or v.split('_')[0] in RO.split(',')
+    for v in [x for x in VIEWS if (x == 'wheels' or x in built) and want(x)]: shot(cam, v, os.path.join(PIC, 'A320-clean-%s-AFTER%s.png' % (v, '-closed' if v != 'wheels' else '')))
     for nm, (ob, (_, p, axis, deg)) in PARTS.items():
         ob.matrix_world = Matrix.Translation(p) @ Matrix.Rotation(math.radians(deg), 4, axis) @ Matrix.Translation(-p) @ ob.matrix_world
     for ob in bpy.data.objects:
         if ob.get('open_only'): ob.hide_render = False
-    for v in [x for x in VIEWS if x in built]: shot(cam, v, os.path.join(PIC, 'A320-clean-%s-AFTER-open.png' % v))
+    for v in [x for x in VIEWS if x in built and want(x)]: shot(cam, v, os.path.join(PIC, 'A320-clean-%s-AFTER-open.png' % v))
     VIEWS.update(OPENVIEWS)
-    for v in [x for x in OPENVIEWS if x.split('_')[0] in built]: shot(cam, v, os.path.join(PIC, 'A320-clean-%s-AFTER-open.png' % v))
+    for v in [x for x in OPENVIEWS if x.split('_')[0] in built and want(x)]: shot(cam, v, os.path.join(PIC, 'A320-clean-%s-AFTER-open.png' % v))
 print('DONE', json.dumps(REPORT)[:1500])
