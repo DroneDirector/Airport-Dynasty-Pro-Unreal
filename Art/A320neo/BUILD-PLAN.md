@@ -31,6 +31,22 @@ Taken from the sheets; a part that disagrees with these is wrong, not the sheet.
 | HTP span 12.45, tip chord 1.24 | |
 | cabin 3.63 wide, floor 3.38 above ground, ceiling 2.22 above the floor | |
 
+### Cockpit windows - measured off photos, 2026-11-27
+Two licensed photos, scaled by the Door 1 opening (1.85 m high): Commons "EZY nose close up.jpg" (CC BY 3.0,
+head-on) and "Lufthansa A320-211, D-AIPT, named Cottbus (5650386693).jpg" (CC BY 2.0, near side). The photo band
+measures 1.52 m long, the same as the blueprint - the blueprint band is right and must not be shifted.
+
+- Band x 1.13 -> 2.65. Frame outer **top edge z 4.95, one straight line across all three windows** - no staircase.
+- Sill (frame outer bottom) z 4.17 at x 1.13 rising to z 4.40 at x 2.65.
+- x divisions, frame outer: W1 1.13-1.60 | post 1.60-1.65 | W2 1.65-2.12 | post 2.12-2.17 | W3 2.17-2.65.
+  Posts are **0.05 m**; the three windows read as one band, not as three cabin windows.
+- Pane inset 0.06 inside the frame all round, so panes are ~0.66 / 0.58 / 0.51 m tall.
+- Front: W1 wraps onto the nose front face, pane |y| 0.06 -> 1.00, centre post **0.12 m total**, frame to |y| 1.06.
+  W1 inboard edge vertical and taller, outboard edge raked aft and shorter.
+- W2 sliding, near-rectangle with a raked forward edge. W3 trapezoid, aft edge sloping forward, narrower at the foot.
+- Frames narrow (~0.06 band) and nearly flush, 12 mm proud, corner radius ~0.04; rivet row along the top and the
+  posts. One wiper per windscreen parked along the sill, pivot at the inboard-bottom corner, arm ~0.75.
+
 Ground state everywhere: **MRW, forward CG (17 %)**, the left column of the clearance table on sheet 1.
 
 ## Naming
