@@ -36,11 +36,20 @@ Two licensed photos, scaled by the Door 1 opening (1.85 m high): Commons "EZY no
 head-on) and "Lufthansa A320-211, D-AIPT, named Cottbus (5650386693).jpg" (CC BY 2.0, near side). The photo band
 measures 1.52 m long, the same as the blueprint - the blueprint band is right and must not be shifted.
 
-- Band x 1.13 -> 2.65. Frame outer **top edge z 4.95, one straight line across all three windows** - no staircase.
-- Sill (frame outer bottom) z 4.17 at x 1.13 rising to z 4.40 at x 2.65.
-- x divisions, frame outer: W1 1.13-1.60 | post 1.60-1.65 | W2 1.65-2.12 | post 2.12-2.17 | W3 2.17-2.65.
-  Posts are **0.05 m**; the three windows read as one band, not as three cabin windows.
-- Pane inset 0.06 inside the frame all round, so panes are ~0.66 / 0.58 / 0.51 m tall.
+Heights below are anchored on the cabin window centre line, z 4.55 (published), measured in the same photo -
+not on the cockpit_windows z_range, which is "estimated" and disagrees with the photo.
+
+- Glass **top edge level at z 4.83**, one straight line across all three windows - no staircase.
+- **Sill FALLS going aft**: z 4.46 at the forward end of the band, z 4.28 at the aft end. (An earlier round
+  built it rising aft - wrong sign.) So in side view W1 is the shallowest pane and W3 the deepest:
+  glass depths about 0.37 / 0.44 / 0.55.
+- **The two posts are not alike. This is the thing that is always got wrong:**
+  - Post between W1 and W2: **raked about 30 deg, leaning aft at the top.**
+  - Post between W2 and W3: **vertical.**
+- **Gap between window frames: 55 mm at the W1/W2 post, 100 mm at the W2/W3 post.** The W2/W3 post is the
+  structural one and is plainly the wider of the two.
+- W3's aft edge leans about 8 deg forward at the top and its top-aft corner is chamfered.
+- W1's own forward edge rakes aft at the top too, around 35 deg, as it wraps onto the front face.
 - Front: W1 wraps onto the nose front face, pane |y| 0.06 -> 1.00, centre post **0.12 m total**, frame to |y| 1.06.
   W1 inboard edge vertical and taller, outboard edge raked aft and shorter.
 - W2 sliding, near-rectangle with a raked forward edge. W3 trapezoid, aft edge sloping forward, narrower at the foot.
