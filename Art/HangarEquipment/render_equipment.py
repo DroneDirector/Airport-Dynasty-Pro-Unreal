@@ -2,7 +2,7 @@ import os
 # One simple render of a hangar equipment model (to-do 364 A): blender -b <Name>.blend --python render_equipment.py -- <out.png> [az]
 import bpy, sys, math
 from mathutils import Vector
-out = sys.argv[sys.argv.index('--') + 1]; az = math.radians(float(sys.argv[sys.argv.index('--') + 2]) if len(sys.argv) > sys.argv.index('--') + 2 else 35.0)
+out = os.path.abspath(sys.argv[sys.argv.index('--') + 1]); az = math.radians(float(sys.argv[sys.argv.index('--') + 2]) if len(sys.argv) > sys.argv.index('--') + 2 else 35.0)
 sc = bpy.context.scene
 ms = [o for o in sc.objects if o.type == 'MESH']
 pts = [o.matrix_world @ Vector(c) for o in ms for c in o.bound_box]

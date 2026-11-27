@@ -96,6 +96,34 @@ class D(B):
         o.faces.new(list(reversed(rings[0]))); o.faces.new(rings[-1])
         self._take(o, MATS[m])
 
+    def bent_tube(self, pts, r, R, m='G', n=16, seg=10):
+        """ONE continuous tube along the polyline pts with real pipe bends (bend radius R at every inner corner),
+        round, capped: push handles, rails, frames bent from one tube instead of straight pieces meeting at a corner."""
+        P = [Vector(p) for p in pts]; C = [P[0]]
+        for i in range(1, len(P) - 1):
+            a = (P[i - 1] - P[i]).normalized(); b = (P[i + 1] - P[i]).normalized()
+            ang = math.acos(max(-1.0, min(1.0, a.dot(b))))
+            d = R / math.tan(ang / 2)
+            s0, s1 = P[i] + a * d, P[i] + b * d
+            bis = (a + b).normalized(); ctr = P[i] + bis * (R / math.sin(ang / 2))
+            v0, v1 = s0 - ctr, s1 - ctr; th = math.acos(max(-1.0, min(1.0, v0.normalized().dot(v1.normalized()))))
+            C.append(s0)
+            for k in range(1, seg):
+                f = k / seg
+                C.append(ctr + (v0 * math.sin((1 - f) * th) + v1 * math.sin(f * th)) / math.sin(th))
+            C.append(s1)
+        C.append(P[-1])
+        o = bmesh.new(); rings = []; up = None
+        for i, c in enumerate(C):
+            t = (C[min(i + 1, len(C) - 1)] - C[max(i - 1, 0)]).normalized()
+            if up is None: up = Vector((0, 0, 1)) if abs(t.z) < 0.9 else Vector((1, 0, 0))
+            x = up.cross(t).normalized(); y = t.cross(x); up = y
+            rings.append([o.verts.new(c + (x * math.cos(2 * math.pi * k / n) + y * math.sin(2 * math.pi * k / n)) * r) for k in range(n)])
+        for i in range(len(rings) - 1):
+            for k in range(n): o.faces.new((rings[i][k], rings[i][(k + 1) % n], rings[i + 1][(k + 1) % n], rings[i + 1][k]))
+        o.faces.new(list(reversed(rings[0]))); o.faces.new(rings[-1])
+        self._take(o, MATS[m])
+
     def fitting(self, p, n, r, m='BR'):
         """Hose end at p, hose leaving along n: crimped steel ferrule, then a brass hex nut toward -n."""
         M = frame(p, n)

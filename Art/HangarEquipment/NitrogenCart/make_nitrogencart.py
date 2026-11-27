@@ -58,9 +58,8 @@ for y in (-0.62, -0.05):
     for s in (-1, 1): f.bolt((s * (XR + 0.005), y, ZB + RB + 0.012), (0, 0, 1), 0.009)
 # push handles at the back corners and the rear fenders
 for s in (-1, 1):
-    f.tube((s * (XR + 0.04), CY0 - 0.06, ZF + 0.5), (s * (XR + 0.04), CY0 - 0.06, ZF + 0.72), 0.017, 'Y')
-    f.tube((s * (XR + 0.04), CY0 - 0.06, ZF + 0.5), (s * (XR + 0.04), CY0 + 0.06, ZF + 0.5), 0.017, 'Y')
-    f.tube((s * (XR + 0.04), CY0 - 0.06, ZF + 0.72), (s * (XR + 0.04), CY0 + 0.06, ZF + 0.72), 0.017, 'Y')
+    f.bent_tube([(s * (XR + 0.04), CY0 + 0.06, ZF + 0.5), (s * (XR + 0.04), CY0 - 0.06, ZF + 0.5), (s * (XR + 0.04), CY0 - 0.06, ZF + 0.72),
+                 (s * (XR + 0.04), CY0 + 0.06, ZF + 0.72)], 0.017, 0.035, 'Y')                 # ONE tube bent twice
     f.tube((s * (XR + 0.04), CY0 - 0.06, ZF + 0.55), (s * (XR + 0.04), CY0 - 0.06, ZF + 0.67), 0.021, 'BK', 14, weld=False)
     f.band((s * 0.46, YB, R), R + 0.057, R + 0.063, 0.14, 20, 160, 'Y', 20)   # fender: one pressed strip over the rear wheel
     f.bar((s * 0.42, YB - 0.1, ZF + 0.025), (s * 0.42, YB - 0.1, R + 0.262), 0.03, 0.006, 'Y', 0.002, up=(0, 1, 0))

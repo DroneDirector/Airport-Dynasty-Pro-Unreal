@@ -52,9 +52,8 @@ for y, rr, tag in ((-0.62, 0.02, 'Return'), (-0.1, 0.017, 'Pressure')):
     e = (CX + 0.16, y + 0.12, CZ - 0.66); CP[tag] = (e, rr)
     f.hose([(CX + 0.13, y + 0.04, HZ - 0.38), (CX + 0.16, y + 0.1, CZ - 0.55), (e[0], e[1], e[2] + 0.05)], rr, 'HS', 14, 6)
 for s in (-1, 1):                                                                                          # push handles
-    f.tube((s * (CX + 0.03), CY0 - 0.06, ZF + 0.5), (s * (CX + 0.03), CY0 - 0.06, ZF + 0.72), 0.017, 'G')
-    f.tube((s * (CX + 0.03), CY0 - 0.06, ZF + 0.5), (s * (CX + 0.03), CY0 + 0.0, ZF + 0.5), 0.017, 'G')
-    f.tube((s * (CX + 0.03), CY0 - 0.06, ZF + 0.72), (s * (CX + 0.03), CY0 + 0.0, ZF + 0.72), 0.017, 'G')
+    f.bent_tube([(s * (CX + 0.03), CY0 + 0.0, ZF + 0.5), (s * (CX + 0.03), CY0 - 0.06, ZF + 0.5), (s * (CX + 0.03), CY0 - 0.06, ZF + 0.72),
+                 (s * (CX + 0.03), CY0 + 0.0, ZF + 0.72)], 0.017, 0.035, 'G')                 # ONE tube bent twice
     f.tube((s * (CX + 0.03), CY0 - 0.06, ZF + 0.55), (s * (CX + 0.03), CY0 - 0.06, ZF + 0.67), 0.021, 'BK', 14, weld=False)
     for z in (ZF + 0.5, ZF + 0.72):                                                                       # welded mounting plates, bolted to the side
         f.box((s * (CX - 0.003) - 0.0 if s > 0 else -CX - 0.05, CY0 - 0.012, z - 0.035), (CX + 0.05 if s > 0 else -CX + 0.003, CY0 + 0.05, z + 0.035), 'G', 0.003)

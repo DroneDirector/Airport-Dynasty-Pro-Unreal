@@ -25,12 +25,12 @@ f.sheet((-0.2, PY - 0.01, CZ - 0.19), (0.06, PY + 0.001, CZ - 0.07), 'BK', 0.004
 f.box((-0.19, PY - 0.0115, CZ - 0.18), (0.05, PY - 0.009, CZ - 0.08), 'KB', 0.001)
 f.box((-0.192, PY - 0.0125, CZ - 0.182), (0.052, PY - 0.0105, CZ - 0.078), 'GL', 0.001)
 f.label((0.17, PY - 0.0006, CZ - 0.1), N, 0.14, 0.07, 'LV')
-for s in (-1, 1):                                                                       # push handle at the front end, panel stays clear
-    f.tube((s * 0.3, CY1 - 0.004, Z0 + 0.62), (s * 0.3, CY1 + 0.12, Z0 + 0.62), 0.017, 'G')
+HZ = Z0 + 0.62                                                                          # push handle: ONE tube bent twice (R 60 mm)
+f.bent_tube([(-0.3, CY1 + 0.006, HZ), (-0.3, CY1 + 0.12, HZ), (0.3, CY1 + 0.12, HZ), (0.3, CY1 + 0.006, HZ)], 0.017, 0.06, 'G')
+for s in (-1, 1):                                                                       # at the front end, panel stays clear
     f.box((s * 0.3 - 0.035, CY1 - 0.004, Z0 + 0.585), (s * 0.3 + 0.035, CY1 + 0.008, Z0 + 0.655), 'G', 0.003)   # welded flange, bolted on
     for dz in (-0.022, 0.022): f.bolt((s * 0.3 + 0.022, CY1 + 0.008, Z0 + 0.62 + dz), (0, 1, 0), 0.005)
-f.tube((-0.3, CY1 + 0.12, Z0 + 0.62), (0.3, CY1 + 0.12, Z0 + 0.62), 0.017, 'G')
-f.tube((-0.2, CY1 + 0.12, Z0 + 0.62), (0.2, CY1 + 0.12, Z0 + 0.62), 0.021, 'BK', 14, weld=False)
+f.tube((-0.19, CY1 + 0.12, HZ), (0.19, CY1 + 0.12, HZ), 0.0215, 'BK', 16, weld=False)   # rubber grip sleeve on the straight part
 # cable reel on top (axis x) on two welded stands, plug holster on the right side
 RC = (0.0, 0.18, CZ + 0.27); RR = 0.25
 for s in (-1, 1):

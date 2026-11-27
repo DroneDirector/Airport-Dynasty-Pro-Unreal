@@ -16,12 +16,12 @@
  ],
  "bounds_max": [
   0.53,
-  0.691,
+  0.692,
   1.68
  ],
  "size_m": [
   0.91,
-  1.293,
+  1.294,
   1.68
  ],
  "footprint": {
@@ -32,7 +32,7 @@
   "note": "pushed by hand; cable reaches 20 m"
  },
  "reference": "No free photo found; published sizes of mobile 90 kVA 400 Hz frequency converters",
- "tris": 41914,
+ "tris": 41858,
  "parts": [
   {
    "name": "Frame",
