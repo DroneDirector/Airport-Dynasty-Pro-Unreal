@@ -1,44 +1,4 @@
 {
- "cuts": {
-  "FanCowl_Eng1_Out": {
-   "faces_removed": 1748,
-   "faces_split": 318
-  },
-  "CargoDoorFwd": {
-   "faces_removed": 119372,
-   "faces_split": 14484
-  },
-  "FlapInner_R_CanoeFront1": {
-   "faces_removed": 33160,
-   "faces_split": 72
-  },
-  "FlapInner_R_Canoe1": {
-   "faces_removed": 1776,
-   "faces_split": 352
-  },
-  "FlapInner_R_GearDoorTrim1": {
-   "faces_removed": 446,
-   "faces_split": 55
-  },
-  "FlapInner_R": {
-   "faces_removed": 2006,
-   "faces_split": 176
-  },
-  "FlapInner_R_PylonTail": {
-   "faces_removed": 198,
-   "faces_split": 54
-  }
- },
- "refined": {
-  "CargoDoorFwd": {
-   "passes": 15,
-   "faces_added": 230383
-  },
-  "FlapInner_R_CanoeFront1": {
-   "passes": 15,
-   "faces_added": 74625
-  }
- },
  "flap_canoes": [
   [
    4.26,
@@ -235,19 +195,65 @@
  "flap_lower_faces_painted": 1245,
  "flap_canoe_smooth_mm": [
   {
-   "lift_max": 11.5,
+   "lift_max": 12.1,
    "dev_max": 38.4
+  }
+ ],
+ "flap_canoe_front": [
+  {
+   "zb": [
+    3.023,
+    2.741,
+    2.716,
+    2.692,
+    2.673,
+    2.655,
+    2.639,
+    2.627,
+    2.618,
+    2.608,
+    2.596,
+    2.585
+   ],
+   "zt": [
+    3.035,
+    3.048,
+    3.061,
+    3.077,
+    3.09,
+    3.099,
+    3.108,
+    3.112,
+    3.115,
+    3.121,
+    3.129,
+    3.128
+   ],
+   "w": [
+    0.157,
+    0.137,
+    0.141,
+    0.145,
+    0.148,
+    0.151,
+    0.156,
+    0.159,
+    0.159,
+    0.161,
+    0.167,
+    0.172
+   ]
   }
  ],
  "flap_canoe": [
   {
    "cx": 4.378,
    "y": [
-    -12.45,
+    -11.8,
     -13.1,
     -14.82
    ],
-   "lowest_z": 2.582,
+   "lowest_z": 2.583,
    "hp_z": 2.444,
    "front_clear_mm": 3.5,
    "rail_min_y": -12.891
@@ -256,15 +262,70 @@
  "flap_slot_end": [
   -13.017
  ],
+ "refined": {
+  "FlapInner_R_CanoeFront1": {
+   "passes": 15,
+   "faces_added": 51618
+  },
+  "FlapInner_R_PylonTailFine": {
+   "passes": 15,
+   "faces_added": 85897
+  }
+ },
+ "cuts": {
+  "FlapInner_R_CanoeFront1": {
+   "faces_removed": 890,
+   "faces_split": 255
+  },
+  "FlapInner_R_Canoe1": {
+   "faces_removed": 2192,
+   "faces_split": 654
+  },
+  "FlapInner_R_GearDoorTrim1": {
+   "faces_removed": 407,
+   "faces_split": 53
+  },
+  "FlapInner_R_GearDoorOld1": {
+   "faces_removed": 881,
+   "faces_split": 0
+  },
+  "FlapInner_R": {
+   "faces_removed": 1996,
+   "faces_split": 175
+  },
+  "FlapInner_R_PylonTailFine": {
+   "faces_removed": 67960,
+   "faces_split": 226
+  },
+  "FlapInner_R_PylonTail": {
+   "faces_removed": 166,
+   "faces_split": 53
+  }
+ },
  "loose_bits_removed": {
-  "FlapInner_R_Canoe1": 275,
+  "FlapInner_R_Canoe1": 547,
   "FlapInner_R_GearDoorTrim1": 0,
-  "FlapInner_R": 1000,
+  "FlapInner_R": 997,
   "FlapInner_R_PylonTail": 0
  },
  "caps": [
-  56,
-  55
+  53,
+  105
+ ],
+ "flap_gear_door": [
+  {
+   "y": [
+    -12.985,
+    -11.93
+   ],
+   "z_bottom": 1.819,
+   "n_fit": 94,
+   "t": [
+    0.14,
+    0.129,
+    0.119
+   ]
+  }
  ],
  "flap_carriages": [
   [
@@ -286,130 +347,24 @@
  "slivers_removed": {
   "FlapInner_R": 6
  },
- "flap_under_bits_removed": 231,
- "wheels": {
-  "_L": [
-   {
-    "centre": [
-     -4.2715,
-     -12.8034,
-     0.6463
-    ],
-    "tyre_radius": 0.6563,
-    "half_width": 0.3451,
-    "outer_face": -1.0
-   },
-   {
-    "centre": [
-     -3.4826,
-     -12.8034,
-     0.6463
-    ],
-    "tyre_radius": 0.6563,
-    "half_width": 0.3544,
-    "outer_face": 1.0
-   }
-  ],
-  "_R": [
-   {
-    "centre": [
-     3.4629,
-     -12.8025,
-     0.6475
-    ],
-    "tyre_radius": 0.6563,
-    "half_width": 0.3544,
-    "outer_face": -1.0
-   },
-   {
-    "centre": [
-     4.2518,
-     -12.8025,
-     0.6475
-    ],
-    "tyre_radius": 0.6563,
-    "half_width": 0.3451,
-    "outer_face": 1.0
-   }
-  ]
+ "flap_pylon_tail_round": {
+  "moved": 854,
+  "cx": 5.561
+ },
+ "flap_under_bits_removed": 235,
+ "left_out_of_check": {
+  "FlapInner_R": {
+   "hidden_in_canoe": 0,
+   "over_his_hole_or_bump": 0,
+   "against_flap_underside": 0
+  },
+  "FlapInner_R_Canoe": {
+   "hidden_in_canoe": 0,
+   "over_his_hole_or_bump": 505,
+   "against_flap_underside": 6
+  }
  },
  "worst": {
-  "FanCowl_Eng1_Out": [
-   [
-    6.823,
-    -8.518,
-    2.126,
-    4
-   ],
-   [
-    5.514,
-    -8.061,
-    0.581,
-    4
-   ],
-   [
-    5.514,
-    -8.08,
-    0.581,
-    4
-   ],
-   [
-    5.514,
-    -8.042,
-    0.581,
-    4
-   ],
-   [
-    6.758,
-    -8.518,
-    2.383,
-    4
-   ],
-   [
-    5.514,
-    -8.023,
-    0.581,
-    4
-   ]
-  ],
-  "CargoDoorFwd": [
-   [
-    -1.677,
-    -3.718,
-    3.081,
-    4
-   ],
-   [
-    -1.153,
-    -2.69,
-    2.567,
-    4
-   ],
-   [
-    -1.897,
-    -1.925,
-    3.515,
-    4
-   ],
-   [
-    -1.158,
-    -3.375,
-    2.56,
-    4
-   ],
-   [
-    -1.156,
-    -3.084,
-    2.563,
-    4
-   ],
-   [
-    -1.156,
-    -3.05,
-    2.563,
-    4
-   ]
-  ],
   "FlapInner_R": [
    [
     5.236,
@@ -488,30 +443,10 @@
   ]
  },
  "over_10mm": {
-  "FanCowl_Eng1_Out": 0,
-  "CargoDoorFwd": 0,
   "FlapInner_R": 0,
-  "FlapInner_R_Canoe": 1054
+  "FlapInner_R_Canoe": 1041
  },
  "closed_check_mm": {
-  "FanCowl_Eng1_Out": {
-   "vertices": 15667,
-   "vert_max": 4.0,
-   "vert_mean": 0.208,
-   "face_centres": 15491,
-   "centre_max": 37.46,
-   "centre_mean": 0.318,
-   "centre_p99": 3.23
-  },
-  "CargoDoorFwd": {
-   "vertices": 11315,
-   "vert_max": 4.0,
-   "vert_mean": 0.196,
-   "face_centres": 11222,
-   "centre_max": 3.55,
-   "centre_mean": 0.157,
-   "centre_p99": 3.0
-  },
   "FlapInner_R": {
    "vertices": 14368,
    "vert_max": 3.38,
@@ -522,26 +457,17 @@
    "centre_p99": 3.07
   },
   "FlapInner_R_Canoe": {
-   "vertices": 2364,
-   "vert_max": 63.53,
-   "vert_mean": 9.789,
-   "face_centres": 2417,
+   "vertices": 2356,
+   "vert_max": 63.67,
+   "vert_mean": 10.265,
+   "face_centres": 2412,
    "centre_max": 70.14,
-   "centre_mean": 10.036,
-   "centre_p99": 30.99
+   "centre_mean": 10.627,
+   "centre_p99": 37.16
   }
  },
- "left_out_of_check": {
-  "FlapInner_R": {
-   "hidden_in_canoe": 0,
-   "over_his_hole_or_bump": 0,
-   "against_flap_underside": 0
-  },
-  "FlapInner_R_Canoe": {
-   "hidden_in_canoe": 0,
-   "over_his_hole_or_bump": 496,
-   "against_flap_underside": 6
-  }
- },
+ "flap_marks_cleaned_px": [
+  209321
+ ],
  "note": "closed check: distance of each part outer skin (incl. its 4 mm rolled edge) to his ORIGINAL surface, before the cut, in mm"
 }
