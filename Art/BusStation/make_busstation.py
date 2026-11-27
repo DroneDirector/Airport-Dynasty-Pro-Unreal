@@ -1064,6 +1064,160 @@ for sgx, fn in ((-1, 'W'), (1, 'E')):
         o.location = boss_c
         NO_PIVOT.add(o.name)
 
+# ---------------------------------------------------------------- 8k  the light fittings, and their table
+# Every fitting is a real luminaire: a housing shell, an inner reflector and the LENS as its own part (the game makes
+# the lens face glow and hangs its own light at it, as the cargo terminal's do). No lamp is added in Blender.
+# The three kinds and their places are written, from these very constants, to Data/busstation-lights.json, so the
+# table and the model can never drift. Nothing floats: every disc hangs on a stem welded to its arch tube, every
+# uplight is bedded on a column's base plate, every ceiling panel's pan laps into the hall's ceiling sheet.
+import json
+
+T_LENS = plain('T_BusStn_Lens', (0.96, 0.96, 0.94), 0.015, 0.8)
+M_LENS = mat_lit('BusStn_Lens', T_LENS, 1.4, 0.30)
+
+FITS = []
+
+
+def ring_of(bm, x, y, z, r, segs):
+    rx, ry = (r, r) if isinstance(r, (int, float)) else r
+    return [bm.verts.new((x + rx * math.cos(a), y + ry * math.sin(a), z))
+            for a in (2 * math.pi * k / segs for k in range(segs))]
+
+
+def cone(bm, x, y, z0, r0, z1, r1, segs=24):
+    """A closed truncated cone of revolution: radius r0 at z0 to r1 at z1(each r a number or (rx, ry))."""
+    A, B = ring_of(bm, x, y, z0, r0, segs), ring_of(bm, x, y, z1, r1, segs)
+    for k in range(segs):
+        bm.faces.new((A[k], A[(k + 1) % segs], B[(k + 1) % segs], B[k]))
+    bm.faces.new(list(reversed(A)))
+    bm.faces.new(B)
+    return bm
+
+
+def ring_wall(bm, x, y, z0, z1, ri, ro, segs=24):
+    """A hollow cylinder (a luminaire's side wall): inner and outer walls closed by a rim top and bottom."""
+    rs = [ring_of(bm, x, y, z0, ro, segs), ring_of(bm, x, y, z1, ro, segs),
+          ring_of(bm, x, y, z1, ri, segs), ring_of(bm, x, y, z0, ri, segs)]
+    for A, B in zip(rs, rs[1:] + rs[:1]):
+        for k in range(segs):
+            bm.faces.new((A[k], A[(k + 1) % segs], B[(k + 1) % segs], B[k]))
+    return bm
+
+
+def tray(bm, x, y, y_half, x_half, z0, z1, t):
+    """Four upstand walls, t thick, round a rectangle: an open-topped box (its floor is made by the caller)."""
+    box(bm, x - x_half, y - y_half, z0, x - x_half + t, y + y_half, z1)
+    box(bm, x + x_half - t, y - y_half, z0, x + x_half, y + y_half, z1)
+    box(bm, x - x_half, y - y_half, z0, x + x_half, y - y_half + t, z1)
+    box(bm, x - x_half, y + y_half - t, z0, x + x_half, y + y_half, z1)
+    return bm
+
+
+# ---- disc luminaires: a 0.60 m white disc pendant, 0.11 m deep, on a 12 mm stem up to its arch tube; two under
+# every arch, one each side of the crown - the south one over the platform walk, the north one over the pavement.
+DISC_T = 0.45            # t of the stem, from the crown: clear of the bracing lugs (t 0.30) and of every purlin line
+DISC_R = 0.30            # 0.60 m across
+DISC_D = 0.11            # deep
+DISC_STEM = 0.40         # stem, arch soffit to the housing top
+DISC_STEM_R = 0.006      # 12 mm stem
+for i, x in enumerate(ARCH_X):
+    for s, sn in ((-1, 'S'), (1, 'N')):
+        t = s * DISC_T
+        tag = 'A%02d%s' % (i + 1, sn)
+        ya, za = P(t)
+        zsof = za - D.ARCH_R / math.cos(t)               # the arch tube's soffit on the stem's vertical line
+        zt = zsof - DISC_STEM                            # housing top
+        zb = zt - DISC_D                                 # the lens face, the lowest point of the fitting
+        bm = bmesh.new()
+        cone(bm, x, ya, zb + 0.085, DISC_R, zt, DISC_R - 0.028, 28)                   # the top pan, chamfered
+        ring_wall(bm, x, ya, zb + 0.014, zb + 0.090, DISC_R - 0.016, DISC_R, 28)      # the body ring, open below
+        tube(bm, [(x, ya, zt - 0.010), (x, ya, zsof + 0.012)], DISC_STEM_R, 10)       # stem into the arch tube
+        tube(bm, [(x, ya, zt - 0.014), (x, ya, zt + 0.022)], 0.026, 12)               # boss on the pan
+        tube(bm, [(x, ya, zsof - 0.055), (x, ya, zsof + 0.010)], 0.030, 12)           # canopy at the arch
+        obj('BusStn_Disc_Housing' + tag, bm, M_PANEL, 0.004)
+
+        bm = bmesh.new()
+        cone(bm, x, ya, zb + 0.016, DISC_R - 0.012, zb + 0.086, 0.120, 28)            # spun reflector bowl
+        obj('BusStn_Disc_Reflector' + tag, bm, M_ALU, 0.003)
+
+        bm = bmesh.new()
+        cone(bm, x, ya, zb, DISC_R - 0.014, zb + 0.020, DISC_R - 0.014, 28)           # the opal lens
+        obj('BusStn_Disc_Lens' + tag, bm, M_LENS, 0.003)
+
+        FITS.append(dict(kind='disc', x=round(x, 3), y=round(ya, 3), z=round(zb, 3), top=round(zsof, 3)))
+
+# ---- column uplights: a small shielded uplight bedded on every column's base plate, on the pedestal, throwing the
+# white tube up. It stands inboard of the column (under the vault), clear of the four holding-down bolts, and the
+# glare shield stands on its outboard side so nobody on the platform looks into it.
+UP_DY = 0.26             # from the column's centre line, inboard
+UP_XH, UP_YH = 0.065, 0.100
+UP_WALL = 0.014
+for i, x in enumerate(ARCH_X):
+    for s, sn in ((-1, 'S'), (1, 'N')):
+        yf = D.COL_Y[s]
+        sg = -s                                          # inboard: the south column's light stands on its north side
+        cy = yf + sg * UP_DY
+        tag = 'A%02d%s' % (i + 1, sn)
+        bm = bmesh.new()
+        box(bm, x - UP_XH, cy - UP_YH, D.FOOT_Z - 0.007, x + UP_XH, cy + UP_YH, D.FOOT_Z + 0.025)   # tray floor
+        tray(bm, x, cy, UP_YH, UP_XH, D.FOOT_Z + 0.023, D.FOOT_Z + 0.090, UP_WALL)                  # tray walls
+        yA, yB = cy + sg * 0.093, cy + sg * 0.105                    # the shield, just outboard of the lens edge
+        box(bm, x - UP_XH, min(yA, yB), D.FOOT_Z + 0.080, x + UP_XH, max(yA, yB), D.FOOT_Z + 0.205)
+        yC = cy + sg * 0.048                                         # its return lip, over the lens
+        box(bm, x - UP_XH, min(yA, yC), D.FOOT_Z + 0.193, x + UP_XH, max(yA, yC), D.FOOT_Z + 0.205)
+        obj('BusStn_Uplight_Housing' + tag, bm, M_DARK, 0.004)
+
+        bm = bmesh.new()
+        # the bowl is welded through the tray's floor (a crossing joint), well clear of the tray walls: no graze
+        cone(bm, x, cy, D.FOOT_Z + 0.018, (0.034, 0.064), D.FOOT_Z + 0.080, (0.044, 0.074), 20)
+        obj('BusStn_Uplight_Reflector' + tag, bm, M_ALU, 0.003)
+
+        bm = bmesh.new()
+        box(bm, x - 0.059, cy - 0.090, D.FOOT_Z + 0.084, x + 0.059, cy + 0.090, D.FOOT_Z + 0.096)
+        obj('BusStn_Uplight_Lens' + tag, bm, M_LENS, 0.003)
+
+        aim = Vector((0.0, -sg * 0.20, 1.0)).normalized()
+        FITS.append(dict(kind='uplight', x=round(x, 3), y=round(cy, 3), z=round(D.FOOT_Z + 0.096, 3),
+                         aim=[round(a, 3) for a in aim]))
+
+# ---- hall ceiling panels: 1.20 x 0.60 m panels on the 2.5 m mullion grid, two rows, their pans lapped up into the
+# ceiling sheet (no hole is cut in it, so the sheet stays one piece: the lens face drops 40 mm under the soffit).
+# The bay over each of the three door openings is left out, so nobody walks under a panel in a doorway.
+PAN_Z = D.HALL_CEIL_Z - 0.040        # the lens face
+PAN_XH, PAN_YH = 0.62, 0.32
+PAN_ROWS = ((HYM - 2.0, 'S'), (HYM + 2.0, 'N'))
+pan_n = 0
+for row_y, rn in PAN_ROWS:
+    for b in range(len(MULL_X) - 1):
+        xc = (MULL_X[b] + MULL_X[b + 1]) / 2
+        if is_door_bay('S' if rn == 'S' else 'N', xc):
+            continue
+        pan_n += 1
+        tag = '%s%02d' % (rn, b + 1)
+        bm = bmesh.new()
+        box(bm, xc - PAN_XH, row_y - PAN_YH, PAN_Z + 0.036, xc + PAN_XH, row_y + PAN_YH, PAN_Z + 0.050)  # pan top
+        tray(bm, xc, row_y, PAN_YH, PAN_XH, PAN_Z + 0.004, PAN_Z + 0.038, 0.014)                         # its sides
+        obj('BusStn_CeilPanel_Housing' + tag, bm, M_PANEL, 0.004)
+
+        bm = bmesh.new()
+        box(bm, xc - 0.60, row_y - 0.30, PAN_Z + 0.026, xc + 0.60, row_y + 0.30, PAN_Z + 0.037)
+        tray(bm, xc, row_y, 0.300, 0.600, PAN_Z + 0.017, PAN_Z + 0.028, 0.012)
+        obj('BusStn_CeilPanel_Reflector' + tag, bm, M_ALU, 0.003)
+
+        bm = bmesh.new()
+        box(bm, xc - 0.615, row_y - 0.315, PAN_Z, xc + 0.615, row_y + 0.315, PAN_Z + 0.014)
+        obj('BusStn_CeilPanel_Lens' + tag, bm, M_LENS, 0.003)
+
+        FITS.append(dict(kind='hallpanel', x=round(xc, 3), y=round(row_y, 3), z=round(PAN_Z, 3)))
+
+with open(os.path.join(ROOT, 'Data', 'busstation-lights.json'), 'w') as f:
+    json.dump(dict(note='Chablais bus station light fittings, model-local metres (Art/BusStation/make_busstation.py); '
+                        'kinds: disc (vault pendant, top = the stem top at the arch), uplight (column foot, aim = its '
+                        'direction), hallpanel (waiting hall ceiling); z is the lens face',
+                   fittings=FITS), f, indent=1)
+print('BUSSTATION: %d light fittings (%d disc, %d uplight, %d hallpanel)'
+      % (len(FITS), 2 * D.N_ARCH, 2 * D.N_ARCH, pan_n))
+
 # the sitting IK points: an empty at every seat surface, as the coach seats have
 for nm, p in SITS:
     e = bpy.data.objects.new(nm, None)
