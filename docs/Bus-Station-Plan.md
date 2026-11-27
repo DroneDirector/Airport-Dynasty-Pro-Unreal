@@ -131,3 +131,34 @@ done, not before - run the game for pictures and send them. 3840x2160 PNG. The w
 standing in the bays and people on the platform and at the crossings, not an empty deck. I look at every one myself
 before any of them goes to him, against the A320 clean after-pictures as the bar. Earlier steps get the blueprint
 sheet and at most one still render of the model, as usual - this go is for the finished area with life in it.
+
+## The order is settled - owner, 2026-11-27 18:45
+He was asked whether to run the game now just to drive the town-to-airport road, or to finish the station first and
+run it once at the end. His answer: "Finish the station first, hold furniture, lighting, import coaches in the
+[bays], and then run the game once for the pictures with a whole route."
+
+So there is **one game run**, at the end, and it covers everything at once:
+
+1. The waiting hall and the platform furniture (in hand).
+2. Lighting - disc luminaires on the arches and column uplights, through the lamp system with a distance limit, no
+   flares - and the Unreal import. **Place the model at world y so model y 0 sits at world y -14.35.**
+3. The coaches pull into A1-A12, kneel, open, load and pull out forward. Taxi spots stay empty.
+4. **Then the one run**: coaches standing in the bays, people on the platform and at the crossings, and the route
+   driven from the town hub to the bays so the road is seen to be whole. 3840x2160 PNG. I look at every picture
+   against the A320 clean after-pictures before any of them goes to him.
+
+Nothing is run before step 3 is done. No publish without his word.
+
+## The road was checked - 2026-11-27, measured, not run
+`Data/Sites/chablais/roads.json`: the town bus stop to the bus station bays is connected end to end -
+TOWN-HUB, TOWN-HUB-STREET, TOWN-HUB-SPUR, CHABLAIS-LINK, AIRPORT-BACK-TO-TOWN, AIRPORT-ROUNDABOUT,
+AIRPORT-FORECOURT, with TERMINAL-RETURN as the arrival link. About 8.8 km, every join within 2.75 m, driving lanes
+both ways on every road of the route, and `coach-to-terminal` already ends `lane 7 from bay-12 to bay` - the new bays.
+
+Two route steps look like 60 m and 80 m breaks and are not: they are the lane-change run-ups, `join` 10 and 12 m, and
+`CoachLoop::LoopJoin` (Coaches.cpp:572) lays a Hermite curve across the whole separation, subdivided every metre. A
+connectivity check must not flag consecutive steps on the same road as a gap.
+
+The one real break found: **CARGO-ACCESS** touches nothing - 937.2 m of road whose nearest end is 1487.75 m from
+every other road, although its own note calls it the cargo terminal's gate out to the public road. Written up as
+**to-do 374** (commit 9b2b53f7). Not on the bus station's path, so not fixed here.
