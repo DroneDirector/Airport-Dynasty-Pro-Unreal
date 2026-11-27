@@ -4,7 +4,8 @@
 // runway (VanRide; on foot only on the hall's own side, the hired people's way), walk in through the open hall door on the
 // side away from the hall's stair and stand by the aircraft's nose on its right, clear of the engines, the stair and the tug's
 // lane. When the check is over they walk out (the door opened for them if it is shut) before the tow back may start, and ride
-// home. Working at the fault itself is the next step. Talk and "Call to my office" are the pool's own (UStaffPeople IdOf / CallIn).
+// home. At the fault itself (hangar step 4, GSEMechWork.cpp): each walks round the gear, engines and the stair to its own
+// place at the fault (Data/aircraft-workpoints.json), turns to it and works there in pairs, one holding, one fastening. Talk and "Call to my office" are the pool's own (UStaffPeople IdOf / CallIn).
 #include "GSE.h"
 #include "Hangar.h"
 #include "Tugs.h"
@@ -15,7 +16,7 @@
 
 namespace
 {
-	constexpr int32 MkMost = 4;              // (people in 3D for one check at most; the rest of its crew works in the simulation only)
+	constexpr int32 MkMost = 7;              // (people in 3D for one check at most, besides its brake rider; the rest of its crew works in the simulation only)
 	constexpr float MkAcross = 7.f, MkStep = 1.5f, MkWall = 2.5f;   // (m: their row beside the nose, right of the centre line)
 	constexpr double MkOutMost = 1200.0;     // (s: the tow back never waits longer than that for them)
 }
@@ -53,6 +54,7 @@ void AGSE::MechStart(const FString& Reg, const FHallStair& H)
 	if (!Sp->AskTeam(Key, EStaffTask::Maint, Sim->Now(), Gate, What, Team)) { Say(FString::Printf(TEXT("no mechanic comes yet: %s"), *Sp->WaitsFor(Key))); return; }
 	while (Team.Num() && Team.Num() < Want) { UStaffPeople::FTaken X; if (!Sp->AskExtra(EStaffDuty::Mechanic, Gate, What, X)) break; Team.Add(X); }
 	FMechCrew C; C.Hall = H.Hall;
+	TArray<FMechSpot> Spots; MechSpots(Reg, H, FMath::Min(Want, Team.Num()), Spots, C.Keep);   // (their places at the fault; the gear and engines to walk round)
 	for (const UStaffPeople::FTaken& X : Team)
 	{
 		const int32 Ci = G->Enlist(X.A.Get(), X.Id, UStaffPeople::DutyName(X.Duty));
@@ -69,7 +71,9 @@ void AGSE::MechStart(const FString& Reg, const FHallStair& H)
 	for (int32 m = 0; m < C.Men.Num(); ++m)
 	{
 		const int32 Ci = C.Men[m];
-		const FVector Spot = HallP(H, Sd * Xs, MkStep * m - 1.f);   // (beside the nose, the row along the aircraft)
+		const bool bAt = Spots.IsValidIndex(m);
+		const FMechSpot Ws = bAt ? Spots[m] : FMechSpot();
+		const FVector Spot = bAt ? Ws.At : HallP(H, Sd * Xs, MkStep * m - 1.f);   // (at the fault; else beside the nose, the row along the aircraft)
 		auto Out = [this, Reg, Hall, Ci, Gate, In]
 		{
 			// the check over: out through the door (opened if it is shut), then home by van
@@ -89,22 +93,24 @@ void AGSE::MechStart(const FString& Reg, const FHallStair& H)
 				Later([this, Ci, Gone] { if (!VanRide(Ci, VanDropSouth(INDEX_NONE, 0.f), TEXT("mechanic"), Gone)) Gone(); });
 			});
 		};
-		auto Rest = [this, Reg, Hall, Ci, Gate, In, Spot, Out]
+		auto Rest = [this, Reg, Hall, Ci, Gate, In, Spot, Out, bAt, Ws]
 		{
 			WalkTo(Ci, [Gate] { return Gate; }, 60.f);
 			WaitFor(Ci, [this, Reg, Hall](float) { const FHallStair* X = HallNamed(Hall); if (!X) return true; MechDoor(*X, Reg + TEXT("'s mechanics")); return HallOpen(*X) > 0.6f; });   // (never through a shut door)
 			WalkTo(Ci, [In] { return In; }, 40.f);
 			WalkTo(Ci, [Spot] { return Spot; }, 30.f);
+			if (bAt) MechWork(Ci, Reg, Ws);
 			Do(Ci, [this, Reg]
 			{
 				FMechCrew* K = MechCrews.Find(Reg);
 				if (K && ++K->There >= K->Men.Num() && K->Phase == 1) { K->Phase = 2; ADP_LOG(TEXT("GSE: %s's mechanics stand by it in hangar %s"), *Reg, *K->Hall); }
 			});
 			WaitFor(Ci, [this, Reg](float) { return !MechCheckOn(Reg); });
-			Do(Ci, [this, Reg, Out]
+			Do(Ci, [this, Reg, Ci, Out]
 			{
 				FMechCrew* K = MechCrews.Find(Reg);
 				if (K && K->Phase < 3) { K->Phase = 3; ADP_LOG(TEXT("GSE: %s's check is over - its mechanics walk out of hangar %s"), *Reg, *K->Hall); }
+				if (ATugs* Gt = Tg(); Gt && Gt->Crew.IsValidIndex(Ci)) Gt->Crew[Ci].Hold = nullptr;   // (the work pose let go before they walk)
 				Out();
 			});
 		};

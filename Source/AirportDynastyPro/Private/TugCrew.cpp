@@ -1306,7 +1306,7 @@ FVector ATugs::Around(const FVector& From, const FVector& To) const
 	// (the chocks' rack and its cones at the head of the stand)
 	if (ChkMesh.Num()) for (const FTug& T : Tugs) { const FVector Ax = (ChkAt(T, 0.f, 1.f) - ChkAt(T, 0.f, 0.f)).GetSafeNormal2D(); Bs.Add({ChkAt(T, 11.6f, -7.1f), Ax, FVector(-Ax.Y, Ax.X, 0.f), 100.f + Pad, 35.f + Pad}); }
 	// (the baggage tractors and carts too - GSE.h)
-	if (const AGSE* G = AGSE::Find(GetWorld())) { TArray<AGSE::FOutline> Ol; G->Outlines(Ol); for (const AGSE::FOutline& O : Ol) Bs.Add({O.C, O.X, O.Y, O.Hx + Pad, O.Hy + Pad}); }
+	if (const AGSE* G = AGSE::Find(GetWorld())) { TArray<AGSE::FOutline> Ol; G->WalkOutlines(Ol); for (const AGSE::FOutline& O : Ol) Bs.Add({O.C, O.X, O.Y, O.Hx + Pad, O.Hy + Pad}); }
 	auto Local = [](const FBx& B, const FVector& P) { const FVector D = P - B.C; return FVector2D(FVector::DotProduct(D, B.X), FVector::DotProduct(D, B.Y)); };
 	auto World = [](const FBx& B, const FVector2D& L, float Z) { return B.C + B.X * L.X + B.Y * L.Y + FVector(0, 0, Z - B.C.Z); };
 	auto Inside = [](const FBx& B, const FVector2D& L, float S) { return FMath::Abs(L.X) < B.Hx * S && FMath::Abs(L.Y) < B.Hy * S; };

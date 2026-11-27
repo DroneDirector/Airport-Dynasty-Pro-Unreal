@@ -1,0 +1,2091 @@
+{
+ "note": "Writes Data/aircraft-workpoints.json (hangar step 4): where hired mechanics stand to work on each fault area of a type. Frame (as Data/aircraft-doors.json, but in metres): x to the aircraft's right, y aft, z up, the nose wheel at the root. face: degrees, 0 toward the nose, 90 toward the right wing, 180 toward the tail, 270 toward the left wing. hands: how high the hands work (m). role: in each pair one holds, one fastens. keepout: boxes nobody walks through (gear legs with their wheels, engines), c = centre [x, y], half = half sizes [x, y]. A320 family from published Airbus airport-planning figures (wheelbase A319 11.04 / A320 12.64 / A321 16.90 m, main gear track 7.59 m, engine centre 5.75 m out, fuselage plugs fore and aft of the wing). A type without an entry: the game takes the entry of the model it is drawn with, else the A320's scaled to the model's real size (logged once).",
+ "A320": {
+  "box": {
+   "min": [
+    -16.72,
+    -5.22,
+    0.0
+   ],
+   "max": [
+    16.71,
+    32.5,
+    11.79
+   ]
+  },
+  "areas": {
+   "engine": [
+    {
+     "side": "L",
+     "at": [
+      -4.05,
+      7.0,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -4.05,
+      8.7,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.45,
+      7.0,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.45,
+      8.7,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.2,
+      4.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -6.3,
+      4.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      4.05,
+      7.0,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      4.05,
+      8.7,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.45,
+      7.0,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.45,
+      8.7,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.2,
+      4.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      6.3,
+      4.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "fasten"
+    }
+   ],
+   "wheels": [
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      12.25,
+      0.0
+     ],
+     "face": 90,
+     "hands": 0.6,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      13.05,
+      0.0
+     ],
+     "face": 90,
+     "hands": 0.6,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      12.25,
+      0.0
+     ],
+     "face": 270,
+     "hands": 0.6,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      13.05,
+      0.0
+     ],
+     "face": 270,
+     "hands": 0.6,
+     "role": "fasten"
+    }
+   ],
+   "maingear": [
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      12.25,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.2,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      13.05,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -3.8,
+      11.35,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.4,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -3.8,
+      13.95,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.4,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      12.25,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.2,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      13.05,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      3.8,
+      11.35,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.4,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      3.8,
+      13.95,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.4,
+     "role": "fasten"
+    }
+   ],
+   "flaps": [
+    {
+     "side": "L",
+     "at": [
+      -5.6,
+      16.0,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.4,
+      16.5,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -10.6,
+      17.5,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -12.6,
+      18.4,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.6,
+      16.0,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.4,
+      16.5,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      10.6,
+      17.5,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      12.6,
+      18.4,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    }
+   ],
+   "spoilers": [
+    {
+     "side": "L",
+     "at": [
+      -7.2,
+      14.8,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -9.0,
+      15.5,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -11.0,
+      16.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.2,
+      14.8,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      9.0,
+      15.5,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      11.0,
+      16.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    }
+   ],
+   "tail": [
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      23.4,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      24.6,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      25.8,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      23.4,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      24.6,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      25.8,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    }
+   ],
+   "cargodoor": [
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      2.9,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.85,
+     "role": "hold"
+    },
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      4.1,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.85,
+     "role": "fasten"
+    },
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      5.2,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      18.8,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      20.0,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      21.1,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.7,
+     "role": "hold"
+    }
+   ],
+   "nosegear": [
+    {
+     "side": "",
+     "at": [
+      -1.05,
+      0.2,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "hold"
+    },
+    {
+     "side": "",
+     "at": [
+      1.05,
+      0.2,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "",
+     "at": [
+      0.0,
+      -1.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.2,
+     "role": "hold"
+    }
+   ],
+   "avionics": [
+    {
+     "side": "",
+     "at": [
+      0.0,
+      2.3,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.9,
+     "role": "hold"
+    },
+    {
+     "side": "",
+     "at": [
+      0.8,
+      1.9,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.9,
+     "role": "fasten"
+    }
+   ]
+  },
+  "keepout": [
+   {
+    "name": "nose gear",
+    "c": [
+     0.0,
+     0.3
+    ],
+    "half": [
+     0.55,
+     0.9
+    ]
+   },
+   {
+    "name": "left main gear",
+    "c": [
+     -3.8,
+     12.64
+    ],
+    "half": [
+     0.75,
+     0.75
+    ]
+   },
+   {
+    "name": "left engine",
+    "c": [
+     -5.75,
+     7.9
+    ],
+    "half": [
+     1.25,
+     2.6
+    ]
+   },
+   {
+    "name": "right main gear",
+    "c": [
+     3.8,
+     12.64
+    ],
+    "half": [
+     0.75,
+     0.75
+    ]
+   },
+   {
+    "name": "right engine",
+    "c": [
+     5.75,
+     7.9
+    ],
+    "half": [
+     1.25,
+     2.6
+    ]
+   }
+  ]
+ },
+ "A319": {
+  "box": {
+   "min": [
+    -17.92,
+    -5.22,
+    0.0
+   ],
+   "max": [
+    17.92,
+    28.62,
+    11.79
+   ]
+  },
+  "areas": {
+   "engine": [
+    {
+     "side": "L",
+     "at": [
+      -4.05,
+      5.4,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -4.05,
+      7.1,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.45,
+      5.4,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.45,
+      7.1,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.2,
+      2.7,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -6.3,
+      2.7,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      4.05,
+      5.4,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      4.05,
+      7.1,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.45,
+      5.4,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.45,
+      7.1,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.2,
+      2.7,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      6.3,
+      2.7,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "fasten"
+    }
+   ],
+   "wheels": [
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      10.65,
+      0.0
+     ],
+     "face": 90,
+     "hands": 0.6,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      11.45,
+      0.0
+     ],
+     "face": 90,
+     "hands": 0.6,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      10.65,
+      0.0
+     ],
+     "face": 270,
+     "hands": 0.6,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      11.45,
+      0.0
+     ],
+     "face": 270,
+     "hands": 0.6,
+     "role": "fasten"
+    }
+   ],
+   "maingear": [
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      10.65,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.2,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      11.45,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -3.8,
+      9.75,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.4,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -3.8,
+      12.35,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.4,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      10.65,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.2,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      11.45,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      3.8,
+      9.75,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.4,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      3.8,
+      12.35,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.4,
+     "role": "fasten"
+    }
+   ],
+   "flaps": [
+    {
+     "side": "L",
+     "at": [
+      -5.6,
+      14.4,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.4,
+      14.9,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -10.6,
+      15.9,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -12.6,
+      16.8,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.6,
+      14.4,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.4,
+      14.9,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      10.6,
+      15.9,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      12.6,
+      16.8,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    }
+   ],
+   "spoilers": [
+    {
+     "side": "L",
+     "at": [
+      -7.2,
+      13.2,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -9.0,
+      13.9,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -11.0,
+      14.7,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.2,
+      13.2,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      9.0,
+      13.9,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      11.0,
+      14.7,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    }
+   ],
+   "tail": [
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      19.67,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      20.87,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      22.07,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      19.67,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      20.87,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      22.07,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    }
+   ],
+   "cargodoor": [
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      2.9,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.85,
+     "role": "hold"
+    },
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      4.1,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.85,
+     "role": "fasten"
+    },
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      5.2,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      15.07,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      16.27,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      17.37,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.7,
+     "role": "hold"
+    }
+   ],
+   "nosegear": [
+    {
+     "side": "",
+     "at": [
+      -1.05,
+      0.2,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "hold"
+    },
+    {
+     "side": "",
+     "at": [
+      1.05,
+      0.2,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "",
+     "at": [
+      0.0,
+      -1.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.2,
+     "role": "hold"
+    }
+   ],
+   "avionics": [
+    {
+     "side": "",
+     "at": [
+      0.0,
+      2.3,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.9,
+     "role": "hold"
+    },
+    {
+     "side": "",
+     "at": [
+      0.8,
+      1.9,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.9,
+     "role": "fasten"
+    }
+   ]
+  },
+  "keepout": [
+   {
+    "name": "nose gear",
+    "c": [
+     0.0,
+     0.3
+    ],
+    "half": [
+     0.55,
+     0.9
+    ]
+   },
+   {
+    "name": "left main gear",
+    "c": [
+     -3.8,
+     11.04
+    ],
+    "half": [
+     0.75,
+     0.75
+    ]
+   },
+   {
+    "name": "left engine",
+    "c": [
+     -5.75,
+     6.299999999999999
+    ],
+    "half": [
+     1.25,
+     2.6
+    ]
+   },
+   {
+    "name": "right main gear",
+    "c": [
+     3.8,
+     11.04
+    ],
+    "half": [
+     0.75,
+     0.75
+    ]
+   },
+   {
+    "name": "right engine",
+    "c": [
+     5.75,
+     6.299999999999999
+    ],
+    "half": [
+     1.25,
+     2.6
+    ]
+   }
+  ]
+ },
+ "A321": {
+  "box": {
+   "min": [
+    -17.92,
+    -5.22,
+    0.0
+   ],
+   "max": [
+    17.92,
+    39.29,
+    11.79
+   ]
+  },
+  "areas": {
+   "engine": [
+    {
+     "side": "L",
+     "at": [
+      -4.05,
+      11.26,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -4.05,
+      12.96,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.45,
+      11.26,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.45,
+      12.96,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.2,
+      8.56,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -6.3,
+      8.56,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      4.05,
+      11.26,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      4.05,
+      12.96,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.45,
+      11.26,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.1,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.45,
+      12.96,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.2,
+      8.56,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      6.3,
+      8.56,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.6,
+     "role": "fasten"
+    }
+   ],
+   "wheels": [
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      16.51,
+      0.0
+     ],
+     "face": 90,
+     "hands": 0.6,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      17.31,
+      0.0
+     ],
+     "face": 90,
+     "hands": 0.6,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      16.51,
+      0.0
+     ],
+     "face": 270,
+     "hands": 0.6,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      17.31,
+      0.0
+     ],
+     "face": 270,
+     "hands": 0.6,
+     "role": "fasten"
+    }
+   ],
+   "maingear": [
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      16.51,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.2,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -5.1,
+      17.31,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -3.8,
+      15.61,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.4,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -3.8,
+      18.21,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.4,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      16.51,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.2,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.1,
+      17.31,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      3.8,
+      15.61,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.4,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      3.8,
+      18.21,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.4,
+     "role": "fasten"
+    }
+   ],
+   "flaps": [
+    {
+     "side": "L",
+     "at": [
+      -5.6,
+      20.26,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -7.4,
+      20.76,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -10.6,
+      21.76,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -12.6,
+      22.66,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      5.6,
+      20.26,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.4,
+      20.76,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      10.6,
+      21.76,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      12.6,
+      22.66,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    }
+   ],
+   "spoilers": [
+    {
+     "side": "L",
+     "at": [
+      -7.2,
+      19.06,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -9.0,
+      19.76,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -11.0,
+      20.56,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      7.2,
+      19.06,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      9.0,
+      19.76,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      11.0,
+      20.56,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.95,
+     "role": "hold"
+    }
+   ],
+   "tail": [
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      30.34,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      31.54,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "L",
+     "at": [
+      -1.3,
+      32.74,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      30.34,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      31.54,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "R",
+     "at": [
+      1.3,
+      32.74,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    }
+   ],
+   "cargodoor": [
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      2.9,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.85,
+     "role": "hold"
+    },
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      4.1,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.85,
+     "role": "fasten"
+    },
+    {
+     "side": "F",
+     "at": [
+      2.95,
+      5.2,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.6,
+     "role": "hold"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      25.74,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "hold"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      26.94,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.95,
+     "role": "fasten"
+    },
+    {
+     "side": "A",
+     "at": [
+      2.95,
+      28.04,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.7,
+     "role": "hold"
+    }
+   ],
+   "nosegear": [
+    {
+     "side": "",
+     "at": [
+      -1.05,
+      0.2,
+      0.0
+     ],
+     "face": 90,
+     "hands": 1.0,
+     "role": "hold"
+    },
+    {
+     "side": "",
+     "at": [
+      1.05,
+      0.2,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.0,
+     "role": "fasten"
+    },
+    {
+     "side": "",
+     "at": [
+      0.0,
+      -1.3,
+      0.0
+     ],
+     "face": 180,
+     "hands": 1.2,
+     "role": "hold"
+    }
+   ],
+   "avionics": [
+    {
+     "side": "",
+     "at": [
+      0.0,
+      2.3,
+      0.0
+     ],
+     "face": 0,
+     "hands": 1.9,
+     "role": "hold"
+    },
+    {
+     "side": "",
+     "at": [
+      0.8,
+      1.9,
+      0.0
+     ],
+     "face": 270,
+     "hands": 1.9,
+     "role": "fasten"
+    }
+   ]
+  },
+  "keepout": [
+   {
+    "name": "nose gear",
+    "c": [
+     0.0,
+     0.3
+    ],
+    "half": [
+     0.55,
+     0.9
+    ]
+   },
+   {
+    "name": "left main gear",
+    "c": [
+     -3.8,
+     16.9
+    ],
+    "half": [
+     0.75,
+     0.75
+    ]
+   },
+   {
+    "name": "left engine",
+    "c": [
+     -5.75,
+     12.159999999999998
+    ],
+    "half": [
+     1.25,
+     2.6
+    ]
+   },
+   {
+    "name": "right main gear",
+    "c": [
+     3.8,
+     16.9
+    ],
+    "half": [
+     0.75,
+     0.75
+    ]
+   },
+   {
+    "name": "right engine",
+    "c": [
+     5.75,
+     12.159999999999998
+    ],
+    "half": [
+     1.25,
+     2.6
+    ]
+   }
+  ]
+ }
+}

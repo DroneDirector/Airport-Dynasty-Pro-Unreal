@@ -48,8 +48,8 @@ TArray<ADPMaint::FCheckRule> ADPMaint::Rules(const FString& TypeId)
 	if (C == TEXT("turboprop") || C == TEXT("regional"))
 		return {{TEXT("A"), 500, 500, 90, 8, 2, 12000 * K, false}, {TEXT("C"), 5000, 5000, 730, 240, 6, 300000 * K, true}, {TEXT("D"), 20000, 20000, 365 * 6, 720, 8, 1500000 * K, true}};
 	if (C == TEXT("widebody"))
-		return {{TEXT("A"), 1000, 600, 120, 14, 3, 60000 * K, false}, {TEXT("C"), 9000, 4000, 730, 480, 12, 900000 * K, true}, {TEXT("D"), 40000, 15000, 365 * 6, 1440, 16, 5000000 * K, true}};
-	return {{TEXT("A"), 750, 750, 120, 10, 2, 25000 * K, false}, {TEXT("C"), 7500, 5000, 730, 336, 8, 600000 * K, true}, {TEXT("D"), 30000, 20000, 365 * 6, 1008, 12, 3000000 * K, true}};
+		return {{TEXT("A"), 1000, 600, 120, 14, 6, 60000 * K, false}, {TEXT("C"), 9000, 4000, 730, 480, 12, 900000 * K, true}, {TEXT("D"), 40000, 15000, 365 * 6, 1440, 16, 5000000 * K, true}};
+	return {{TEXT("A"), 750, 750, 120, 10, 4, 25000 * K, false}, {TEXT("C"), 7500, 5000, 730, 336, 8, 600000 * K, true}, {TEXT("D"), 30000, 20000, 365 * 6, 1008, 12, 3000000 * K, true}};
 }
 
 FString ADPMaint::NextDue(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now, double& Fraction)
@@ -86,17 +86,19 @@ const TArray<ADPMaint::FFault>& ADPMaint::Faults()
 	// an engine change with its ground run about 36 h, a gear leg or actuator 16 h, a wheel and brake change 3 h, a flap or
 	// slat drive 10 h, a spoiler actuator 6 h, a cargo door seal or latch 8 h, a tail strike's inspection and skin repair
 	// about 4 days; the A, C and D checks their rule's length (Rules: about 10 h, 14 days, 42 days for a narrowbody).
+	// Crew (owner, hangar step 4, 2026-11-27): a wheel change 2, a flap 2-4, an engine change 4-6, an A-check 4-8 (a
+	// narrowbody's; other checks and classes from their rule, CrewFor); the areas: where they work on the aircraft.
 	static const TArray<FFault> MxFaultList = {
-		{TEXT("engine"), TEXT("an engine fault"), 3.0, 36.0, 400000.0},
-		{TEXT("gear"), TEXT("a landing gear fault"), 2.5, 16.0, 60000.0},
-		{TEXT("brakes"), TEXT("worn wheels and brakes"), 1.5, 3.0, 15000.0},
-		{TEXT("flaps"), TEXT("a flaps or slats fault"), 2.25, 10.0, 40000.0},
-		{TEXT("spoilers"), TEXT("a spoiler fault"), 1.75, 6.0, 20000.0},
-		{TEXT("cargodoor"), TEXT("a cargo bay door fault"), 2.0, 8.0, 15000.0},
-		{TEXT("tailstrike"), TEXT("a tail strike"), 3.0, 96.0, 250000.0},
-		{TEXT("acheck"), TEXT("the routine A-check"), 2.0, 0.0, 0.0},
-		{TEXT("ccheck"), TEXT("the C-check"), 3.0, 0.0, 0.0},
-		{TEXT("dcheck"), TEXT("the D-check"), 3.0, 0.0, 0.0}};
+		{TEXT("engine"), TEXT("an engine fault"), 3.0, 36.0, 400000.0, 4, 6, TEXT("engine")},
+		{TEXT("gear"), TEXT("a landing gear fault"), 2.5, 16.0, 60000.0, 2, 4, TEXT("maingear")},
+		{TEXT("brakes"), TEXT("worn wheels and brakes"), 1.5, 3.0, 15000.0, 2, 2, TEXT("wheels")},
+		{TEXT("flaps"), TEXT("a flaps or slats fault"), 2.25, 10.0, 40000.0, 2, 4, TEXT("flaps")},
+		{TEXT("spoilers"), TEXT("a spoiler fault"), 1.75, 6.0, 20000.0, 2, 3, TEXT("spoilers")},
+		{TEXT("cargodoor"), TEXT("a cargo bay door fault"), 2.0, 8.0, 15000.0, 2, 3, TEXT("cargodoor")},
+		{TEXT("tailstrike"), TEXT("a tail strike"), 3.0, 96.0, 250000.0, 3, 6, TEXT("tail")},
+		{TEXT("acheck"), TEXT("the routine A-check"), 2.0, 0.0, 0.0, 4, 8, TEXT("nosegear,avionics,wheels,engine")},
+		{TEXT("ccheck"), TEXT("the C-check"), 3.0, 0.0, 0.0, 8, 16, TEXT("nosegear,avionics,maingear,wheels,engine,flaps,spoilers,cargodoor,tail")},
+		{TEXT("dcheck"), TEXT("the D-check"), 3.0, 0.0, 0.0, 12, 24, TEXT("nosegear,avionics,maingear,wheels,engine,flaps,spoilers,cargodoor,tail")}};
 	return MxFaultList;
 }
 
@@ -121,12 +123,31 @@ void ADPMaint::SetMaintTime(int32 Mode)
 	ADP_LOG(TEXT("Maintenance: time set to %s - for the checks that begin from now on"), Mode == 0 ? TEXT("Quick") : Mode == 2 ? TEXT("Real") : TEXT("Fast"));
 }
 
-double ADPMaint::CheckHours(const FString& FaultKey, double RealH, int32 Mode)
+double ADPMaint::CheckHours(const FString& FaultKey, double RealH, int32 Mode, double Hands)
 {
 	if (Mode == 0) return 0.5;
 	const FFault* F = Fault(FaultKey);
-	if (Mode == 1) return F ? F->FastH : 2.0;
+	if (Mode == 1) return FMath::Max(0.5, (F ? F->FastH : 2.0) * FMath::Clamp(Hands, 0.25, 1.0));
 	return FMath::Max(0.5, RealH);
+}
+
+void ADPMaint::CrewFor(const FString& FaultKey, int32 RuleMechanics, int32& Least, int32& Most)
+{
+	const FFault* F = Fault(FaultKey);
+	const bool bRoutine = FaultKey == TEXT("acheck") || FaultKey == TEXT("ccheck") || FaultKey == TEXT("dcheck");
+	Least = FMath::Max(1, F && !bRoutine ? F->CrewMin : RuleMechanics);
+	const double Spread = F && F->CrewMin > 0 ? double(F->CrewMax) / double(F->CrewMin) : 1.0;
+	Most = FMath::Max(Least, F && !bRoutine ? F->CrewMax : FMath::RoundToInt(Least * Spread));
+}
+
+int32 ADPMaint::HandsFor(const FString& FaultKey, int32 RuleMechanics, int32 Free, double& Factor)
+{
+	int32 Least = 1, Most = 1; CrewFor(FaultKey, RuleMechanics, Least, Most);
+	Factor = 1.0;
+	if (Free < Least) return 0;
+	const int32 Hands = FMath::Min(Free, Most);
+	Factor = double(Least) / double(Hands);   // (more hands up to the job's limit: the same work shared)
+	return Hands;
 }
 
 FString ADPMaint::RollFault(const TCHAR* What, double Roll01)
@@ -152,14 +173,14 @@ bool ADPMaint::BuyParts(FADPWorld& W, const FString& AirlineId, double Usd, cons
 bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, const FDateTime& Now, FString& Why)
 {
 	const FCheckRule* R = nullptr; TArray<FCheckRule> Rs = Rules(A.TypeId);
-	// a fault check (F, to-do 311): the fault found in flight put right - 2 mechanics, in a hangar where there is one
+	// a fault check (F, to-do 311): the fault found in flight put right - its crew from the fault table (CrewMin), in a hangar where there is one
 	const FFault* Ft = Kind == TEXT("F") ? Fault(A.FaultDue) : nullptr;
 	if (Kind == TEXT("F"))
 	{
 		if (!Ft) { Why = TEXT("no fault to put right"); return false; }
 		const FADPTypeInfo* Ti = ADPWorldData::Type(A.TypeId);
 		const double Kv = (Ti ? FMath::Max(2.0, Ti->ValueM) : 100.0) / 100.0;
-		Rs.Add({TEXT("F"), 0.0, 0.0, 0.0, Ft->RealH, 2, Ft->PartsUsd * Kv, true});
+		Rs.Add({TEXT("F"), 0.0, 0.0, 0.0, Ft->RealH, Ft->CrewMin, Ft->PartsUsd * Kv, true});
 	}
 	for (const FCheckRule& X : Rs) if (Kind == X.Kind) R = &X;
 	if (!R) { Why = TEXT("no such check"); return false; }
@@ -167,11 +188,15 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 	if (A.Status == TEXT("maintenance")) { Why = TEXT("already in a check"); return false; }
 	const bool bMine = A.AirlineId == UADPSim::Me();
 	double Labour = 1.0, Hours = R->DurationH;
+	const FString Key = Ft ? FString(Ft->Key) : Kind == TEXT("A") ? FString(TEXT("acheck")) : Kind == TEXT("C") ? FString(TEXT("ccheck")) : FString(TEXT("dcheck"));
+	double Hf = 1.0; int32 Hands = R->Mechanics;
 	if (bMine)
 	{
-		// the check needs its hired mechanics (to-do 311): too few free here, it waits and says why
+		// the check needs its hired mechanics (to-do 311): too few free here, it waits and says why; more free than its
+		// least: up to the job's most of them (CrewFor), the time shorter with the hands at work (hangar step 4)
 		const int32 Free = MxFreeMechanics(W, A);
-		if (Free < R->Mechanics)
+		Hands = HandsFor(Key, R->Mechanics, Free, Hf);
+		if (Hands <= 0)
 		{
 			Why = MxWaitWhy(R->Mechanics, Free);
 			if (A.MaintWait != Why)
@@ -182,7 +207,7 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 			}
 			return false;
 		}
-		Hours *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);   // (beginners: to-do 301)
+		Hours *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics) * Hf;   // (beginners: to-do 301)
 		if (R->bHangar)
 		{
 			int32 Busy = 0; for (const FADPAircraft& X : W.Aircraft) if (X.Location == A.Location && X.Status == TEXT("maintenance") && X.CheckKind != TEXT("A")) ++Busy;
@@ -202,13 +227,13 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 	// its length from Settings > Realism at this moment (to-do 311): kept on the check, so changing the setting later
 	// changes only the checks that begin after it; game time, so it follows the game's speed
 	const int32 Mode = MaintTime();
-	A.CheckFault = Ft ? FString(Ft->Key) : Kind == TEXT("A") ? FString(TEXT("acheck")) : Kind == TEXT("C") ? FString(TEXT("ccheck")) : FString(TEXT("dcheck"));
+	A.CheckFault = Key;
 	if (Ft) A.FaultDue.Empty();
-	A.CheckLenH = CheckHours(A.CheckFault, Hours, Mode); A.CheckStart = Now;
+	A.CheckLenH = CheckHours(A.CheckFault, Hours, Mode, Hf); A.CheckStart = Now;
 	A.Status = TEXT("maintenance"); A.CheckKind = R->Kind; A.CheckUntil = Now + FTimespan::FromHours(A.CheckLenH);
-	A.MaintWait.Empty(); A.CheckCrew = bMine ? R->Mechanics : 0;
+	A.MaintWait.Empty(); A.CheckCrew = bMine ? Hands : 0;
 	const FFault* Fn = Fault(A.CheckFault);
-	ADP_LOG(TEXT("Maintenance: %s - %s (%s check) at %s, %.2f h (%s)"), *A.Reg, Fn ? Fn->Name : TEXT("?"), R->Kind, *A.Location, A.CheckLenH, Mode == 0 ? TEXT("Quick") : Mode == 2 ? TEXT("Real") : TEXT("Fast"));
+	ADP_LOG(TEXT("Maintenance: %s - %s (%s check) at %s, %.2f h (%s), %d mechanics (least %d)"), *A.Reg, Fn ? Fn->Name : TEXT("?"), R->Kind, *A.Location, A.CheckLenH, Mode == 0 ? TEXT("Quick") : Mode == 2 ? TEXT("Real") : TEXT("Fast"), A.CheckCrew, R->Mechanics);
 	if (bMine)
 	{
 		const FString What = Ft ? FString::Printf(TEXT("%s: %s being put right"), *A.Reg, Ft->Name) : FString::Printf(TEXT("%s in its %s-check"), *A.Reg, R->Kind);
@@ -226,16 +251,17 @@ bool ADPMaint::Quote(const FADPWorld& W, const FADPAircraft& A, const FString& K
 	{
 		Ft = Fault(A.FaultDue); if (!Ft) { Why = TEXT("no fault to put right"); return false; }
 		const FADPTypeInfo* Ti = ADPWorldData::Type(A.TypeId);
-		Rs.Add({TEXT("F"), 0.0, 0.0, 0.0, Ft->RealH, 2, Ft->PartsUsd * (Ti ? FMath::Max(2.0, Ti->ValueM) : 100.0) / 100.0, true});
+		Rs.Add({TEXT("F"), 0.0, 0.0, 0.0, Ft->RealH, Ft->CrewMin, Ft->PartsUsd * (Ti ? FMath::Max(2.0, Ti->ValueM) : 100.0) / 100.0, true});
 	}
 	const FCheckRule* R = Rs.FindByPredicate([&](const FCheckRule& X) { return Kind == X.Kind; });
 	if (!R) { Why = TEXT("no such check"); return false; }
 	if (A.Status == TEXT("flying")) { Why = TEXT("in the air"); return false; }
 	if (A.Status == TEXT("maintenance")) { Why = TEXT("already in a check"); return false; }
 	double Labour = 1.0, H = R->DurationH;
-	const int32 Free = MxFreeMechanics(W, A);
-	if (Free < R->Mechanics) { Why = MxWaitWhy(R->Mechanics, Free); return false; }
-	H *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);
+	const FString Key = Ft ? FString(Ft->Key) : Kind == TEXT("A") ? FString(TEXT("acheck")) : Kind == TEXT("C") ? FString(TEXT("ccheck")) : FString(TEXT("dcheck"));
+	const int32 Free = MxFreeMechanics(W, A); double Hf = 1.0;
+	if (HandsFor(Key, R->Mechanics, Free, Hf) <= 0) { Why = MxWaitWhy(R->Mechanics, Free); return false; }
+	H *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics) * Hf;
 	if (R->bHangar)
 	{
 		int32 Busy = 0; for (const FADPAircraft& X : W.Aircraft) if (X.Location == A.Location && X.Status == TEXT("maintenance") && X.CheckKind != TEXT("A")) ++Busy;
@@ -244,8 +270,7 @@ bool ADPMaint::Quote(const FADPWorld& W, const FADPAircraft& A, const FString& K
 	const FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == A.AirlineId; });
 	const double Short = FMath::Max(0.0, R->PartsUsd - (Al ? Al->PartsStock : 0.0));
 	Usd = (Short > 1.0 ? Short * W.PartsIndex * 1.3 : 0.0) + R->DurationH * R->Mechanics * 85.0 * (Labour - 1.0 + 0.25);
-	const FString Key = Ft ? FString(Ft->Key) : Kind == TEXT("A") ? FString(TEXT("acheck")) : Kind == TEXT("C") ? FString(TEXT("ccheck")) : FString(TEXT("dcheck"));
-	Hours = CheckHours(Key, H, MaintTime());
+	Hours = CheckHours(Key, H, MaintTime(), Hf);
 	if (!Al || Al->Balance < Usd) { Why = TEXT("not enough money"); return false; }
 	return true;
 }

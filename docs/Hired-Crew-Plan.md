@@ -1097,6 +1097,14 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Talk / Call to my office: the pool's own IdOf / CallIn, nothing new.
 - Next: they work at the fault (place, poses); check the far-side row is clear of walls/objects in each hall size.
 
+### At the fault (hangar step 4, 2026-11-27, compiled, NOT run)
+- Data/aircraft-workpoints.json (Tools/make_aircraft_workpoints.py): per type, places for each area (each engine, each main gear/wheels, nose gear, inner/outer flaps, spoilers, fwd/aft cargo door, avionics hatch, tail), metres, nose wheel at the root, x right, y aft; facing, hands height, role hold/fasten; keep-out boxes (gear legs, engines). A320, A319, A321 filled from published dimensions.
+- Other types: the entry of their model (all use the A320 model today), else the A320's scaled to the model's real bounds, 4 engines from aircraft-types.json (logged once). No code change for new types.
+- Crew per job in ADPMaint::Faults (CrewMin/CrewMax/Areas): wheels 2, gear 2-4, flaps 2-4, spoilers 2-3, cargo door 2-3, engine 4-6, tail strike 3-6, A-check 4-8 (narrowbody A rule now 4, widebody 6), C 8-16, D 12-24 (routine: rule's number x table spread). HandsFor: the check takes up to its most of the free mechanics; time x least/hands (Real and Fast). CheckCrew = hands taken.
+- 3D (GSEMechWork.cpp): up to 7 besides the brake rider; a fault = one side (same side per registration), a routine check = all areas, pairs by turns. Places inside the hall stair or another's place are skipped. Walk: ATugs::Around with AGSE::WalkOutlines (vehicles + the hall aircraft's gear/engines while a check runs); vehicles still use Outlines only. Stopped > 1 m short = warned.
+- Work: simple pose loop on hooks (holder: both hands steady at the part; fastener: one hand turning a tool, looks at it). Full job animations, work stands for flaps/tail (hands now capped at 1.95 m) and tools/jacks: later.
+- Not verified: everything in a run (places vs the real model and hall walls, walk round the gear, poses).
+
 ### Hangar clear path (owner 2026-11-27)
 Nothing stands in the aircraft's way when it is towed in or out of a hall. Before a tow the mechanics move every stand, jack, cart, ladder, tool chest and the hangar stair out of the swept path (wingtips, tail, nose plus a margin) to wall spots, and people step clear. The doors open and the tug moves only once the path is checked clear; otherwise the tow waits and says why. After parking, chocks and doors closed, the equipment is moved into place at the fault, and all moved away again before the tow out. The player uses the same rule.
 

@@ -1,6 +1,6 @@
 // Maintenance in the simulation (to-do 181; owner, 2026-11-20 night), on real airline practice:
 //  - checks by flight hours, cycles and calendar, whichever comes first (A320 family maintenance planning, simplified):
-//    A-check every 750 FH / 750 FC / 120 days (about 10 h, overnight, 2 mechanics), C-check every 24 months or 7,500 FH /
+//    A-check every 750 FH / 750 FC / 120 days (about 10 h, overnight, 4 mechanics, up to 8), C-check every 24 months or 7,500 FH /
 //    5,000 FC (14 days in a hangar, 8 mechanics), D-check (heavy) every 6 years (42 days in a hangar, 12 mechanics);
 //    other classes scaled (turboprops and bush planes shorter intervals, widebodies longer checks);
 //  - a licensed mechanic at every base where the aircraft is maintained; fewer mechanics than the check needs: it takes
@@ -38,15 +38,29 @@ namespace ADPMaint
 	/** What a check is for (to-do 311): the faults an aircraft comes in with and the routine checks, each with its length
 	 *  under Settings > Realism > Maintenance time - Fast (the default) and Real; Quick is 30 minutes for all. RealH 0: the
 	 *  check rule's own length (Rules). Parts: USD at a 100 M aircraft (scaled by the type's value as the rules are). */
-	struct FFault { const TCHAR* Key; const TCHAR* Name; double FastH, RealH, PartsUsd; };
+	struct FFault
+	{
+		const TCHAR* Key; const TCHAR* Name; double FastH, RealH, PartsUsd;
+		/** The real crew for the job (hangar step 4): CrewMin hands it cannot start without, CrewMax the most that still help
+		 *  (more hands up to there: shorter, the length times CrewMin / hands). A routine check takes its rule's Mechanics
+		 *  as its least and CrewMax / CrewMin times that as its most. */
+		int32 CrewMin, CrewMax;
+		/** Where on the aircraft the work is (Data/aircraft-workpoints.json's areas, comma-separated; a fault picks one side). */
+		const TCHAR* Areas;
+	};
 	const TArray<FFault>& Faults();
 	const FFault* Fault(const FString& Key);
+	/** The crew a check takes: Least it cannot start without, Most that still help (the table above, not branches). */
+	void CrewFor(const FString& FaultKey, int32 RuleMechanics, int32& Least, int32& Most);
+	/** The hands it gets from Free mechanics (0: not enough) and its length factor with them (Least / hands, 1 at Least). */
+	int32 HandsFor(const FString& FaultKey, int32 RuleMechanics, int32 Free, double& Factor);
 	/** Settings > Realism > Maintenance time: 0 Quick (30 min), 1 Fast (1.5-3 h by fault, the default), 2 Real. Kept in
 	 *  GameUserSettings (ADP.Realism MaintTime); read when a check begins, so a running check keeps its length. */
 	int32 MaintTime();
 	void SetMaintTime(int32 Mode);
-	/** A check's length in game hours for that mode: Real = RealH (crew and beginners already in it). */
-	double CheckHours(const FString& FaultKey, double RealH, int32 Mode);
+	/** A check's length in game hours for that mode: Real = RealH (crew and beginners already in it); Fast times Hands
+	 *  (HandsFor's factor: more hands, shorter); Quick 30 minutes whatever the crew. */
+	double CheckHours(const FString& FaultKey, double RealH, int32 Mode, double Hands = 1.0);
 	/** A fault found in flight (FaultDue): its kind for the flights module's failures (engine, tailstrike, hydraulic, minor). */
 	FString RollFault(const TCHAR* What, double Roll01);
 }

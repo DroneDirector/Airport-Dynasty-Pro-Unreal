@@ -72,6 +72,9 @@ public:
 	/** The vehicles' outlines (world, flat) for the crew's walking round them (ATugs::Around). */
 	struct FOutline { FVector C, X, Y; float Hx, Hy; };
 	void Outlines(TArray<FOutline>& Out) const;
+	/** For people on foot only: the vehicles' outlines and, in a hall with a check on, the aircraft's gear and engines
+	 *  (Data/aircraft-workpoints.json keepout, GSEMechWork.cpp) - the vehicles keep to Outlines. */
+	void WalkOutlines(TArray<FOutline>& Out) const;
 
 	// ---- the vehicles (GSECrew.cpp works their crew)
 	struct FLens { UInstancedStaticMeshComponent* K = nullptr; int32 Ix = 0; uint8 Kind = 0; int8 Side = 0; float Now = -1.f; };
@@ -807,7 +810,11 @@ private:
 	TArray<FHallStair> HallStairs;
 	TMap<int32, float> MaintHallX;   // (a rider's job: down in that hall, the hall stair's key)
 	// ---- a check's hired mechanics in the hall (GSEMechanics.cpp, to-do 311): by van to the hall, they stand by the aircraft, back by van
-	struct FMechCrew { FString Hall; TArray<int32> Men; uint8 Phase = 1; int32 There = 0, Out = 0, Home = 0; double OutAt = 0.0; };   // (Phase 1 going in, 2 by the aircraft, 3 walking out, 4 out of the hall)
+	struct FMechCrew { FString Hall; TArray<int32> Men; uint8 Phase = 1; int32 There = 0, Out = 0, Home = 0; double OutAt = 0.0; TArray<FOutline> Keep; };   // (Phase 1 going in, 2 by the aircraft, 3 walking out, 4 out of the hall; Keep: its aircraft's gear and engines)
+	// ---- where they work on it (GSEMechWork.cpp, hangar step 4): the fault's own place from Data/aircraft-workpoints.json
+	struct FMechSpot { FVector At = FVector::ZeroVector, Face = FVector(1, 0, 0); float Hands = 100.f; bool bHold = true; FString What; };
+	bool MechSpots(const FString& Reg, const FHallStair& H, int32 Want, TArray<FMechSpot>& Spots, TArray<FOutline>& Keep) const;
+	void MechWork(int32 Ci, const FString& Reg, const FMechSpot& S);
 	TMap<FString, FMechCrew> MechCrews;   // (by registration)
 	TMap<FString, double> MechTry;        // (by registration: when a team was last asked for - every 5 s)
 	TMap<FString, FString> MechWhy;       // (why it has none: logged once each)
