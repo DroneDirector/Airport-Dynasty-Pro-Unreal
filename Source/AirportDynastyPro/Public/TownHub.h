@@ -42,6 +42,13 @@ public:
 	int32 Book(const FString& Flight, double DepT, bool bBag, double Now, double& SpawnT);
 	/** The run's latest moment to appear and still make it (sim s). */
 	double LatestSpawn(int32 Run) const;
+	/** Not at the shelter before this (sim s): a run moved later with its delayed flight. */
+	double EarliestSpawn(int32 Run) const;
+	/** Step C: an arriving passenger of Flight (out of the terminal) booked onto the next town coach run from the terminal
+	 *  (it leaves 8-14 min after its first booking, sooner when full). INDEX_NONE: none. */
+	int32 BookArrival(const FString& Flight, bool bBag);
+	/** PaxFlow hands them over (St Coach, standing where they left the hall): they walk to the coach when it boards. */
+	void TakeArrival(AActor* Who, bool bBag, const FString& Flight, int32 Run);
 	/** A passenger PaxFlow just made at SpawnSpot for their booked run: they wait for its coach. */
 	void Take(AActor* Who, bool bBag, const FString& Flight, int32 Run, double DepT);
 	/** A booked one who will never come (PaxFlow could not make them in time): logged, the seat given back. */
@@ -51,10 +58,10 @@ public:
 	virtual void Tick(float Dt) override;
 
 private:
-	enum class EStage : uint8 { Idle, DriverComing, ToTown, HubOpen, HubBags, HubShut, HubBoard, ToTerminal, TermOpen, TermOff, TermShut, Broken };
+	enum class EStage : uint8 { Idle, DriverComing, ToTown, HubOpen, HubBags, HubShut, HubBoard, ToTerminal, TermOpen, TermOff, TermShut, Broken, ToHome };
 	/** One coach run of the timetable: leaves the hub at LeaveT (+ Late: its small real-life delay), reaches the terminal for
 	 *  its flight(s). */
-	struct FTrip { FString Flight; double DepT = 0.0, LeaveT = 0.0; float Late = 0.f, LimitMs = 13.9f; int32 People = 0, BagsN = 0, Coach = INDEX_NONE; bool bGone = false, bNoCoachSaid = false; };
+	struct FTrip { FString Flight; double DepT = 0.0, LeaveT = 0.0; float Late = 0.f, LimitMs = 13.9f; int32 People = 0, BagsN = 0, Coach = INDEX_NONE; bool bGone = false, bNoCoachSaid = false, bArr = false; double RateAt = 1.0; };   // (bArr: terminal to hub; RateAt: the sim speed its times were worked out with)
 	TArray<FTrip> Trips;
 	struct FHubCoach
 	{
@@ -65,6 +72,7 @@ private:
 		TArray<int32> BaysOpen;        // (the door-side luggage bays its driver opens)
 		TArray<int32> BagsIn;          // (bags in each of those)
 		int32 Fails = 0; bool bSlow = false;
+		bool bAtHub = false;           // (parked in hub bay Bay after an arrival run: waits there for a departure run, or drives back)
 	};
 	struct FWaiter
 	{
@@ -72,6 +80,7 @@ private:
 		uint8 Phase = 0;   // 0 at the shelter, 1 walking to the coach's stop, 2 bag going in, 3 boarding, 4 aboard, 5 getting off, 6 taking the bag, 7 handed back
 		int32 Bay = INDEX_NONE; bool bTaxi = false; int32 Trip = INDEX_NONE; double DepT = 0.0;
 		int32 Slot = INDEX_NONE; bool bIn = false;   // (its place by the coach's door; its bag in the bay)
+		bool bArr = false; int32 Kind = 1;            // (an arrival, terminal to hub; its bag's model)   (Phase 9: walking to the stop on the walking map)
 	};
 	TArray<FHubCoach> Fleet; TArray<FWaiter> Waiters;
 	bool bLoaded = false, bDataOk = false;
@@ -99,4 +108,8 @@ private:
 	int32 TaxiFor(FWaiter& W);
 	int32 NewTrip(const FString& Flight, double DepT, double At);
 	void Missed(FWaiter& W, const FString& Why);
+	/** Delayed flights and a changed sim speed: runs not yet boarded moved to fit (logged). */
+	void Retime();
+	/** An idle coach parked at the hub: waits there for a departure run due soon, else drives back to its stand. */
+	void HubIdle(FHubCoach& C);
 };

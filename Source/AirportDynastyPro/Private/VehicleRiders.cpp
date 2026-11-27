@@ -42,6 +42,7 @@ namespace VehRide
 	float VrSm(float K) { return FMath::SmoothStep(0.f, 1.f, FMath::Clamp(K, 0.f, 1.f)); }
 	const FQuat VrUpright(FVector::XAxisVector, -HALF_PI);   // (a bag lying on its back stood up, its end handle on top)
 	const FVector VrBagHandle(0.f, -22.f, 14.4f);            // (SM_Bag1's own: DepartureBelts.cpp GRIP)
+	const FVector VrBagHandles[4] = { FVector(0.f, -25.5f, 16.8f), FVector(0.f, -22.f, 14.4f), FVector(0.f, -28.f, 19.2f), FVector(0.f, 0.f, 36.f) };   // (SM_Bag0..3: DepartureBelts.cpp GRIP)
 	UBlendSpace* VrMoveBS()
 	{
 		static UBlendSpace* B = [] { UBlendSpace* S = LoadObject<UBlendSpace>(nullptr, TEXT("/Game/People/Anims/BS_Idle_Walk_Run_MH.BS_Idle_Walk_Run_MH")); if (S) S->AddToRoot(); return S; }();
@@ -634,10 +635,10 @@ void UVehicleRiders::TickDriver(float Dt)
 }
 
 // ------------------------------------------------------------------------------------------------ the passengers
-bool UVehicleRiders::WaitAtStop(AActor* Who, int32 Place, bool bBag)
+bool UVehicleRiders::WaitAtStop(AActor* Who, int32 Place, bool bBag, int32 BagKind)
 {
 	FRider* R = Join(Who); if (!R || R->bAboard || R->bDriver) return false;
-	if (bBag && R->BagState == 0) GiveBag(*R);
+	if (bBag && R->BagState == 0) GiveBag(*R, BagKind);
 	AddWalk(*R, [this, Place] { return Wo(Outside(TEXT("stop_wait"), -130.f - 75.f * Place, 0.f)); });
 	TSharedPtr<FVector4> At = MakeShared<FVector4>(0, 0, 0, 1e9);   // (where it stands and the way it faces as it starts to turn)
 	AddPose(*R, 0.9f, [this, R, At](float K, float PH)
@@ -860,13 +861,21 @@ FTransform UVehicleRiders::BagInBay(int32 Bay) const
 	return FTransform(FRotator(0.f, Sd > 0.f ? 180.f : 0.f, 0.f), P);
 }
 
-void UVehicleRiders::GiveBag(FRider& R)
+FVector UVehicleRiders::StopPoint(int32 Place, float Out) const
 {
-	UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Baggage/SM_Bag1.SM_Bag1"));
-	if (!M) { ADP_WARN(TEXT("Riders: no SM_Bag1")); return; }
+	return Wo(Outside(TEXT("stop_wait"), -130.f - 75.f * Place, Out));
+}
+
+void UVehicleRiders::GiveBag(FRider& R, int32 Kind)
+{
+	// The same bag the passenger has carried so far (kind 0..3), so nothing swaps in the hand
+	const int32 K = FMath::Clamp(Kind, 0, 3);
+	const FString Path = FString::Printf(TEXT("/Game/Baggage/SM_Bag%d.SM_Bag%d"), K, K);
+	UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *Path);
+	if (!M) { ADP_WARN(TEXT("Riders: no %s"), *Path); return; }
 	R.BagHold = NewObject<USceneComponent>(GetOwner()); R.BagHold->RegisterComponent(); R.BagHold->SetMobility(EComponentMobility::Movable);
 	R.Bag = NewObject<UStaticMeshComponent>(GetOwner()); R.Bag->SetStaticMesh(M); R.Bag->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	R.Bag->SetupAttachment(R.BagHold); R.Bag->SetRelativeLocation(-VrBagHandle); R.Bag->RegisterComponent();
+	R.Bag->SetupAttachment(R.BagHold); R.Bag->SetRelativeLocation(-VrBagHandles[K]); R.Bag->RegisterComponent();
 	Keep.Add(R.BagHold); Keep.Add(R.Bag);
 	BagToHand(R, R.A.Get());
 }

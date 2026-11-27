@@ -9,6 +9,7 @@
 #include "Unseen.h"
 #include "BabylonModel.h"
 #include "ADPLog.h"
+#include "Sim/ADPSim.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -159,7 +160,7 @@ bool ATownHub::SpawnSpot(FVector& At)
 
 int32 ATownHub::NewTrip(const FString& Flight, double DepT, double At)
 {
-	FTrip T; T.Flight = Flight; T.DepT = DepT; T.LeaveT = At;
+	FTrip T; T.Flight = Flight; T.DepT = DepT; T.LeaveT = At; T.RateAt = Rate;
 	T.Late = FMath::FRandRange(0.f, 90.f); T.LimitMs = FMath::FRandRange(11.5f, 13.9f);   // (its small real-life delay; the traffic)
 	const int32 i = Trips.Add(T);
 	ADP_LOG(TEXT("TownHub: coach run %d for %s - leaves the hub %.0f min before the flight (%.1f min late), reaches the terminal about %.0f min before"), i, *Flight, (DepT - At) / 60.0, T.Late / 60.f, (DepT - At - TownHubT::DriveS * Rate) / 60.0);
@@ -202,6 +203,41 @@ int32 ATownHub::Book(const FString& Flight, double DepT, bool bBag, double NowT,
 
 double ATownHub::LatestSpawn(int32 Run) const { return Trips.IsValidIndex(Run) && !Trips[Run].bGone ? Trips[Run].LeaveT - TownHubT::ReadyS * Rate : -1.0; }
 
+double ATownHub::EarliestSpawn(int32 Run) const { return Trips.IsValidIndex(Run) && !Trips[Run].bGone ? Trips[Run].LeaveT - 18.0 * 60.0 * Rate : 0.0; }
+
+int32 ATownHub::BookArrival(const FString& Flight, bool bBag)
+{
+	if (!bDataOk || NoWhy.Len()) return INDEX_NONE;
+	const double T0 = Now(); const int32 Cap = SeatCap();
+	int32 Got = INDEX_NONE;
+	for (int32 i = 0; i < Trips.Num() && Got == INDEX_NONE; ++i)
+	{
+		const FTrip& T = Trips[i];
+		if (!T.bArr || T.bGone || T.People >= Cap || (bBag && T.BagsN >= 12)) continue;
+		if (T.Coach != INDEX_NONE && Fleet.IsValidIndex(T.Coach) && Fleet[T.Coach].St > EStage::HubBags) continue;
+		Got = i;
+	}
+	if (Got == INDEX_NONE)
+	{
+		FTrip T; T.bArr = true; T.Flight = Flight; T.RateAt = Rate;
+		T.LeaveT = T0 + FMath::FRandRange(8.f, 14.f) * 60.0 * Rate;   // (from the terminal: a while after the first one comes out, sooner when full)
+		T.Late = FMath::FRandRange(0.f, 90.f); T.LimitMs = FMath::FRandRange(11.5f, 13.9f);
+		Got = Trips.Add(T);
+		ADP_LOG(TEXT("TownHub: arrival coach run %d (first for %s) - leaves the terminal for the hub in %.0f min"), Got, *Flight, (T.LeaveT - T0) / 60.0 / Rate);
+	}
+	FTrip& T = Trips[Got];
+	++T.People; if (bBag) ++T.BagsN;
+	return Got;
+}
+
+void ATownHub::TakeArrival(AActor* Who, bool bBag, const FString& Flight, int32 Run)
+{
+	FWaiter W; W.A = Who; W.bBag = bBag; W.Flight = Flight; W.Trip = Run; W.bArr = true;
+	if (const APaxFlow* PF = APaxFlow::Find(GetWorld())) W.Kind = PF->HubKindOf(Who);
+	if (Trips.IsValidIndex(Run)) W.Coach = Trips[Run].Coach;
+	Waiters.Add(W);
+}
+
 void ATownHub::Unbook(int32 Run, bool bBag, const FString& Why)
 {
 	if (!Trips.IsValidIndex(Run)) return;
@@ -213,6 +249,7 @@ void ATownHub::Unbook(int32 Run, bool bBag, const FString& Why)
 void ATownHub::Take(AActor* Who, bool bBag, const FString& Flight, int32 Run, double DepT)
 {
 	FWaiter W; W.A = Who; W.bBag = bBag; W.Flight = Flight; W.Trip = Run; W.DepT = DepT;
+	if (const APaxFlow* PF = APaxFlow::Find(GetWorld())) W.Kind = PF->HubKindOf(Who);
 	if (Trips.IsValidIndex(Run)) W.Coach = Trips[Run].Coach;
 	Waiters.Add(W);
 }
@@ -252,6 +289,14 @@ void ATownHub::Missed(FWaiter& W, const FString& Why)
 {
 	// (out of this coach's hands first: their pose and the bag in hand of this coach's riders - only when they stand still)
 	if (Fleet.IsValidIndex(W.Coach)) if (ACoaches* K = Co()) if (UVehicleRiders* R = K->Riders(Fleet[W.Coach].Ci)) R->Leave(W.A.Get());
+	if (W.bArr)   // (an arrival: the next run from the terminal - they stand where they are, on the walking map, till it boards)
+	{
+		if (Trips.IsValidIndex(W.Trip)) { Trips[W.Trip].People = FMath::Max(0, Trips[W.Trip].People - 1); if (W.bBag) Trips[W.Trip].BagsN = FMath::Max(0, Trips[W.Trip].BagsN - 1); }
+		ADP_WARN(TEXT("TownHub: an arrival of %s missed coach run %d - %s; on the next one"), *W.Flight, W.Trip, *Why);
+		W.Trip = BookArrival(W.Flight, W.bBag); W.Coach = Trips.IsValidIndex(W.Trip) ? Trips[W.Trip].Coach : INDEX_NONE; W.Phase = 0; W.Slot = INDEX_NONE; W.bIn = false;
+		if (AActor* A = W.A.Get()) if (APaxFlow* PF = APaxFlow::Find(GetWorld())) PF->HubWalk(A, A->GetActorLocation());
+		return;
+	}
 	Rebook(W, Why);
 }
 
@@ -291,11 +336,17 @@ void ATownHub::Dispatch()
 	using namespace TownHubT;
 	const double T0 = Now();
 	ACoaches* K = Co(); if (!K) return;
+	Retime();
 	for (int32 t = 0; t < Trips.Num(); ++t)
 	{
 		FTrip& T = Trips[t];
 		if (T.bGone || T.Coach != INDEX_NONE) continue;
 		if (T.People <= 0 && T0 > T.LeaveT) { T.bGone = true; continue; }   // (everyone unbooked)
+		if (T.bArr && T0 > T.LeaveT + T.Late + 120.0 * Rate)   // (arrivals are at the terminal already: their run waits on for a coach)
+		{
+			T.LeaveT = T0 + 5.0 * 60.0 * Rate;
+			if (!T.bNoCoachSaid) { T.bNoCoachSaid = true; ADP_WARN(TEXT("TownHub: arrival coach run %d for %s waits for a free coach at the terminal"), t, *T.Flight); }
+		}
 		if (T0 > T.LeaveT + T.Late + 120.0 * Rate)   // (no coach came at all)
 		{
 			T.bGone = true;
@@ -305,16 +356,22 @@ void ATownHub::Dispatch()
 		}
 		if (T0 < T.LeaveT - SendS * Rate || T.People <= 0) continue;
 		int32 Pick = INDEX_NONE;
-		for (int32 c = 0; c < Fleet.Num() && Pick == INDEX_NONE; ++c)
-			if (Fleet[c].Trip == INDEX_NONE && Fleet[c].St == EStage::Idle && !K->OnRoute(Fleet[c].Ci) && K->Riders(Fleet[c].Ci)) Pick = c;
+		// (a departure run takes a coach already parked at the hub first; an arrival run needs one at the terminal)
+		for (int32 Pass = T.bArr ? 1 : 0; Pass < 2 && Pick == INDEX_NONE; ++Pass)
+			for (int32 c = 0; c < Fleet.Num() && Pick == INDEX_NONE; ++c)
+				if (Fleet[c].Trip == INDEX_NONE && Fleet[c].St == EStage::Idle && Fleet[c].bAtHub == (Pass == 0) && !K->OnRoute(Fleet[c].Ci) && K->Riders(Fleet[c].Ci)) Pick = c;
 		if (Pick == INDEX_NONE) { if (!T.bNoCoachSaid) { T.bNoCoachSaid = true; ADP_WARN(TEXT("TownHub: coach run %d for %s waits for a free coach"), t, *T.Flight); } continue; }
 		FHubCoach& C = Fleet[Pick];
-		TSet<int32> Used; for (const FHubCoach& O : Fleet) if (O.Trip != INDEX_NONE) Used.Add(O.Bay);
-		C.Bay = INDEX_NONE; for (const int32 b : BayOrder) if (!Used.Contains(b)) { C.Bay = b; break; }
-		if (C.Bay == INDEX_NONE) continue;
+		if (!C.bAtHub)   // (parked at the hub: it keeps its bay)
+		{
+			TSet<int32> Used; for (const FHubCoach& O : Fleet) if (O.Trip != INDEX_NONE || O.bAtHub) Used.Add(O.Bay);
+			C.Bay = INDEX_NONE; for (const int32 b : BayOrder) if (!Used.Contains(b)) { C.Bay = b; break; }
+			if (C.Bay == INDEX_NONE) continue;
+		}
 		C.Trip = t; C.T = 0.f; C.Fails = 0; C.bSlow = false; C.BaysOpen.Reset(); C.BagsIn.Reset(); T.Coach = Pick;
 		for (FWaiter& W : Waiters) if (W.Trip == t) W.Coach = Pick;
-		Say(C, FString::Printf(TEXT("goes to hub bay %d for %s (%d booked, leaves the hub in %.0f min)"), C.Bay, *T.Flight, T.People, (T.LeaveT - T0) / 60.0 / Rate));
+		if (T.bArr) Say(C, FString::Printf(TEXT("takes arrival run %d for %s at the terminal (%d booked, to hub bay %d in %.0f min)"), t, *T.Flight, T.People, C.Bay, (T.LeaveT - T0) / 60.0 / Rate));
+		else Say(C, FString::Printf(TEXT("%s hub bay %d for %s (%d booked, leaves the hub in %.0f min)"), C.bAtHub ? TEXT("waits on in") : TEXT("goes to"), C.Bay, *T.Flight, T.People, (T.LeaveT - T0) / 60.0 / Rate));
 	}
 }
 
@@ -334,6 +391,13 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 	case EStage::Idle:
 		if (!DriverFor(C)) break;
 		D = C.Driver.Get();
+		if (T.bArr || C.bAtHub)   // (boarding where it stands: an arrival run at the terminal, or a departure run at the hub)
+		{
+			if (!D || R->IsBusy(D)) break;
+			if (!R->DriverAtWheel()) { R->DriverGetIn(); break; }   // (the driver to the coach the usual way, then out at its door)
+			if (R->DriverGetOut()) { Go(EStage::HubOpen); Say(C, T.bArr ? TEXT("at the terminal, the driver gets out for the arrivals") : TEXT("waits at the hub, the driver gets out")); }
+			break;
+		}
 		if (R->DriverAtWheel()) { Go(EStage::DriverComing); break; }
 		if (D && !R->IsBusy(D) && R->DriverGetIn()) Go(EStage::DriverComing);
 		break;
@@ -365,8 +429,9 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 	{
 		// one after the other to the door: up to six at once at their place, the bag in, on board
 		int32 Busy = 0; TSet<int32> Taken;
-		for (const FWaiter& W : Waiters) if (W.Trip == C.Trip && W.Phase >= 1 && W.Phase <= 2) { ++Busy; Taken.Add(W.Slot); }
+		for (const FWaiter& W : Waiters) if (W.Trip == C.Trip && ((W.Phase >= 1 && W.Phase <= 2) || W.Phase == 9)) { ++Busy; Taken.Add(W.Slot); }
 		int32 Spawned = 0, Up = 0;
+		APaxFlow* PF = APaxFlow::Find(GetWorld());
 		for (FWaiter& W : Waiters)
 		{
 			if (W.Trip != C.Trip || W.Phase >= 7) continue;
@@ -378,9 +443,16 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 				if (Busy >= Slots) break;
 				{
 					int32 S = 0; while (Taken.Contains(S)) ++S;
-					if (!R->WaitAtStop(A, S, W.bBag)) break;
-					W.Slot = S; Taken.Add(S); ++Busy; W.Phase = 1;
+					// (to their place by the door on the walking map - round things and people, never straight through)
+					if (!PF || !PF->HubWalk(A, R->StopPoint(S))) break;
+					W.Slot = S; Taken.Add(S); ++Busy; W.Phase = 9;
 				}
+				break;
+			case 9:
+				if (!PF || !PF->HubAt(A)) break;
+				PF->HubRelease(A);   // (the riders have them now: the same bag model in the same hand)
+				if (!R->WaitAtStop(A, W.Slot, W.bBag, W.Kind)) { Missed(W, TEXT("the coach could not take them at its door")); break; }
+				W.Phase = 1;
 				break;
 			case 1:
 				if (R->IsBusy(A)) break;
@@ -404,7 +476,7 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 			if (W.Phase >= 4 && W.Phase < 7) ++Up;
 		}
 		// the bays shut once all booked are on, or as the run's time comes (the rest miss it)
-		const bool bAll = Spawned > 0 && Up == Spawned && Spawned >= T.People;
+		const bool bAll = Spawned > 0 && Up == Spawned && Spawned >= T.People && (!T.bArr || T.People >= SeatCap());   // (an arrival run: on its time unless full)
 		if (!bAll && T0 < T.LeaveT + T.Late - ShutS * Rate) break;
 		if (D && R->IsBusy(D)) break;
 		bool bOnSteps = false;
@@ -412,7 +484,7 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 		{
 			if (W.Trip != C.Trip || W.Phase >= 7) continue;
 			if (W.Phase == 3) { bOnSteps = true; continue; }   // (those getting on still: on)
-			if (W.Phase == 0) { Missed(W, TEXT("still at the shelter when the coach's bays shut")); continue; }
+			if (W.Phase == 0 || W.Phase == 9) { Missed(W, W.Phase == 0 ? TEXT("still waiting when the coach's bays shut") : TEXT("still walking to the coach as it closed")); continue; }
 			if (W.Phase <= 2) { if (W.A.IsValid() && R->IsBusy(W.A.Get())) { bOnSteps = true; continue; } Missed(W, W.Phase == 1 ? TEXT("still walking to the coach as it closed") : TEXT("their bag was in but they never got on")); }
 		}
 		if (bOnSteps) break;
@@ -428,18 +500,19 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 	{
 		if (!R->DriverAtWheel()) break;
 		int32 On = 0; for (const FWaiter& W : Waiters) if (W.Trip == C.Trip && W.Phase == 4) ++On;
-		if (T0 < T.LeaveT + T.Late && On < T.People) break;
-		if (K->SendOnRoute(C.Ci, false, INDEX_NONE, T.LimitMs))
+		if (T0 < T.LeaveT + T.Late && On < (T.bArr ? SeatCap() : T.People)) break;
+		if (K->SendOnRoute(C.Ci, T.bArr, T.bArr ? C.Bay : INDEX_NONE, T.LimitMs))   // (arrivals: forward out of the stand, the one-way loop to its hub bay)
 		{
-			Go(EStage::ToTerminal);
-			Say(C, FString::Printf(TEXT("leaves the hub for the terminal with %d aboard (%.1f min after its time)"), On, (T0 - T.LeaveT) / 60.0 / Rate));
+			Go(EStage::ToTerminal); C.bAtHub = false;
+			Say(C, FString::Printf(TEXT("leaves %s with %d aboard (%.1f min after its time)"), T.bArr ? TEXT("the terminal for the town hub") : TEXT("the hub for the terminal"), On, (T0 - T.LeaveT) / 60.0 / Rate));
 		}
 		else C.T = -9.f;
 		break;
 	}
 	case EStage::ToTerminal:
 		if (K->OnRoute(C.Ci) || R->IsDriving()) break;
-		Say(C, FString::Printf(TEXT("at the terminal %.0f min before %s (buffer %.0f)"), (T.DepT - T0) / 60.0, *T.Flight, BufferMin()), (T.DepT - T0) < HardS);
+		if (T.bArr) Say(C, FString::Printf(TEXT("at the town hub with the arrivals of %s"), *T.Flight));
+		else Say(C, FString::Printf(TEXT("at the terminal %.0f min before %s (buffer %.0f)"), (T.DepT - T0) / 60.0, *T.Flight, BufferMin()), (T.DepT - T0) < HardS);
 		if (!R->DriverGetOut()) break;
 		for (FWaiter& W : Waiters) if (W.Trip == C.Trip && W.Phase == 4 && W.A.IsValid()) { R->Alight(W.A.Get()); W.Phase = 5; }
 		Go(EStage::TermOpen);
@@ -460,8 +533,14 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 			bLeft = true;
 			if (R->IsAboard(A) || R->IsBusy(A)) continue;
 			if (W.Phase == 5 && W.bIn) { if (K->BayKOf(C.Ci, W.Bay) >= 0.99f && R->TakeBag(A)) W.Phase = 6; continue; }
-			// (handed back: their own bag in hand becomes the check-in bag, on as before)
 			R->Leave(A); W.Phase = 7;
+			if (T.bArr)   // (at the hub: their bag (the same model) in hand, out of the hub on the walking map, gone where nobody sees)
+			{
+				FVector Out; if (!SpawnSpot(Out)) { Out = ShelterB + (ShelterB - ShelterA).GetSafeNormal2D() * 1500.f; Out.Z = GroundAt(Out); }
+				if (PF) PF->HubExit(A, Out, W.bBag && W.bIn, W.Kind); else ADP_WARN(TEXT("TownHub: %s off the coach at the hub, but no PaxFlow"), *A->GetName());
+				continue;
+			}
+			// (handed back: their own bag in hand becomes the check-in bag, on as before)
 			if (!PF || !PF->FromCoach(A)) ADP_WARN(TEXT("TownHub: %s off the coach, but PaxFlow does not know them"), *A->GetName());
 		}
 		if (bLeft || (D && R->IsBusy(D))) break;
@@ -472,26 +551,67 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 	case EStage::TermShut:
 		if (D && R->IsBusy(D)) break;
 		if (!R->DriverAtWheel()) { if (C.T > 0.5f && R->DriverGetIn()) C.T = -1e6f; break; }
-		Say(C, TEXT("back at its stand, free"));
+		Say(C, T.bArr ? TEXT("empty at the hub - waits there for a departure run or drives back") : TEXT("back at its stand, free"));
+		C.bAtHub = T.bArr; if (!T.bArr) C.Bay = INDEX_NONE;
 		T.bGone = true; C.Trip = INDEX_NONE; Go(EStage::Idle);
 		break;
 	default: break;
 	}
 }
 
+void ATownHub::Retime()
+{
+	using namespace TownHubT;
+	const double T0 = Now();
+	const APaxFlow* PF = APaxFlow::Find(GetWorld());
+	for (int32 t = 0; t < Trips.Num(); ++t)
+	{
+		FTrip& T = Trips[t];
+		if (T.bGone || T.bArr) continue;
+		if (T.Coach != INDEX_NONE && Fleet.IsValidIndex(T.Coach) && Fleet[T.Coach].St > EStage::HubBags) continue;   // (on the way: fine as it is)
+		double Dep = T.DepT;
+		const bool bDep = PF && PF->DepOf(T.Flight, Dep) && FMath::Abs(Dep - T.DepT) > 60.0;
+		const bool bRate = FMath::Abs(Rate - T.RateAt) > 0.25;
+		if (!bDep) Dep = T.DepT;
+		if (!bDep && !bRate) continue;
+		const double Old = T.LeaveT;
+		if (bDep) T.LeaveT += Dep - T.DepT;                                     // (a delayed flight: its run moves with it)
+		if (bRate) T.LeaveT -= (DriveS + MarginS) * (Rate - T.RateAt);         // (the drive is real time: longer in sim time when faster)
+		T.LeaveT = FMath::Max(T.LeaveT, T0 + 2.0 * 60.0 * Rate);
+		ADP_LOG(TEXT("TownHub: coach run %d for %s re-timed (flight moved %+.0f min, sim speed %.1fx) - leaves the hub %+.0f min from before, in %.0f min"), t, *T.Flight, (Dep - T.DepT) / 60.0, Rate, (T.LeaveT - Old) / 60.0, (T.LeaveT - T0) / 60.0 / Rate);
+		T.DepT = Dep; T.RateAt = Rate;
+		for (FWaiter& W : Waiters) if (W.Trip == t) W.DepT = Dep;
+	}
+}
+
+void ATownHub::HubIdle(FHubCoach& C)
+{
+	ACoaches* K = Co(); UVehicleRiders* R = K ? K->Riders(C.Ci) : nullptr; if (!R) return;
+	if (C.St == EStage::ToHome)
+	{
+		if (K->OnRoute(C.Ci) || R->IsDriving()) return;
+		C.bAtHub = false; C.Bay = INDEX_NONE; C.St = EStage::Idle; C.T = 0.f; Say(C, TEXT("back at its stand from the hub, free"));
+		return;
+	}
+	if (C.St != EStage::Idle) return;
+	const double T0 = Now();
+	for (const FTrip& T : Trips) if (!T.bArr && !T.bGone && T.Coach == INDEX_NONE && T.People > 0 && T.LeaveT < T0 + 25.0 * 60.0 * Rate) return;   // (a departure run due soon: it waits here for it)
+	if (!R->DriverAtWheel()) return;
+	if (K->SendOnRoute(C.Ci, false, INDEX_NONE, FMath::FRandRange(11.5f, 13.9f))) { C.St = EStage::ToHome; C.T = 0.f; Say(C, TEXT("no departure run due soon - drives back to the terminal empty")); }
+}
+
 void ATownHub::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	if (!bDataOk || NoWhy.Len()) return;
-	// (sim seconds a real second, smoothed: the drive takes real time)
-	const double S = Now(), Rl = GetWorld()->GetTimeSeconds();
-	if (LastSim >= 0.0 && Rl > LastReal + 2.0) { Rate = FMath::Clamp(FMath::Lerp(Rate, (S - LastSim) / (Rl - LastReal), 0.3), 1.0, 20.0); LastSim = S; LastReal = Rl; }
-	else if (LastSim < 0.0) { LastSim = S; LastReal = Rl; }
+	// (sim seconds a real second: the drive takes real time. Straight from the sim's speed, not measured over frames - at
+	//  5x or 10x no run is late from frame time; the runs not yet left are re-timed to it in Retime)
+	if (const UADPSim* Sm = UADPSim::Get(this)) Rate = FMath::Clamp(Sm->Speed(), 1.0, 20.0);
 	Think -= Dt;
 	if (Think > 0.f) return;
 	const float Step4 = 0.25f - Think; Think = 0.25f;
 	Fleetup(); Dispatch();
-	for (FHubCoach& C : Fleet) Step(C, Step4);
+	for (FHubCoach& C : Fleet) { if (C.Trip == INDEX_NONE && C.bAtHub) HubIdle(C); else Step(C, Step4); }
 	// those who missed every run: home, gone where nobody sees
 	APaxFlow* PF = APaxFlow::Find(GetWorld());
 	for (FWaiter& W : Waiters)

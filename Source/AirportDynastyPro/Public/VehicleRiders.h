@@ -98,7 +98,9 @@ public:
 	bool DriverAtWheel() const { return bAtWheel; }
 	// ---- passengers
 	/** Waits at the stop (with a bag in the right hand when bBag). */
-	bool WaitAtStop(AActor* Who, int32 Place, bool bBag);
+	bool WaitAtStop(AActor* Who, int32 Place, bool bBag, int32 BagKind = 1);
+	/** World point of stop place Place (0 nearest the door), Out cm further from the coach side. */
+	FVector StopPoint(int32 Place, float Out = 0.f) const;
 	/** Puts the bag in the hand down on the ground beside a bay (for someone else to load). */
 	bool PutBagDown(AActor* Who, int32 Bay);
 	/** Loader (the owner of the bag itself, the driver or a handler) puts Owner's bag into a bay. */
@@ -212,7 +214,7 @@ private:
 	void LookAround(float Since);
 	float Clear(float Need);
 	FVector OnPath(float S, FVector* Dir = nullptr) const;
-	void GiveBag(FRider& R);
+	void GiveBag(FRider& R, int32 Kind = 1);
 	void BagToHand(FRider& R, AActor* Who);
 	void TickBag(FRider& R);
 };

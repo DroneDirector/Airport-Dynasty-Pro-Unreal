@@ -438,9 +438,9 @@ FTransform ADepartureBelts::PlaceOnSeg(const FBag& B) const
 	return FTransform(Q, At);
 }
 
-int32 ADepartureBelts::NewBag(const FDepBagTag& InTag)
+int32 ADepartureBelts::NewBag(const FDepBagTag& InTag, int32 Kind)
 {
-	FBag B; B.Id = NextId++; B.Kind = FMath::RandRange(0, BagMeshes.Num() - 1);
+	FBag B; B.Id = NextId++; B.Kind = BagMeshes.IsValidIndex(Kind) ? Kind : FMath::RandRange(0, BagMeshes.Num() - 1);
 	B.State = EState::Waiting;   // (not Gone: Find() skips Gone bags, so CheckIn / PassengerDrop found nothing and crashed - the caller sets the real state)
 	B.Yaw = FMath::FRandRange(-8.f, 8.f); B.Side = FMath::FRandRange(-0.06f, 0.06f);
 	B.Tag = InTag; if (B.Tag.Kg <= 0.f) B.Tag.Kg = FMath::RoundToFloat(FMath::FRandRange(GRIP[B.Kind].Kg0, GRIP[B.Kind].Kg1) * 10.f) / 10.f;
@@ -481,11 +481,11 @@ int32 ADepartureBelts::CheckIn(const FString& Pax, const FString& Flight, int32 
 	return Id;
 }
 
-int32 ADepartureBelts::PassengerDrop(AActor* Passenger, int32 Desk, const FString& Pax, const FString& Flight, USceneComponent* Hand, FName Socket, bool bAutoSetDown)
+int32 ADepartureBelts::PassengerDrop(AActor* Passenger, int32 Desk, const FString& Pax, const FString& Flight, USceneComponent* Hand, FName Socket, bool bAutoSetDown, int32 Kind)
 {
 	if (!Desks.IsValidIndex(Desk - 1)) return INDEX_NONE;
 	FDepBagTag T; T.Pax = Pax; T.Flight = Flight; T.Desk = Desk;
-	const int32 Id = NewBag(T);
+	const int32 Id = NewBag(T, Kind);
 	FBag* B = Find(Id); B->State = EState::Held;
 	if (Hand) { B->Holder = Hand; B->Socket = Socket; B->Offset = FTransform(-GRIP[B->Kind].Handle); }
 	else if (Passenger && Passenger->GetRootComponent()) { B->Holder = Passenger->GetRootComponent(); B->Offset = FTransform(FRotator(0, 90.f, 0), FVector(22.f, 30.f, -62.f)); }

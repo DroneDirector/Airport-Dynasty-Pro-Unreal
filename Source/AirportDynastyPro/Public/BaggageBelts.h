@@ -56,6 +56,8 @@ public:
 	bool TakePaxBag(const FString& Pax, USceneComponent* Holder, FVector* OutHandle = nullptr);
 	/** The bag is gone with its passenger (out to the car park). */
 	void DropPaxBag(const FString& Pax);
+	/** Model kind (0..3) of Pax's bag, -1 if none. */
+	int32 PaxBagKind(const FString& Pax) const;
 
 private:
 	enum class EStage : uint8 { Trunk, Stub, Hidden, Rise, Belt, Gone, Held };

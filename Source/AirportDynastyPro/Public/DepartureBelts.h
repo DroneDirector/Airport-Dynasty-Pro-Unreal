@@ -58,7 +58,7 @@ public:
 	/** A passenger at a desk lifts their bag: it is in their hand (Hand + Socket, or held at their side when none) until
 	 *  SetDownOnDesk - or, with bAutoSetDown, set down by itself a moment later (lowered from the hand onto the belt's
 	 *  slot; the hands can follow its grips). Then the belt pins it and carries it on. Returns the bag's id. */
-	int32 PassengerDrop(AActor* Passenger, int32 Desk, const FString& Pax, const FString& Flight, USceneComponent* Hand = nullptr, FName Socket = NAME_None, bool bAutoSetDown = true);
+	int32 PassengerDrop(AActor* Passenger, int32 Desk, const FString& Pax, const FString& Flight, USceneComponent* Hand = nullptr, FName Socket = NAME_None, bool bAutoSetDown = true, int32 Kind = -1);
 	/** The held bag is lowered onto its desk's weigh belt (waits in the hand while the belt is busy). */
 	bool SetDownOnDesk(int32 Id, int32 Desk = 0);
 	/** Where a passenger stands to put a bag on a desk's belt, the belt's slot and the way the passenger faces (plan north). */
@@ -176,7 +176,7 @@ private:
 	bool Free(int32 Seg, float S, float Gap, int32 Except, bool bBothSides) const;
 	FTransform PlaceOnSeg(const FBag& B) const;
 	FTransform PlateAt(const FCarousel& K, float S) const;
-	int32 NewBag(const FDepBagTag& Tag);
+	int32 NewBag(const FDepBagTag& Tag, int32 Kind = -1);   // (Kind -1: a random model)
 	void HideBag(FBag& B);
 	void Enter(FBag& B, int32 Seg, float S);
 	int32 AssignCarousel(const FString& Flight);

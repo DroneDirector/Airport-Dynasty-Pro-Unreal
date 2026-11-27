@@ -1108,3 +1108,14 @@ Nothing stands in the aircraft's way when it is towed in or out of a hall. Befor
 - At the terminal: off, own bag from the bay, then PaxFlow::FromCoach (check-in bag, desks, security, gates as before).
 - Fallback: adp.TownHub 0, test runs, no hub data, no coach or no loop: the old airport spawn, logged once. Taxis: ATownHub::TaxiFor hook only.
 - Arrivals back to town: step C.
+
+## Town coach hub, arrivals + step B fixes (to-do 373 step C, 2026-11-27, compiled, NOT run)
+- Arrivals: at their way out (EDo::OutCarPark) PaxFlow::OutToCoach books them with ATownHub::BookArrival. A run leaves the terminal 8-14 min after its first booking (sooner when full), plus 0-90 s late.
+- A coach at its terminal stand takes the run. The driver gets in, then out at the door, and opens the bays. Passengers board as at the hub. SendOnRoute(true, bay) drives the one-way loop forward; it reverses only when boxed in.
+- At the hub: off, bag from the bay, PaxFlow::HubExit walks them to an unseen shelter spot (SpawnSpot) and removes them once nobody sees it.
+- Coach reuse: a coach stays parked in its hub bay (bAtHub) while a departure run is due within 25 min. Dispatch picks it first and it boards right there. Otherwise HubIdle sends it back empty (ToHome). No new coaches are spawned.
+- Fix 1: every walk to the coach door and out of the hub is a PaxFlow walk (HubWalk: walking-map path, Held, Idle). The riders take over only at the stop place (waiter phase 9).
+- Fix 2: one bag model kind (0..3) all the way: hub mesh, riders GiveBag(kind), PassengerDrop(kind); arrivals keep their belt bag's kind (PaxBagKind).
+- Fix 3: Retime moves runs that have not boarded yet with the flight's DepT (PaxFlow::DepOf). EarliestSpawn keeps passengers of a run that moved later from appearing early.
+- Fix 4: Rate comes from UADPSim::Speed() (no frame-time measuring). Runs that have not left are re-timed when the speed changes (the drive is real time).
+- Not verified: navmesh at the hub and coach stand (off the mesh, Follow walks straight and logs it), behaviour at 5x/10x, coach reuse.

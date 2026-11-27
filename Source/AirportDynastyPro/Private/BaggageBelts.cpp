@@ -482,6 +482,12 @@ bool ABaggageBelts::TakePaxBag(const FString& Pax, USceneComponent* Holder, FVec
 	return false;
 }
 
+int32 ABaggageBelts::PaxBagKind(const FString& Pax) const
+{
+	for (const FBag& B : Bags) if (B.Stage != EStage::Gone && B.Pax == Pax) return B.Kind;
+	return INDEX_NONE;
+}
+
 void ABaggageBelts::DropPaxBag(const FString& Pax)
 {
 	for (FBag& B : Bags)

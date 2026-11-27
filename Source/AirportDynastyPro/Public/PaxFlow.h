@@ -43,6 +43,19 @@ public:
 	bool FromCoach(AActor* A);
 	/** The town hub: a passenger who missed every coach in time - gone home (unseen, their body taken away). */
 	void HubGone(AActor* A, const TCHAR* Why);
+	/** To-do 373: one of the town hub's people walks to To on the walking map (navmesh paths, held/stuck logic - never a
+	 *  straight line through things); HubAt says when they stand there. False: not one of them. */
+	bool HubWalk(AActor* A, const FVector& To);
+	bool HubAt(AActor* A) const;
+	/** The coach's riders take them over now: PaxFlow lets go (its bag in hand handed over - the riders give the same model). */
+	void HubRelease(AActor* A);
+	/** The model kind (0..3) of the bag they carry to / from the coach. */
+	int32 HubKindOf(AActor* A) const;
+	/** An arriving one off the town coach at the hub: their bag (Kind, the same model) in hand, they walk to Out on the
+	 *  walking map and are gone there once nobody sees it. */
+	void HubExit(AActor* A, const FVector& Out, bool bBag, int32 Kind);
+	/** The flight's (run label's) departure time now, delays included (sim s). */
+	bool DepOf(const FString& Label, double& DepT) const;
 	double SimNow() const { return SimT; }
 	/** True when this flight's departing passengers walk here: the boarding call is made by the passenger flow (at the
 	 *  turnaround's board task), not by the announcer's 40-minute rule - never called twice. */
@@ -115,6 +128,8 @@ private:
 		int32 Hide = INDEX_NONE, HideTries = 0; float HideIn = 0.f;   // (leaving, to-do 294: the unseen place they walk to - ADPUnseen; how many were seen when they got there)
 		bool bHome = false;          // (on the way home: too late, or their flight is off)
 		bool bHubBag = false;        // (came by the town coach with a suitcase: it becomes their check-in bag at FromCoach)
+		bool bHubWalk = false, bHubAt = false, bHubOut = false;   // (walking for the town hub / standing at its point / arrived, walking out of view)
+		int32 HubKind = 1; USceneComponent* HubBagC = nullptr;   // (the bag's model kind; its mesh in hand while PaxFlow walks them for the hub)
 		float FadeT = -1.f; int32 FadeFrom = INDEX_NONE; bool bFadeSwap = false; TWeakObjectPtr<class UMaterialInstanceDynamic> FadeMid;   // (boarding: faded away halfway along the jetway)
 	};
 	/** The inside of a docked jetway as it stands now, cut every 40 cm from the aircraft's door to the gate: its middle on the floor,
@@ -225,6 +240,9 @@ private:
 	void Arrive(int32 i);
 	void Finish(int32 i, const TCHAR* Why, bool bKeepBody = false);   // (bKeepBody: handed over alive - the taxi bus, AGSE::TaxiBoard)
 	void CarryBag(FPx& P, AActor* A);
+	void HubBag(FPx& P, bool bOn);
+	bool OutToCoach(int32 i);
+	void StepHub(int32 i, float Dt);
 	void StartFade(FPx& P, AActor* A);
 	// the revolving doors (ATerminalDoors): waiting for an empty compartment, the ride round, out at the far side
 	class ATerminalDoors* Doors() const;

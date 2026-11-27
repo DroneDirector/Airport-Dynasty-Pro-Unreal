@@ -748,6 +748,7 @@ void APaxFlow::StepAppear(int32 Ri, double Now)
 	{
 		ATownHub* Hub = ATownHub::Get(GetWorld());
 		const int32 Tr = R.HubRun[R.Spawned]; const bool bB = R.HubBag[R.Spawned] != 0;
+		if (Hub && Now < Hub->EarliestSpawn(Tr)) return;   // (its run moved later with a delayed flight: not at the shelter for ages)
 		if (Hub && Now <= Hub->LatestSpawn(Tr))
 		{
 			if (SpawnGap > 0.f || !FaceReady()) return;
@@ -798,6 +799,7 @@ int32 APaxFlow::SpawnHub(int32 Ri, const FVector& At, int32 Trip, bool bBag)
 	AActor* A = Hub ? Body(At, -90.f, P) : nullptr;
 	if (!A) { P.St = EPx::Gone; FreePx.Add(i); if (Hub) Hub->Unbook(Trip, bBag, TEXT("no body could be made at the shelter")); return INDEX_NONE; }
 	P.St = EPx::Coach; P.bHubBag = bBag; P.Stage = TEXT("at the town hub, waiting for the coach");
+	P.bHubAt = true; P.HubKind = Rng.RandRange(0, 3); if (bBag) HubBag(P, true);
 	Hub->Take(A, bBag, R.Label, Trip, R.DepT);
 	if (R.Spawned <= 3) ADP_LOG(TEXT("PaxFlow: %s (%s) appears at the town hub for %s, coach run %d%s"), *P.Id, *P.Name, *R.Label, Trip, bBag ? TEXT(", a suitcase") : TEXT(""));
 	return i;
@@ -814,10 +816,11 @@ bool APaxFlow::FromCoach(AActor* A)
 		int32 Best = R.Desks[0], Bn = MAX_int32;
 		for (const int32 D : R.Desks) { int32 N = 0; for (const FPx& O : Pax) if (O.St != EPx::Gone && O.Desk == D) ++N; if (N < Bn) { Bn = N; Best = D; } }
 		P.Desk = Best;
-		P.Bag = Dep->PassengerDrop(A, P.Desk, P.Id, R.Label, P.Holder, NAME_None, false);
+		P.Bag = Dep->PassengerDrop(A, P.Desk, P.Id, R.Label, P.Holder, NAME_None, false, P.HubKind);   // (the same model they carried)
 		if (P.Bag != INDEX_NONE) { P.bHasBag = true; const FDepBagGrips G = Dep->Grips(P.Bag); P.Handle = Dep->BagTransform(P.Bag).InverseTransformPosition(G.Handle); }
 	}
 	if (P.bHasBag) ++R.NBags;
+	HubBag(P, false); P.bHubWalk = P.bHubAt = false;
 	P.St = EPx::Walk; P.Stage = TEXT("off the town coach to the entrance");
 	WayToHall(P, PlanOf(A->GetActorLocation()).Z > -21.f);
 	P.Do = P.bHasBag ? EDo::JoinDesk : EDo::JoinLane;
@@ -831,6 +834,112 @@ void APaxFlow::HubGone(AActor* A, const TCHAR* Why)
 	const int32 i = Pax.IndexOfByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
 	if (i == INDEX_NONE) return;
 	++Runs[Pax[i].Run].Home; Finish(i, Why);
+}
+
+// ---- to-do 373: walks for the town hub, on the walking map
+namespace PxHubT { const FVector Handles[4] = { FVector(0.f, -25.5f, 16.8f), FVector(0.f, -22.f, 14.4f), FVector(0.f, -28.f, 19.2f), FVector(0.f, 0.f, 36.f) }; }
+
+void APaxFlow::HubBag(FPx& P, bool bOn)
+{
+	if (!bOn)
+	{
+		if (P.HubBagC) { Holders.Remove(P.HubBagC); P.HubBagC->DestroyComponent(); P.HubBagC = nullptr; }
+		return;
+	}
+	if (P.HubBagC || !P.Holder) return;
+	const int32 K = FMath::Clamp(P.HubKind, 0, 3);
+	UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *FString::Printf(TEXT("/Game/Baggage/SM_Bag%d.SM_Bag%d"), K, K));
+	if (!M) { ADP_WARN(TEXT("PaxFlow: no SM_Bag%d for a town hub bag"), K); return; }
+	UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this); C->SetStaticMesh(M); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	C->SetMobility(EComponentMobility::Movable); C->SetupAttachment(P.Holder); C->SetRelativeLocation(-PxHubT::Handles[K]); C->RegisterComponent();
+	Holders.Add(C); P.HubBagC = C; P.Handle = PxHubT::Handles[K];
+}
+
+void APaxFlow::StepHub(int32 i, float Dt)
+{
+	FPx& P = Pax[i]; AActor* A = P.A.Get(); if (!A) return;
+	const bool bHad = P.bHasBag; if (P.HubBagC) P.bHasBag = true;   // (CarryBag moves the hand's holder: the hub bag rides on it)
+	if (P.bHubWalk)
+	{
+		if (Follow(P, A, Dt)) { P.bHubWalk = false; P.bHubAt = true; P.Way.Reset(); P.Wi = 0; }
+		else Held(i, Dt);
+		if (P.HubBagC || P.bHasBag) CarryBag(P, A);
+	}
+	else if (P.bHubAt)
+	{
+		Idle(P, A, Dt);
+		if (P.HubBagC || P.bHasBag) CarryBag(P, A);
+	}
+	P.bHasBag = bHad;
+	if (P.bHubOut && P.bHubAt && ADPUnseen::Budget())   // (an arrival at the hub's way out: gone once nobody sees it)
+	{
+		const FVector At = A->GetActorLocation();
+		if (ADPUnseen::Look(GetWorld(), At) != ADPUnseen::ESee::Seen) { ++Runs[P.Run].Out; Finish(i, TEXT("off the town coach - walked out of the hub, unseen")); }
+	}
+}
+
+bool APaxFlow::HubWalk(AActor* A, const FVector& To)
+{
+	const int32 i = Pax.IndexOfByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
+	if (i == INDEX_NONE || !A) return false;
+	FPx& P = Pax[i];
+	P.Way.Reset(); P.Wi = 0; FWp W; W.P = To; W.bGround = true; P.Way.Add(W);   // (bNav false: Follow makes it a walking-map path)
+	P.bHubWalk = true; P.bHubAt = false; P.StuckAt = A->GetActorLocation(); P.StuckT = 0.f;
+	return true;
+}
+
+bool APaxFlow::HubAt(AActor* A) const
+{
+	const FPx* P = Pax.FindByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
+	return P && P->bHubAt && !P->bHubWalk;
+}
+
+int32 APaxFlow::HubKindOf(AActor* A) const
+{
+	const FPx* P = Pax.FindByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
+	return P ? P->HubKind : 1;
+}
+
+void APaxFlow::HubRelease(AActor* A)
+{
+	const int32 i = Pax.IndexOfByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
+	if (i == INDEX_NONE) return;
+	FPx& P = Pax[i];
+	P.bHubWalk = P.bHubAt = false; P.Way.Reset(); P.Wi = 0; P.Speed = 0.f;
+	HubBag(P, false);
+	if (P.bHasBag) { if (ABaggageBelts* B = ABaggageBelts::Get(GetWorld())) B->DropPaxBag(P.Id); P.bHasBag = false; }   // (the riders hand them the same model)
+}
+
+void APaxFlow::HubExit(AActor* A, const FVector& Out, bool bBag, int32 Kind)
+{
+	const int32 i = Pax.IndexOfByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });
+	if (i == INDEX_NONE) return;
+	FPx& P = Pax[i];
+	P.HubKind = Kind; if (bBag) HubBag(P, true);
+	P.bHubOut = true; P.Stage = TEXT("off the town coach - out of the hub");
+	HubWalk(A, Out);
+}
+
+bool APaxFlow::DepOf(const FString& Label, double& DepT) const
+{
+	for (const FRun& R : Runs) if (!R.bArr && R.Label == Label) { DepT = R.DepT; return true; }
+	return false;
+}
+
+bool APaxFlow::OutToCoach(int32 i)
+{
+	FPx& P = Pax[i]; AActor* A = P.A.Get();
+	if (!A || !ATownHub::Use(GetWorld())) return false;
+	ATownHub* Hub = ATownHub::Get(GetWorld()); if (!Hub) return false;
+	const FRun& R = Runs[P.Run];
+	int32 Kind = 1;
+	if (P.bHasBag) if (const ABaggageBelts* B = ABaggageBelts::Get(GetWorld())) { const int32 K = B->PaxBagKind(P.Id); if (K >= 0) Kind = K; }
+	const int32 Run = Hub->BookArrival(R.Label, P.bHasBag);
+	if (Run == INDEX_NONE) return false;
+	P.St = EPx::Coach; P.HubKind = Kind; P.bHubAt = true; P.Way.Reset(); P.Wi = 0;
+	P.Stage = TEXT("waits for the town coach");
+	Hub->TakeArrival(A, P.bHasBag, R.Label, Run);
+	return true;
 }
 
 int32 APaxFlow::SpawnDep(int32 Ri, const FVector& At, bool bTerminalSide)
@@ -935,6 +1044,7 @@ int32 APaxFlow::SpawnArr(int32 Ri)
 void APaxFlow::Finish(int32 i, const TCHAR* Why, bool bKeepBody)
 {
 	FPx& P = Pax[i];
+	HubBag(P, false); P.bHubWalk = P.bHubAt = P.bHubOut = false;
 	for (FLine& L : DeskLines) L.Who.Remove(i);
 	for (FLine& L : LaneLines) L.Who.Remove(i);
 	for (FLine& L : RevLines) L.Who.Remove(i);
@@ -1827,6 +1937,7 @@ void APaxFlow::Arrive(int32 i)
 	}
 	case EDo::OutCarPark:
 	{
+		if (P.bArr && OutToCoach(i)) break;   // (to-do 373 C: by the town coach to the hub)
 		// (to-do 294: gone only where no camera sees it - else on to the next such place)
 		if (!ADPUnseen::Budget()) break;   // (asked again the next frame)
 		const FVector At = A->GetActorLocation();
@@ -1968,7 +2079,7 @@ void APaxFlow::StepPx(int32 i, float Dt)
 	AActor* A = P.A.Get();
 	if (!A) { if (P.St != EPx::Gone) { P.St = EPx::Gone; FreePx.Add(i); } return; }
 	FRun& R = Runs[P.Run];
-	if (P.St == EPx::Coach) return;   // (to-do 373: the town hub and its coach have them - ATownHub, until FromCoach)
+	if (P.St == EPx::Coach) { StepHub(i, Dt); return; }   // (to-do 373: the town hub and its coach have them - ATownHub, until FromCoach)
 	AADPPeople* People = AADPPeople::Get(GetWorld());
 	// (you talk with them: they stop, turned to you, and go on after it - never on an escalator, in a revolving door, the jetway or on the apron)
 	if (People && People->TalksToYou(A) && P.LooseT < 0.f)
