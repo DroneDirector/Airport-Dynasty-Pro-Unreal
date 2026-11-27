@@ -217,6 +217,16 @@ def main():
     d_edge = np.array([band.exterior.distance(Point(x, y)) if band.geom_type == 'Polygon' else band.boundary.distance(Point(x, y)) for x, y in zip(X, Y)])
     t = np.clip(1.0 - d_edge / EASE, 0, 1); t = t * t * (3 - 2 * t)
     z = zf * (1 - t) + zc * t
+    # level pads off the airfield (roads.json "levels": [{id, x0, y0, x1, y1, margin, blend}] - the town coach hub, to-do
+    # 373): flat at the median of the ground inside, in full over the box plus its margin, eased back over blend
+    for lv in R.get('levels', []):
+        bx = box(lv['x0'], lv['y0'], lv['x1'], lv['y1']); m = lv.get('margin', 10.0); bl = max(1.0, lv.get('blend', 40.0))
+        dd = np.array([bx.distance(Point(x, y)) for x, y in zip(X, Y)])
+        if not (dd <= 0).any(): print('level %s: no ground of ours inside' % lv.get('id'), flush=True); continue
+        zl = float(np.median(z[dd <= 0])); k = np.clip((dd - m) / bl, 0, 1); k = 1 - k * k * (3 - 2 * k)
+        moved = np.abs(z - zl)[dd <= m].max()
+        z = z * (1 - k) + zl * k
+        print('level %s at z %.2f: %d points flat (moved at most %.2f m), %d eased' % (lv.get('id'), zl, (dd <= m).sum(), moved, ((dd > m) & (dd < m + bl)).sum()), flush=True)
     # (owner, 2026-11-20: our ground must never let the globe poke through) where the globe is not cut away under our land
     # (its rim, outside the cut), it stands at least 0.1 m over the highest the globe is drawn there at ANY of its levels
     # (11 to the finest): the skirt under the rim hides the lip; the globe can't show through, near or far
