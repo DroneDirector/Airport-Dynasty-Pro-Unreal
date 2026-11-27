@@ -37,6 +37,8 @@ namespace ADPStaff
 	bool AnswerLeave(FADPWorld& W, int32 Index, bool bYes, const FDateTime& At);
 	/** Fills the hiring pool at once (a new career: people looking for work from the first minute). */
 	void FillPool(FADPWorld& W, FRandomStream& Rng);
+	/** People looking for this job at a time: 30-40 (owner 2026-11-27). */
+	int32 PoolSize(const FString& Role);
 	/** Cabin crew a type needs (1 per 50 seats from 20 seats), pilots 2. */
 	int32 CabinCrewFor(int32 Seats);
 	/** On-duty cabin crew of an airline at a base (not sick, not on leave). */

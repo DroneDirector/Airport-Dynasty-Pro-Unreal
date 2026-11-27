@@ -112,6 +112,10 @@ bool ADPStaff::SetBase(FADPWorld& W, const FString& PersonId, const FString& Bas
 	return true;
 }
 
+// How many people look for each job at a time (owner 2026-11-27): 30 to 40 to choose from for every job - mechanics,
+// ground crew, pilots, everyone - each with their own experience; fixed per job so the pool doesn't swing.
+int32 ADPStaff::PoolSize(const FString& Role) { return 30 + int32(GetTypeHash(Role) % 11u); }
+
 void ADPStaff::FillPool(FADPWorld& W, FRandomStream& Rng)
 {
 	const FString Country = CountryOf(W, FString());
@@ -119,7 +123,7 @@ void ADPStaff::FillPool(FADPWorld& W, FRandomStream& Rng)
 	{
 		const FString R = Job.Id;
 		int32 InPool = 0; for (const FADPPerson& P : W.People) if (P.AirlineId.IsEmpty() && P.Role == R) ++InPool;
-		int32 Want = R == TEXT("fa") || R == TEXT("ground") ? 12 : 8;
+		int32 Want = ADPStaff::PoolSize(R);
 		if (W.Difficulty == TEXT("test")) Want *= 5;   // (the test: plenty of people to hire for everything)
 		for (int32 k = InPool; k < Want; ++k) W.People.Add(MakePerson(R, Country, Rng));
 	}
@@ -144,7 +148,7 @@ int32 ADPStaff::CabinCrewAt(const FADPWorld& W, const FString& AirlineId, const 
 void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTime& To, bool bCatchUp)
 {
 	FADPWorld& W = Sim.World;
-	// the hiring pool: every few hours some leave it and new people come (12 cabin crew and ground staff, 8 of the rest)
+	// the hiring pool: every few hours some leave it and new people come (30-40 for every job: owner 2026-11-27)
 	if (Rng.FRand() < 0.2)
 	{
 		const FString Country = ADPStaff::CountryOf(W, FString());   // (the player's airline's hub country)
@@ -152,7 +156,7 @@ void FADPStaffModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 		{
 			const FString R = Job.Id;
 			int32 InPool = 0; for (const FADPPerson& P : W.People) if (P.AirlineId.IsEmpty() && P.Role == R) ++InPool;
-			const int32 Want = R == TEXT("fa") || R == TEXT("ground") ? 12 : 8;
+			const int32 Want = ADPStaff::PoolSize(R);
 			if (InPool > 3 && Rng.FRand() < 0.3) { const int32 I = W.People.IndexOfByPredicate([&](const FADPPerson& P) { return P.AirlineId.IsEmpty() && P.Role == R; }); if (I != INDEX_NONE) W.People.RemoveAt(I); }
 			for (int32 k = InPool; k < Want; ++k) W.People.Add(ADPStaff::MakePerson(R, Country, Rng));
 		}
