@@ -69,10 +69,31 @@ def wrapt(t):
 def in_band(t, a, b):
     return (wrapt(t) - a) % TAU <= (b - a) % TAU
 
+# The three traced profiles meet in one point at x=0 with finite slopes, and their mid-line sags
+# 3 cm between x 0 and 0.2 - read literally the nose ends in a cone point with a lobe under it,
+# which is the lump the owner saw low on the radome. Forward of TIP_X the section is blended onto
+# a round (quarter-ellipse) cap on a straight mid-line, so the tip is a dome. The blend is zero
+# with zero slope at TIP_X, leaves the whole fuselage aft of x 0.22 exactly as traced, and puts
+# the tip point at z 3.095 against the traced 3.090.
+TIP_X = .22
+TIP_HH = (ZTOP(TIP_X) - ZBOT(TIP_X)) * .5
+TIP_HW = HW(TIP_X)
+TIP_CZ = (ZTOP(TIP_X) + ZBOT(TIP_X)) * .5
+TIP_CZ_SLOPE = ((ZTOP(TIP_X + .01) + ZBOT(TIP_X + .01))
+                - (ZTOP(TIP_X - .01) + ZBOT(TIP_X - .01))) * .5 / .02
+
 def ring(x):
     x = min(max(x, 0.0), L)
     zt, zb, hw = ZTOP(x), ZBOT(x), max(HW(x), 0.004)
-    return (zt + zb) * .5, max((zt - zb) * .5, .004), hw
+    cz, hh = (zt + zb) * .5, (zt - zb) * .5
+    if x < TIP_X:
+        u = 1.0 - x / TIP_X
+        w = u * u
+        k = math.sqrt(max(1.0 - u * u, 0.0))
+        hh = hh * (1 - w) + TIP_HH * k * w
+        hw = hw * (1 - w) + TIP_HW * k * w
+        cz = cz * (1 - w) + (TIP_CZ + TIP_CZ_SLOPE * (x - TIP_X)) * w
+    return cz, max(hh, .004), max(hw, .004)
 
 def _p(v, e):
     return math.copysign(abs(v) ** e, v) if v else 0.0
@@ -81,7 +102,13 @@ def surf(x, t):
     cz, hh, hw = ring(x); e = 2.0 / SE
     ct, st = math.cos(t), math.sin(t)
     y = hw * _p(ct, e); z = cz + hh * _p(st, e)
-    if st < 0: z = cz + hh * _p(st, e) * (1 - .045 * ct * ct)      # slightly flattened keel
+    if st < 0:                              # slightly flattened keel. The flattening is faded
+        s = min(1.0, -st / .35)             # out towards the widest line, where it used to step
+        w = s * s * (3 - 2 * s)             # the slope and leave a crease down the radome.
+        if x > 1.4:                         # only on the nose: aft of x 2.6 the keel is as before,
+            r = min(1.0, (x - 1.4) / 1.2)   # so nothing on the rest of the fuselage moves
+            w = max(w, r * r * (3 - 2 * r))
+        z = cz + hh * _p(st, e) * (1 - .045 * ct * ct * w)
     return Vector((x, y, z))
 
 def nrm(x, t):
@@ -135,7 +162,10 @@ FX = _frames()
 SECTION_JOINT_FR = [24, 35, 47, 64, 70, 77]
 LAP_T_DEG = [64, 36, -6, -42, -74]     # stringer lines that carry a visible longitudinal lap joint
 X_NOSE = FX[1]                         # radome joint plane = FR1 (0.958 m aft of the nose tip)
-X_TAILEND = 37.30                      # skin ends here, the APU exhaust closes it
+SEAM_HW = .002                         # half the 4 mm radome seam channel: radome ends here, skin starts
+X_RADOME_END = X_NOSE - SEAM_HW
+X_SKIN0 = X_NOSE + SEAM_HW
+X_TAILEND = 37.30                     # skin ends here, the APU exhaust closes it
 
 # ---------------------------------------------------------------------- Blender helpers
 MATS = {}
@@ -648,19 +678,23 @@ for _a, _b in [(_CKALL[i], _CKALL[j]) for i in range(len(_CKALL)) for j in range
 
 # ---------------------------------------------------------------------- the skin
 def build_skin():
-    xs = set([X_NOSE, X_TAILEND])
-    x = X_NOSE
-    while x < 6.0: xs.add(round(x, 5)); x += .072
-    while x < 27.5: xs.add(round(x, 5)); x += .1333
-    while x <= X_TAILEND: xs.add(round(x, 5)); x += .14
+    # station spacing is set by the shading, not by the frames: no gap over 0.12 m anywhere and
+    # none over 0.05 m forward of x 6.0, so the curved nose reads as one round form, not as bands
+    x0 = round(X_SKIN0, 5)
+    xs = set([x0, X_TAILEND])
+    x = x0
+    while x < 3.0: xs.add(round(x, 5)); x += .034
+    while x < 6.0: xs.add(round(x, 5)); x += .048
+    while x < 27.5: xs.add(round(x, 5)); x += .115
+    while x <= X_TAILEND - .02: xs.add(round(x, 5)); x += .118
     for n, fx in FX.items():
-        if X_NOSE + .03 < fx < X_TAILEND - .03: xs.add(round(fx, 5))
-    nt0 = 196
+        if x0 + .03 < fx < X_TAILEND - .03: xs.add(round(fx, 5))
+    nt0 = 288
     ts = set(round(T0 + TAU * k / nt0, 6) for k in range(nt0))
     for c in CUTS:
         for f in (1.0, 2.2):
             for v in (c['x0'] - c['px'] * f, c['x1'] + c['px'] * f):
-                xs.add(round(min(max(v, X_NOSE + .01), X_TAILEND - .01), 5))
+                xs.add(round(min(max(v, X_SKIN0 + .01), X_TAILEND - .01), 5))
             for v in (c['t0'] - c['pt'] * f, c['t1'] + c['pt'] * f):
                 ts.add(round(v, 6))
     XSL = sorted(xs); TSL = sorted(ts)
@@ -738,20 +772,16 @@ def build_windows(holes):
         add('A320N_Fus_WindowFrame_' + sd, Vf, Ff, MT['grey'])
         add('A320N_Fus_WindowPane_' + sd, Vp, Fp, MT['glass'])
 
-def box_on_surface(V, F, xa, xb, ta, tb, dout, din, nx=10, nt=12):
-    """a solid slab following the skin between two stations and two ring angles"""
+def slab_on_surface(V, F, xs, tfun, dout, din, nt):
+    """a solid slab following the skin over the stations xs; tfun(x, u in 0..1) gives the ring
+    angle, so a band can keep a constant width in metres where the section radius changes"""
+    nx = len(xs) - 1
     m0 = len(V)
-    for k in range(nx + 1):
-        xx = xa + (xb - xa) * k / nx
-        for q in range(nt + 1):
-            tt = ta + (tb - ta) * q / nt
-            V.append(soff(xx, tt, dout))
+    for xx in xs:
+        for q in range(nt + 1): V.append(soff(xx, tfun(xx, q / nt), dout))
     m1 = len(V)
-    for k in range(nx + 1):
-        xx = xa + (xb - xa) * k / nx
-        for q in range(nt + 1):
-            tt = ta + (tb - ta) * q / nt
-            V.append(soff(xx, tt, din))
+    for xx in xs:
+        for q in range(nt + 1): V.append(soff(xx, tfun(xx, q / nt), din))
     F += grid_faces(nx + 1, nt + 1, m0)
     F += [f[::-1] for f in grid_faces(nx + 1, nt + 1, m1)]
     for k in range(nx):
@@ -762,6 +792,13 @@ def box_on_surface(V, F, xa, xb, ta, tb, dout, din, nx=10, nt=12):
         F.append([m0 + q, m1 + q, m1 + q + 1, m0 + q + 1])
         F.append([m0 + nx * (nt + 1) + q, m0 + nx * (nt + 1) + q + 1,
                   m1 + nx * (nt + 1) + q + 1, m1 + nx * (nt + 1) + q])
+
+
+def box_on_surface(V, F, xa, xb, ta, tb, dout, din, nx=10, nt=12):
+    """a solid slab following the skin between two stations and two ring angles"""
+    xs = [xa + (xb - xa) * k / nx for k in range(nx + 1)]
+    slab_on_surface(V, F, xs, lambda xx, u: ta + (tb - ta) * u, dout, din, nt)
+
 
 def mirror_y(ob, newname):
     """exact mirror of a port part across y = 0 (what a mirror modifier + apply does)"""
@@ -1080,34 +1117,64 @@ def build_doors(holes):
             place_hinged(ob, pivot, ax, ang)
 
 # ---------------------------------------------------------------------- radome, tail, fairings
+def radome_xs(turn_deg=1.6, dxmax=.028, dxmin=.0006):
+    """ring stations along the radome. The tip turns through nearly 90 deg in the first
+    0.15 m, so even spacing facets it: step on so no ring-to-ring step turns the surface
+    by more than turn_deg."""
+    def tanv(xx, tt):
+        v = surf(xx + .0015, tt) - surf(max(xx - .0015, 0.0), tt)
+        return v.normalized()
+    lim = math.radians(turn_deg)
+    probes = (0.0, math.pi * .5, -math.pi * .5, math.pi)
+    xs = [.0015]
+    while xs[-1] < X_RADOME_END - dxmin:
+        x = xs[-1]; d = dxmax
+        while d > dxmin:
+            if max(tanv(x + d, p).angle(tanv(x, p), 0.0) for p in probes) <= lim: break
+            d *= .62
+        xs.append(min(x + max(d, dxmin), X_RADOME_END))
+    xs[-1] = X_RADOME_END
+    return xs
+
+
 def build_radome():
     V, F = [], []
-    nx, nt = 30, 120
+    nt = 288
     ts = [T0 + TAU * q / nt for q in range(nt)]
-    for k in range(nx + 1):
-        xx = max(X_NOSE * (k / nx) ** 1.25, .004)
+    xs = radome_xs()
+    for xx in xs:
         for tt in ts: V.append(surf(xx, tt))
-    F += grid_faces(nx + 1, nt, 0, wrap_t=True)
+    F += grid_faces(len(xs), nt, 0, wrap_t=True)
     cb = len(V); V.append(Vector((0, 0, surf(0, 0).z)))
     F += fan(list(range(0, nt)), cb, True)
     b = len(V)                                  # FR1 bulkhead closing the back of the radome
-    for tt in ts: V.append(soff(X_NOSE, tt, -.004))
-    cb = len(V); V.append(Vector((X_NOSE, 0, ring(X_NOSE)[0])))
+    for tt in ts: V.append(soff(X_RADOME_END, tt, -.004))
+    cb = len(V); V.append(Vector((X_RADOME_END, 0, ring(X_RADOME_END)[0])))
     F += fan(list(range(b, b + nt)), cb)
     add('A320N_Fus_Radome', V, F, MT['grey'])
 
-    V, F = [], []                               # the radome joint band with its latches
-    nt = 140
-    ts = [T0 + TAU * q / nt for q in range(nt)]
-    r0 = loop_mesh(V, F, [(X_NOSE - .030, t) for t in ts], -.001)
-    r1 = loop_mesh(V, F, [(X_NOSE - .030, t) for t in ts], .0022)
-    r2 = loop_mesh(V, F, [(X_NOSE + .030, t) for t in ts], .0022)
-    r3 = loop_mesh(V, F, [(X_NOSE + .030, t) for t in ts], -.001)
+    # The radome joint. The real A320 latches are inside the radome and nothing of them shows;
+    # outside there is only a hairline seam, so this is a 4 mm channel recessed 1.5 mm between
+    # the aft edge of the radome and the forward edge of the skin - nothing stands proud.
+    V, F = [], []
+    r0 = loop_mesh(V, F, [(X_RADOME_END, t) for t in ts], 0.0)
+    r1 = loop_mesh(V, F, [(X_RADOME_END, t) for t in ts], -.0015)
+    r2 = loop_mesh(V, F, [(X_SKIN0, t) for t in ts], -.0015)
+    r3 = loop_mesh(V, F, [(X_SKIN0, t) for t in ts], 0.0)
     F += bridge(r0, r1) + bridge(r1, r2) + bridge(r2, r3)
-    for q in range(0, nt, 9):
-        tt = ts[q]
-        box_on_surface(V, F, X_NOSE - .055, X_NOSE + .055, tt - .016, tt + .016, .013, -.004, 2, 2)
-    add('A320N_Fus_RadomeJoint', V, F, MT['alu'])
+    add('A320N_Fus_RadomeSeam', V, F, MT['alu'])
+
+    # lightning diverter strips: crown and 35 deg either side of it, 8 mm wide, 3 mm proud,
+    # from near the tip back to the seam (ref photo a320ref/nose-ezy.jpg)
+    sxs = [v for v in xs if .105 <= v <= X_RADOME_END - .014]
+    for nm, tc in (('Crown', math.pi * .5), ('R', math.radians(55)), ('L', math.radians(125))):
+        def tf(xx, u, tc=tc):
+            arc = (surf(xx, tc + .004) - surf(xx, tc - .004)).length / .008
+            dt = .004 / max(arc, .05)
+            return tc - dt + 2 * dt * u
+        V, F = [], []
+        slab_on_surface(V, F, sxs, tf, .003, -.004, 4)
+        add('A320N_Fus_DiverterStrip_' + nm, V, F, MT['grey'], bevel=.0010)
 
 def build_apu_and_tail():
     """blunt tail cone closing on the APU exhaust: tail.apu gives exhaust_x 37.57,
