@@ -1,0 +1,555 @@
+{
+ "asset": "ScissorLift",
+ "kind": "scissor lift (19 ft slab class)",
+ "blend": "Art/HangarEquipment/ScissorLift/ScissorLift.blend",
+ "glb": "Art/HangarEquipment/ScissorLift/scissorlift.glb",
+ "sizes": {
+  "width_m": 0.76,
+  "length_m": 1.83,
+  "deck_stowed_m": 1.05,
+  "deck_max_m": 5.83,
+  "rail_m": 1.1,
+  "extension_m": 0.9,
+  "wheel_mm": 310,
+  "stages": 4,
+  "pin_to_pin_m": 1.55,
+  "Z0": 0.44,
+  "h_stowed": 0.115,
+  "h_full": 1.31
+ },
+ "bounds_min": [
+  -0.43,
+  -0.991,
+  0.0
+ ],
+ "bounds_max": [
+  0.42,
+  0.917,
+  2.332
+ ],
+ "size_m": [
+  0.85,
+  1.908,
+  2.332
+ ],
+ "footprint": {
+  "x_min": -0.4,
+  "x_max": 0.4,
+  "y_min": -0.99,
+  "y_max": 0.92,
+  "extension_out_y_max": 1.74
+ },
+ "reference": "Wikimedia Commons: Hy-Brid Lifts PS-1930 scissor lift with worker working while elevated; JCB S1930E at Hyderabad airport; published 19 ft class data",
+ "tris": 21018,
+ "parts": [
+  {
+   "name": "Chassis",
+   "mesh": "Chassis",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: rolls on its wheels (drive, or pushed with the brakes released)"
+  },
+  {
+   "name": "Steer_FL",
+   "mesh": "SCL_Knuckle_L",
+   "parent": "Chassis",
+   "pivot": [
+    -0.32,
+    0.66,
+    0
+   ],
+   "move": "steers about z -35..+35 deg"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "SCL_Wheel",
+   "parent": "Steer_FL",
+   "pivot": [
+    -0.322,
+    0.66,
+    0.155
+   ],
+   "move": "spins about x, r 0.155"
+  },
+  {
+   "name": "Steer_FR",
+   "mesh": "SCL_Knuckle_R",
+   "parent": "Chassis",
+   "pivot": [
+    0.32,
+    0.66,
+    0
+   ],
+   "move": "steers about z -35..+35 deg"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "SCL_Wheel",
+   "parent": "Steer_FR",
+   "pivot": [
+    0.322,
+    0.66,
+    0.155
+   ],
+   "move": "spins about x, r 0.155"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "SCL_Wheel",
+   "parent": "Chassis",
+   "pivot": [
+    -0.322,
+    -0.66,
+    0.155
+   ],
+   "move": "spins about x, r 0.155 (drive, braked)"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "SCL_Wheel",
+   "parent": "Chassis",
+   "pivot": [
+    0.322,
+    -0.66,
+    0.155
+   ],
+   "move": "spins about x, r 0.155 (drive, braked)"
+  },
+  {
+   "name": "PotholeGuard_R",
+   "mesh": "SCL_PotholeGuard",
+   "parent": "Chassis",
+   "pivot": [
+    0.375,
+    0,
+    0.095
+   ],
+   "move": "turns about y 0..-60 deg (down) above 0.5 m lift"
+  },
+  {
+   "name": "PotholeGuard_L",
+   "mesh": "PotholeGuard_L",
+   "parent": "Chassis",
+   "pivot": [
+    -0.375,
+    0,
+    0.095
+   ],
+   "move": "turns about y 0..+60 deg (down) above 0.5 m lift"
+  },
+  {
+   "name": "BrakeRelease",
+   "mesh": "BrakeRelease",
+   "parent": "Chassis",
+   "pivot": [
+    0.31,
+    -0.92,
+    0.34
+   ],
+   "move": "turns about y 0..90 deg: up = brakes released (push mode)"
+  },
+  {
+   "name": "Scissor_1_A",
+   "mesh": "SCL_Arms_Outer",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.497
+   ],
+   "move": "stage 1 outer arms: centre pin z = 0.44 + 0.5*h, turn about x +theta (4.26..57.7 deg)",
+   "rot_x_deg": 4.25
+  },
+  {
+   "name": "Scissor_1_B",
+   "mesh": "SCL_Arms_Inner",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.497
+   ],
+   "move": "stage 1 inner arms: centre pin as A, turn about x -theta",
+   "rot_x_deg": -4.25
+  },
+  {
+   "name": "Scissor_2_A",
+   "mesh": "SCL_Arms_Outer",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.613
+   ],
+   "move": "stage 2 outer arms: centre pin z = 0.44 + 1.5*h, turn about x +theta (4.26..57.7 deg)",
+   "rot_x_deg": 4.25
+  },
+  {
+   "name": "Scissor_2_B",
+   "mesh": "SCL_Arms_Inner",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.613
+   ],
+   "move": "stage 2 inner arms: centre pin as A, turn about x -theta",
+   "rot_x_deg": -4.25
+  },
+  {
+   "name": "Scissor_3_A",
+   "mesh": "SCL_Arms_Outer",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.728
+   ],
+   "move": "stage 3 outer arms: centre pin z = 0.44 + 2.5*h, turn about x +theta (4.26..57.7 deg)",
+   "rot_x_deg": 4.25
+  },
+  {
+   "name": "Scissor_3_B",
+   "mesh": "SCL_Arms_Inner",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.728
+   ],
+   "move": "stage 3 inner arms: centre pin as A, turn about x -theta",
+   "rot_x_deg": -4.25
+  },
+  {
+   "name": "Scissor_4_A",
+   "mesh": "SCL_Arms_Outer",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.843
+   ],
+   "move": "stage 4 outer arms: centre pin z = 0.44 + 3.5*h, turn about x +theta (4.26..57.7 deg)",
+   "rot_x_deg": 4.25
+  },
+  {
+   "name": "Scissor_4_B",
+   "mesh": "SCL_Arms_Inner",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.843
+   ],
+   "move": "stage 4 inner arms: centre pin as A, turn about x -theta",
+   "rot_x_deg": -4.25
+  },
+  {
+   "name": "LiftCylinder",
+   "mesh": "LiftCylinder",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    -0.45,
+    0.43
+   ],
+   "move": "tilts about x with the stages"
+  },
+  {
+   "name": "LiftRam",
+   "mesh": "LiftRam",
+   "parent": "LiftCylinder",
+   "pivot": [
+    0,
+    0.25,
+    0.43
+   ],
+   "move": "slides out along the cylinder 0..0.9 m"
+  },
+  {
+   "name": "Platform",
+   "mesh": "Platform",
+   "parent": "Chassis",
+   "pivot": [
+    0,
+    0,
+    0.9
+   ],
+   "move": "lifts z 0..+4.78 m (deck 1.05 -> 5.83 m)"
+  },
+  {
+   "name": "Gate",
+   "mesh": "Gate",
+   "parent": "Platform",
+   "pivot": [
+    -0.09,
+    -0.8,
+    1.15
+   ],
+   "move": "self-closing, swings about z 0..100 deg inward"
+  },
+  {
+   "name": "Platform_Extension",
+   "mesh": "Platform_Extension",
+   "parent": "Platform",
+   "pivot": [
+    0,
+    -0.05,
+    1.055
+   ],
+   "move": "slides along +y 0..0.90 m"
+  },
+  {
+   "name": "ControlBox",
+   "mesh": "ControlBox",
+   "parent": "Platform",
+   "pivot": [
+    -0.26,
+    -0.55,
+    2.15
+   ],
+   "move": "hangs on the rail; lifts off"
+  },
+  {
+   "name": "Joystick",
+   "mesh": "Joystick",
+   "parent": "ControlBox",
+   "pivot": [
+    -0.305,
+    -0.5,
+    2.122
+   ],
+   "move": "tilts about x and y +-20 deg (drive, steer, lift)"
+  },
+  {
+   "name": "EStop",
+   "mesh": "EStop",
+   "parent": "ControlBox",
+   "pivot": [
+    -0.305,
+    -0.62,
+    2.122
+   ],
+   "move": "pushes down z 0..-0.01 m (stop), turns to release"
+  },
+  {
+   "name": "LiftDriveSwitch",
+   "mesh": "LiftDriveSwitch",
+   "parent": "ControlBox",
+   "pivot": [
+    -0.305,
+    -0.565,
+    2.122
+   ],
+   "move": "turns about z -45 / +45 deg: lift or drive"
+  },
+  {
+   "name": "GateLatch",
+   "mesh": "GateLatch",
+   "parent": "Gate",
+   "pivot": [
+    0.108,
+    -0.8,
+    1.7
+   ],
+   "move": "turns about y 0..40 deg: up = unlatched"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_Deck",
+   "kind": "stand",
+   "parent": "Platform",
+   "pos": [
+    0,
+    -0.3,
+    1.05
+   ]
+  },
+  {
+   "name": "IK_Rail_L",
+   "kind": "hand",
+   "parent": "Platform",
+   "pos": [
+    -0.395,
+    -0.2,
+    2.15
+   ]
+  },
+  {
+   "name": "IK_Rail_R",
+   "kind": "hand",
+   "parent": "Platform",
+   "pos": [
+    0.395,
+    -0.2,
+    2.15
+   ]
+  },
+  {
+   "name": "IK_Joystick",
+   "kind": "hand",
+   "parent": "Joystick",
+   "pos": [
+    -0.305,
+    -0.5,
+    2.3
+   ]
+  },
+  {
+   "name": "IK_EStop",
+   "kind": "hand",
+   "parent": "EStop",
+   "pos": [
+    -0.305,
+    -0.62,
+    2.154
+   ]
+  },
+  {
+   "name": "IK_LiftDriveSwitch",
+   "kind": "hand",
+   "parent": "LiftDriveSwitch",
+   "pos": [
+    -0.305,
+    -0.565,
+    2.155
+   ]
+  },
+  {
+   "name": "IK_GateLatch",
+   "kind": "hand",
+   "parent": "GateLatch",
+   "pos": [
+    0.12,
+    -0.8,
+    1.72
+   ]
+  },
+  {
+   "name": "IK_Gate",
+   "kind": "hand",
+   "parent": "Gate",
+   "pos": [
+    0.0,
+    -0.8,
+    2.1
+   ]
+  },
+  {
+   "name": "IK_Extension_Rail",
+   "kind": "hand",
+   "parent": "Platform_Extension",
+   "pos": [
+    0.0,
+    0.82,
+    2.15
+   ]
+  },
+  {
+   "name": "IK_Step_1",
+   "kind": "foot",
+   "parent": "Chassis",
+   "pos": [
+    0,
+    -0.955,
+    0.32
+   ]
+  },
+  {
+   "name": "IK_Step_2",
+   "kind": "foot",
+   "parent": "Chassis",
+   "pos": [
+    0,
+    -0.955,
+    0.58
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Chassis",
+   "pos": [
+    -0.2,
+    -0.97,
+    0.84
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Chassis",
+   "pos": [
+    0.2,
+    -0.97,
+    0.84
+   ]
+  },
+  {
+   "name": "IK_BrakeRelease",
+   "kind": "hand",
+   "parent": "BrakeRelease",
+   "pos": [
+    0.31,
+    -0.98,
+    0.37
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Platform up / down, drive, steer",
+   "part": "Joystick",
+   "ik": "IK_Joystick",
+   "by": "hand",
+   "does": "hold the trigger, push forward = up / drive forward; left-right = steer"
+  },
+  {
+   "control": "Lift or drive selector",
+   "part": "LiftDriveSwitch",
+   "ik": "IK_LiftDriveSwitch",
+   "by": "hand",
+   "does": "chooses what the joystick does"
+  },
+  {
+   "control": "Emergency stop",
+   "part": "EStop",
+   "ik": "IK_EStop",
+   "by": "hand",
+   "does": "press = everything stops; turn to release"
+  },
+  {
+   "control": "Gate latch",
+   "part": "GateLatch",
+   "ik": "IK_GateLatch",
+   "by": "hand",
+   "does": "lift to open the gate"
+  },
+  {
+   "control": "Gate",
+   "part": "Gate",
+   "ik": "IK_Gate",
+   "by": "hand",
+   "does": "swing in to step on, self-closing"
+  },
+  {
+   "control": "Extension deck",
+   "part": "Platform_Extension",
+   "ik": "IK_Extension_Rail",
+   "by": "hand",
+   "does": "pull out / push in 0.9 m"
+  },
+  {
+   "control": "Brake release (push mode)",
+   "part": "BrakeRelease",
+   "ik": "IK_BrakeRelease",
+   "by": "hand",
+   "does": "up = drive wheels free to push"
+  }
+ ]
+}

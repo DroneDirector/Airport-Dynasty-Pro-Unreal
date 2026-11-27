@@ -1,0 +1,1144 @@
+{
+ "asset": "TailDockStand",
+ "kind": "tail dock stand (mobile stair tower)",
+ "blend": "Art/HangarEquipment/TailDockStand/TailDockStand.blend",
+ "glb": "Art/HangarEquipment/TailDockStand/taildockstand.glb",
+ "sizes": {
+  "top_deck_m": 8.5,
+  "rail_top_m": 9.6,
+  "tower_m": [
+   2.0,
+   2.4
+  ],
+  "flights": 6,
+  "risers_per_flight": 7,
+  "riser_m": 0.192,
+  "going_m": 0.171,
+  "stair_deg": 48.2,
+  "extension_m": 0.55,
+  "castors_mm": 250
+ },
+ "bounds_min": [
+  -1.155,
+  -1.205,
+  0.0
+ ],
+ "bounds_max": [
+  1.204,
+  1.31,
+  9.627
+ ],
+ "size_m": [
+  2.359,
+  2.515,
+  9.627
+ ],
+ "footprint": {
+  "x_min": -1.11,
+  "x_max": 1.11,
+  "y_min": -1.21,
+  "y_max": 1.31,
+  "outriggers_out": {
+   "x_min": -1.85,
+   "x_max": 1.85,
+   "y_min": -1.95,
+   "y_max": 1.95
+  },
+  "note": "rolling = folded outriggers; working = outriggers out (bigger box); tow bar down reaches y 2.20"
+ },
+ "reference": "Wikimedia Commons public-domain USAF / US Navy photos of mobile maintenance towers and tail docks; published narrow-body tail stand sizes",
+ "tris": 58120,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the tower rolls on its castors with the outriggers folded; outriggers down before climbing"
+  },
+  {
+   "name": "Castor_FL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.8,
+    0.98,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.8,
+    0.924,
+    0.125
+   ],
+   "move": "spin about x, rolls r=0.125 m"
+  },
+  {
+   "name": "Brake_FL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.8,
+    0.924,
+    0.125
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_FR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.8,
+    0.98,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.8,
+    0.924,
+    0.125
+   ],
+   "move": "spin about x, rolls r=0.125 m"
+  },
+  {
+   "name": "Brake_FR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.8,
+    0.924,
+    0.125
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.8,
+    -0.98,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.8,
+    -1.036,
+    0.125
+   ],
+   "move": "spin about x, rolls r=0.125 m"
+  },
+  {
+   "name": "Brake_RL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.8,
+    -1.036,
+    0.125
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.8,
+    -0.98,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.8,
+    -1.036,
+    0.125
+   ],
+   "move": "spin about x, rolls r=0.125 m"
+  },
+  {
+   "name": "Brake_RR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.8,
+    -1.036,
+    0.125
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Outrigger_FL",
+   "mesh": "TDS_OutriggerArm_F",
+   "parent": "Frame",
+   "pivot": [
+    -1.07,
+    1.17,
+    0.423
+   ],
+   "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+  },
+  {
+   "name": "OutriggerFoot_FL",
+   "mesh": "TDS_OutriggerFoot",
+   "parent": "Outrigger_FL",
+   "pivot": [
+    -1.07,
+    0.17,
+    0.06
+   ],
+   "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+  },
+  {
+   "name": "Outrigger_FR",
+   "mesh": "TDS_OutriggerArm_F",
+   "parent": "Frame",
+   "pivot": [
+    1.07,
+    1.17,
+    0.423
+   ],
+   "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+  },
+  {
+   "name": "OutriggerFoot_FR",
+   "mesh": "TDS_OutriggerFoot",
+   "parent": "Outrigger_FR",
+   "pivot": [
+    1.07,
+    0.17,
+    0.06
+   ],
+   "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+  },
+  {
+   "name": "Outrigger_RL",
+   "mesh": "TDS_OutriggerArm_R",
+   "parent": "Frame",
+   "pivot": [
+    -1.07,
+    -1.17,
+    0.423
+   ],
+   "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+  },
+  {
+   "name": "OutriggerFoot_RL",
+   "mesh": "TDS_OutriggerFoot",
+   "parent": "Outrigger_RL",
+   "pivot": [
+    -1.07,
+    -0.17,
+    0.06
+   ],
+   "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+  },
+  {
+   "name": "Outrigger_RR",
+   "mesh": "TDS_OutriggerArm_R",
+   "parent": "Frame",
+   "pivot": [
+    1.07,
+    -1.17,
+    0.423
+   ],
+   "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+  },
+  {
+   "name": "OutriggerFoot_RR",
+   "mesh": "TDS_OutriggerFoot",
+   "parent": "Outrigger_RR",
+   "pivot": [
+    1.07,
+    -0.17,
+    0.06
+   ],
+   "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+  },
+  {
+   "name": "Deck_Extension",
+   "mesh": "Deck_Extension",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    0.65,
+    8.504
+   ],
+   "move": "slides along +y 0..0.55 m toward the fin"
+  },
+  {
+   "name": "TopGate",
+   "mesh": "TopGate",
+   "parent": "Frame",
+   "pivot": [
+    0.08,
+    -0.72,
+    8.55
+   ],
+   "move": "swings about z 0..90 deg toward -y, springs shut"
+  },
+  {
+   "name": "GateLatch",
+   "mesh": "GateLatch",
+   "parent": "TopGate",
+   "pivot": [
+    0.87,
+    -0.72,
+    9.54
+   ],
+   "move": "flips about y 0..70 deg up to free the gate"
+  },
+  {
+   "name": "TowBar",
+   "mesh": "TowBar",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    1.24,
+    0.368
+   ],
+   "move": "hinge about x: 0 = up (parked) .. 85 deg forward = towing"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_Step_F1_1",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.429,
+    0.641
+   ]
+  },
+  {
+   "name": "IK_Step_F1_2",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.257,
+    0.832
+   ]
+  },
+  {
+   "name": "IK_Step_F1_3",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.086,
+    1.024
+   ]
+  },
+  {
+   "name": "IK_Step_F1_4",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.086,
+    1.216
+   ]
+  },
+  {
+   "name": "IK_Step_F1_5",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.257,
+    1.407
+   ]
+  },
+  {
+   "name": "IK_Step_F1_6",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.429,
+    1.599
+   ]
+  },
+  {
+   "name": "IK_Rail_F1",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    -0.07,
+    0.0,
+    2.07
+   ]
+  },
+  {
+   "name": "IK_Step_F2_1",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.429,
+    1.983
+   ]
+  },
+  {
+   "name": "IK_Step_F2_2",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.257,
+    2.174
+   ]
+  },
+  {
+   "name": "IK_Step_F2_3",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.086,
+    2.366
+   ]
+  },
+  {
+   "name": "IK_Step_F2_4",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.086,
+    2.558
+   ]
+  },
+  {
+   "name": "IK_Step_F2_5",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.257,
+    2.749
+   ]
+  },
+  {
+   "name": "IK_Step_F2_6",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.429,
+    2.941
+   ]
+  },
+  {
+   "name": "IK_Rail_F2",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    0.07,
+    0.0,
+    3.412
+   ]
+  },
+  {
+   "name": "IK_Step_F3_1",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.429,
+    3.324
+   ]
+  },
+  {
+   "name": "IK_Step_F3_2",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.257,
+    3.516
+   ]
+  },
+  {
+   "name": "IK_Step_F3_3",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.086,
+    3.708
+   ]
+  },
+  {
+   "name": "IK_Step_F3_4",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.086,
+    3.899
+   ]
+  },
+  {
+   "name": "IK_Step_F3_5",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.257,
+    4.091
+   ]
+  },
+  {
+   "name": "IK_Step_F3_6",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.429,
+    4.283
+   ]
+  },
+  {
+   "name": "IK_Rail_F3",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    -0.07,
+    0.0,
+    4.754
+   ]
+  },
+  {
+   "name": "IK_Step_F4_1",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.429,
+    4.666
+   ]
+  },
+  {
+   "name": "IK_Step_F4_2",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.257,
+    4.858
+   ]
+  },
+  {
+   "name": "IK_Step_F4_3",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.086,
+    5.05
+   ]
+  },
+  {
+   "name": "IK_Step_F4_4",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.086,
+    5.241
+   ]
+  },
+  {
+   "name": "IK_Step_F4_5",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.257,
+    5.433
+   ]
+  },
+  {
+   "name": "IK_Step_F4_6",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.429,
+    5.625
+   ]
+  },
+  {
+   "name": "IK_Rail_F4",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    0.07,
+    0.0,
+    6.095
+   ]
+  },
+  {
+   "name": "IK_Step_F5_1",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.429,
+    6.008
+   ]
+  },
+  {
+   "name": "IK_Step_F5_2",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.257,
+    6.2
+   ]
+  },
+  {
+   "name": "IK_Step_F5_3",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    -0.086,
+    6.391
+   ]
+  },
+  {
+   "name": "IK_Step_F5_4",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.086,
+    6.583
+   ]
+  },
+  {
+   "name": "IK_Step_F5_5",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.257,
+    6.775
+   ]
+  },
+  {
+   "name": "IK_Step_F5_6",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    -0.475,
+    0.429,
+    6.966
+   ]
+  },
+  {
+   "name": "IK_Rail_F5",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    -0.07,
+    0.0,
+    7.437
+   ]
+  },
+  {
+   "name": "IK_Step_F6_1",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.429,
+    7.35
+   ]
+  },
+  {
+   "name": "IK_Step_F6_2",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.257,
+    7.542
+   ]
+  },
+  {
+   "name": "IK_Step_F6_3",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    0.086,
+    7.733
+   ]
+  },
+  {
+   "name": "IK_Step_F6_4",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.086,
+    7.925
+   ]
+  },
+  {
+   "name": "IK_Step_F6_5",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.257,
+    8.117
+   ]
+  },
+  {
+   "name": "IK_Step_F6_6",
+   "kind": "foot",
+   "parent": "Frame",
+   "pos": [
+    0.475,
+    -0.429,
+    8.308
+   ]
+  },
+  {
+   "name": "IK_Rail_F6",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    0.07,
+    0.0,
+    8.779
+   ]
+  },
+  {
+   "name": "IK_Landing_1",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    0.88,
+    1.791
+   ]
+  },
+  {
+   "name": "IK_Landing_2",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    -0.88,
+    3.133
+   ]
+  },
+  {
+   "name": "IK_Landing_3",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    0.88,
+    4.474
+   ]
+  },
+  {
+   "name": "IK_Landing_4",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    -0.88,
+    5.816
+   ]
+  },
+  {
+   "name": "IK_Landing_5",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    0.88,
+    7.158
+   ]
+  },
+  {
+   "name": "IK_Brake_FL",
+   "kind": "foot",
+   "parent": "Brake_FL",
+   "pos": [
+    -0.73,
+    1.014,
+    0.137
+   ]
+  },
+  {
+   "name": "IK_Brake_FR",
+   "kind": "foot",
+   "parent": "Brake_FR",
+   "pos": [
+    0.87,
+    1.014,
+    0.137
+   ]
+  },
+  {
+   "name": "IK_Brake_RL",
+   "kind": "foot",
+   "parent": "Brake_RL",
+   "pos": [
+    -0.73,
+    -0.946,
+    0.137
+   ]
+  },
+  {
+   "name": "IK_Brake_RR",
+   "kind": "foot",
+   "parent": "Brake_RR",
+   "pos": [
+    0.87,
+    -0.946,
+    0.137
+   ]
+  },
+  {
+   "name": "IK_Outrigger_FL",
+   "kind": "hand",
+   "parent": "Outrigger_FL",
+   "pos": [
+    -1.07,
+    0.6,
+    0.323
+   ]
+  },
+  {
+   "name": "IK_OutriggerCrank_FL",
+   "kind": "hand",
+   "parent": "OutriggerFoot_FL",
+   "pos": [
+    -0.95,
+    0.17,
+    0.653
+   ]
+  },
+  {
+   "name": "IK_Outrigger_FR",
+   "kind": "hand",
+   "parent": "Outrigger_FR",
+   "pos": [
+    1.07,
+    0.6,
+    0.323
+   ]
+  },
+  {
+   "name": "IK_OutriggerCrank_FR",
+   "kind": "hand",
+   "parent": "OutriggerFoot_FR",
+   "pos": [
+    1.19,
+    0.17,
+    0.653
+   ]
+  },
+  {
+   "name": "IK_Outrigger_RL",
+   "kind": "hand",
+   "parent": "Outrigger_RL",
+   "pos": [
+    -1.07,
+    -0.6,
+    0.323
+   ]
+  },
+  {
+   "name": "IK_OutriggerCrank_RL",
+   "kind": "hand",
+   "parent": "OutriggerFoot_RL",
+   "pos": [
+    -0.95,
+    -0.17,
+    0.653
+   ]
+  },
+  {
+   "name": "IK_Outrigger_RR",
+   "kind": "hand",
+   "parent": "Outrigger_RR",
+   "pos": [
+    1.07,
+    -0.6,
+    0.323
+   ]
+  },
+  {
+   "name": "IK_OutriggerCrank_RR",
+   "kind": "hand",
+   "parent": "OutriggerFoot_RR",
+   "pos": [
+    1.19,
+    -0.17,
+    0.653
+   ]
+  },
+  {
+   "name": "IK_Extension_Pull",
+   "kind": "hand",
+   "parent": "Deck_Extension",
+   "pos": [
+    0,
+    1.23,
+    9.6
+   ]
+  },
+  {
+   "name": "IK_GateLatch",
+   "kind": "hand",
+   "parent": "GateLatch",
+   "pos": [
+    0.89,
+    -0.72,
+    9.54
+   ]
+  },
+  {
+   "name": "IK_TopGate",
+   "kind": "hand",
+   "parent": "TopGate",
+   "pos": [
+    0.6,
+    -0.72,
+    9.6
+   ]
+  },
+  {
+   "name": "IK_TowBar_L",
+   "kind": "push",
+   "parent": "TowBar",
+   "pos": [
+    -0.08,
+    1.24,
+    1.288
+   ]
+  },
+  {
+   "name": "IK_TowBar_R",
+   "kind": "push",
+   "parent": "TowBar",
+   "pos": [
+    0.08,
+    1.24,
+    1.288
+   ]
+  },
+  {
+   "name": "IK_Deck",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    -0.45,
+    0,
+    8.5
+   ]
+  },
+  {
+   "name": "IK_Floor",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    -0.45,
+    -0.9,
+    0.449
+   ]
+  },
+  {
+   "name": "IK_DeckRail_L",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    -0.97,
+    0.2,
+    9.6
+   ]
+  },
+  {
+   "name": "IK_DeckRail_R",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    0.97,
+    0.2,
+    9.6
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    -1.0,
+    0,
+    1.05
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    1.0,
+    0,
+    1.05
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Castor brake FL",
+   "part": "Brake_FL",
+   "ik": "IK_Brake_FL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake FR",
+   "part": "Brake_FR",
+   "ik": "IK_Brake_FR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RL",
+   "part": "Brake_RL",
+   "ik": "IK_Brake_RL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RR",
+   "part": "Brake_RR",
+   "ik": "IK_Brake_RR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Outrigger FL",
+   "part": "Outrigger_FL",
+   "ik": "IK_Outrigger_FL",
+   "by": "hand",
+   "does": "swing out before climbing, fold in before moving"
+  },
+  {
+   "control": "Outrigger foot FL",
+   "part": "OutriggerFoot_FL",
+   "ik": "IK_OutriggerCrank_FL",
+   "by": "hand",
+   "does": "crank down onto the floor / up before moving"
+  },
+  {
+   "control": "Outrigger FR",
+   "part": "Outrigger_FR",
+   "ik": "IK_Outrigger_FR",
+   "by": "hand",
+   "does": "swing out before climbing, fold in before moving"
+  },
+  {
+   "control": "Outrigger foot FR",
+   "part": "OutriggerFoot_FR",
+   "ik": "IK_OutriggerCrank_FR",
+   "by": "hand",
+   "does": "crank down onto the floor / up before moving"
+  },
+  {
+   "control": "Outrigger RL",
+   "part": "Outrigger_RL",
+   "ik": "IK_Outrigger_RL",
+   "by": "hand",
+   "does": "swing out before climbing, fold in before moving"
+  },
+  {
+   "control": "Outrigger foot RL",
+   "part": "OutriggerFoot_RL",
+   "ik": "IK_OutriggerCrank_RL",
+   "by": "hand",
+   "does": "crank down onto the floor / up before moving"
+  },
+  {
+   "control": "Outrigger RR",
+   "part": "Outrigger_RR",
+   "ik": "IK_Outrigger_RR",
+   "by": "hand",
+   "does": "swing out before climbing, fold in before moving"
+  },
+  {
+   "control": "Outrigger foot RR",
+   "part": "OutriggerFoot_RR",
+   "ik": "IK_OutriggerCrank_RR",
+   "by": "hand",
+   "does": "crank down onto the floor / up before moving"
+  },
+  {
+   "control": "Deck extension",
+   "part": "Deck_Extension",
+   "ik": "IK_Extension_Pull",
+   "by": "hand",
+   "does": "push out to the fin until the bumper touches, pull back before moving"
+  },
+  {
+   "control": "Top gate latch",
+   "part": "GateLatch",
+   "ik": "IK_GateLatch",
+   "by": "hand",
+   "does": "flip up to open the gate"
+  },
+  {
+   "control": "Top gate",
+   "part": "TopGate",
+   "ik": "IK_TopGate",
+   "by": "hand",
+   "does": "push open, it springs shut behind"
+  },
+  {
+   "control": "Tow bar",
+   "part": "TowBar",
+   "ik": "IK_TowBar_R",
+   "by": "hand",
+   "does": "lower forward to tow, lift up to park"
+  }
+ ]
+}

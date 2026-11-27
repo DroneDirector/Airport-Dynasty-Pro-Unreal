@@ -1,0 +1,3790 @@
+{
+ "about": "Hangar access equipment for A320 maintenance (to-do 364 A). Our own models, no brands. +y faces the aircraft; pivots are in metres, Blender z-up (the importer mirrors x). Mechanics push each piece out of the tow path before a tow and back after (push IK points, braked castors). Every control the player works is its own part with an IK hand or foot point. Built by Art/HangarEquipment/*/make_*.py with hq_lib.py. No game code yet.",
+ "models": [
+  {
+   "name": "EngineWorkStand",
+   "asset": "/Game/Babylon/EngineWorkStand/engineworkstand",
+   "kind": "engine work stand (A320 nacelle)",
+   "glb": "Art/HangarEquipment/EngineWorkStand/engineworkstand.glb",
+   "blend": "Art/HangarEquipment/EngineWorkStand/EngineWorkStand.blend",
+   "size_m": [
+    1.6,
+    2.41,
+    2.874
+   ],
+   "sizes": {
+    "deck_height_m": 1.75,
+    "deck_m": [
+     1.2,
+     1.0
+    ],
+    "rail_m": 1.1,
+    "ladder_deg": 62.6,
+    "castors_mm": 200,
+    "extension_m": 0.45
+   },
+   "footprint": {
+    "x_min": -0.79,
+    "x_max": 0.79,
+    "y_min": -1.52,
+    "y_max": 0.8,
+    "towbar_down_reach_y": 1.75,
+    "note": "floor size with the ladder down; ladder folded: y_min -0.65"
+   },
+   "tris": 19120,
+   "moving_parts": [
+    {
+     "name": "Castor_FL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.62,
+      0.475,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.62,
+      0.43,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_FL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.62,
+      0.43,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_FR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.62,
+      0.475,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.62,
+      0.43,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_FR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.62,
+      0.43,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.62,
+      -0.475,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.62,
+      -0.52,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_RL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.62,
+      -0.52,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.62,
+      -0.475,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.62,
+      -0.52,
+      0.1
+     ],
+     "move": "spin about x, rolls r=0.100 m"
+    },
+    {
+     "name": "Brake_RR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.62,
+      -0.52,
+      0.1
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "TowBar",
+     "mesh": "TowBar",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0.83,
+      0.313
+     ],
+     "move": "hinge about x: 0 = up (parked) .. 85 deg forward = towing"
+    },
+    {
+     "name": "Ladder",
+     "mesh": "Ladder",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      -0.58,
+      1.7
+     ],
+     "move": "hinge about x at the deck: 0 = on the floor .. 75 deg folded up"
+    },
+    {
+     "name": "Rail_Front",
+     "mesh": "Rail_Front",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0.515,
+      1.762
+     ],
+     "move": "hinge about x: 0 = up .. 90 deg down forward"
+    },
+    {
+     "name": "Deck_Extension",
+     "mesh": "Deck_Extension",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0.48,
+      1.741
+     ],
+     "move": "slides along +y 0..0.45 m"
+    },
+    {
+     "name": "LadderLatch",
+     "mesh": "LadderLatch",
+     "parent": "Frame",
+     "pivot": [
+      0.4,
+      -0.52,
+      1.71
+     ],
+     "move": "turns about x 0..60 deg: up = ladder free to fold"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Brake_FL",
+     "kind": "foot",
+     "parent": "Brake_FL",
+     "pos": [
+      -0.555,
+      0.52,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_Brake_FR",
+     "kind": "foot",
+     "parent": "Brake_FR",
+     "pos": [
+      0.685,
+      0.52,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_Brake_RL",
+     "kind": "foot",
+     "parent": "Brake_RL",
+     "pos": [
+      -0.555,
+      -0.43,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_Brake_RR",
+     "kind": "foot",
+     "parent": "Brake_RR",
+     "pos": [
+      0.685,
+      -0.43,
+      0.112
+     ]
+    },
+    {
+     "name": "IK_TowBar_L",
+     "kind": "push",
+     "parent": "TowBar",
+     "pos": [
+      -0.08,
+      0.83,
+      1.233
+     ]
+    },
+    {
+     "name": "IK_TowBar_R",
+     "kind": "push",
+     "parent": "TowBar",
+     "pos": [
+      0.08,
+      0.83,
+      1.233
+     ]
+    },
+    {
+     "name": "IK_Step_1",
+     "kind": "foot",
+     "parent": "Ladder",
+     "pos": [
+      0,
+      -1.331,
+      0.25
+     ]
+    },
+    {
+     "name": "IK_Step_2",
+     "kind": "foot",
+     "parent": "Ladder",
+     "pos": [
+      0,
+      -1.201,
+      0.5
+     ]
+    },
+    {
+     "name": "IK_Step_3",
+     "kind": "foot",
+     "parent": "Ladder",
+     "pos": [
+      0,
+      -1.072,
+      0.75
+     ]
+    },
+    {
+     "name": "IK_Step_4",
+     "kind": "foot",
+     "parent": "Ladder",
+     "pos": [
+      0,
+      -0.942,
+      1.0
+     ]
+    },
+    {
+     "name": "IK_Step_5",
+     "kind": "foot",
+     "parent": "Ladder",
+     "pos": [
+      0,
+      -0.813,
+      1.25
+     ]
+    },
+    {
+     "name": "IK_Step_6",
+     "kind": "foot",
+     "parent": "Ladder",
+     "pos": [
+      0,
+      -0.684,
+      1.5
+     ]
+    },
+    {
+     "name": "IK_LadderRail_L",
+     "kind": "hand",
+     "parent": "Ladder",
+     "pos": [
+      -0.335,
+      -0.994,
+      1.83
+     ]
+    },
+    {
+     "name": "IK_LadderRail_R",
+     "kind": "hand",
+     "parent": "Ladder",
+     "pos": [
+      0.335,
+      -0.994,
+      1.83
+     ]
+    },
+    {
+     "name": "IK_RailFront_Grip",
+     "kind": "hand",
+     "parent": "Rail_Front",
+     "pos": [
+      0,
+      0.515,
+      2.85
+     ]
+    },
+    {
+     "name": "IK_Extension_Pull",
+     "kind": "hand",
+     "parent": "Deck_Extension",
+     "pos": [
+      0,
+      0.49,
+      1.705
+     ]
+    },
+    {
+     "name": "IK_LadderLatch",
+     "kind": "hand",
+     "parent": "LadderLatch",
+     "pos": [
+      0.43,
+      -0.535,
+      1.71
+     ]
+    },
+    {
+     "name": "IK_Deck",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      0,
+      1.75
+     ]
+    },
+    {
+     "name": "IK_DeckRail_L",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      -0.58,
+      0.1,
+      2.85
+     ]
+    },
+    {
+     "name": "IK_DeckRail_R",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      0.58,
+      0.1,
+      2.85
+     ]
+    },
+    {
+     "name": "IK_Push_L",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      -0.77,
+      0,
+      1.05
+     ]
+    },
+    {
+     "name": "IK_Push_R",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      0.77,
+      0,
+      1.05
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Castor brake FL",
+     "part": "Brake_FL",
+     "ik": "IK_Brake_FL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake FR",
+     "part": "Brake_FR",
+     "ik": "IK_Brake_FR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RL",
+     "part": "Brake_RL",
+     "ik": "IK_Brake_RL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RR",
+     "part": "Brake_RR",
+     "ik": "IK_Brake_RR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Ladder latch",
+     "part": "LadderLatch",
+     "ik": "IK_LadderLatch",
+     "by": "hand",
+     "does": "lift to free the ladder, then fold it up for moving"
+    },
+    {
+     "control": "Ladder fold",
+     "part": "Ladder",
+     "ik": "IK_LadderRail_R",
+     "by": "hand",
+     "does": "fold up 75 deg for moving / down to climb"
+    },
+    {
+     "control": "Front rail",
+     "part": "Rail_Front",
+     "ik": "IK_RailFront_Grip",
+     "by": "hand",
+     "does": "drop forward onto the cowl side / lift back up"
+    },
+    {
+     "control": "Deck extension",
+     "part": "Deck_Extension",
+     "ik": "IK_Extension_Pull",
+     "by": "hand",
+     "does": "pull out toward the cowl 0..0.45 m"
+    },
+    {
+     "control": "Tow bar",
+     "part": "TowBar",
+     "ik": "IK_TowBar_R",
+     "by": "hand",
+     "does": "lower forward to tow, lift up to park"
+    }
+   ],
+   "reference": "Wikimedia Commons: 374 AW MXS, AMXS perform engine maintenance operations in Sri Lanka (public domain); A320 nacelle heights",
+   "root_part": "Frame"
+  },
+  {
+   "name": "DoorWorkStand",
+   "asset": "/Game/Babylon/DoorWorkStand/doorworkstand",
+   "kind": "fuselage / door work stand (adjustable)",
+   "glb": "Art/HangarEquipment/DoorWorkStand/doorworkstand.glb",
+   "blend": "Art/HangarEquipment/DoorWorkStand/DoorWorkStand.blend",
+   "size_m": [
+    2.01,
+    5.447,
+    3.674
+   ],
+   "sizes": {
+    "deck_min_m": 2.5,
+    "deck_max_m": 4.0,
+    "deck_m": [
+     1.6,
+     1.2
+    ],
+    "rail_m": 1.1,
+    "stair_length_m": 4.6,
+    "stair_deg_low": 31.2,
+    "treads": 12,
+    "castors_mm": 250,
+    "extension_m": 0.4
+   },
+   "footprint": {
+    "x_min": -0.99,
+    "x_max": 0.99,
+    "y_min": -4.63,
+    "y_max": 0.8200000000000001,
+    "stair_foot_y_at_4m": -3.17,
+    "note": "the stair foot moves with the deck height; tow bar down reaches y 1.75"
+   },
+   "tris": 25086,
+   "moving_parts": [
+    {
+     "name": "Castor_FL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Base",
+     "pivot": [
+      -0.72,
+      0.45,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.72,
+      0.394,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_FL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.72,
+      0.394,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_FR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Base",
+     "pivot": [
+      0.72,
+      0.45,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.72,
+      0.394,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_FR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.72,
+      0.394,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Base",
+     "pivot": [
+      -0.72,
+      -0.45,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.72,
+      -0.506,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_RL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.72,
+      -0.506,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Base",
+     "pivot": [
+      0.72,
+      -0.45,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.72,
+      -0.506,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_RR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.72,
+      -0.506,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Stabiliser_FL",
+     "mesh": "DWS_Stabiliser",
+     "parent": "Base",
+     "pivot": [
+      -0.945,
+      0.6,
+      0.04
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.04..0 (down = on the floor)"
+    },
+    {
+     "name": "Stabiliser_FR",
+     "mesh": "DWS_Stabiliser",
+     "parent": "Base",
+     "pivot": [
+      0.945,
+      0.6,
+      0.04
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.04..0 (down = on the floor)"
+    },
+    {
+     "name": "Stabiliser_RL",
+     "mesh": "DWS_Stabiliser",
+     "parent": "Base",
+     "pivot": [
+      -0.945,
+      -0.6,
+      0.04
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.04..0 (down = on the floor)"
+    },
+    {
+     "name": "Stabiliser_RR",
+     "mesh": "DWS_Stabiliser",
+     "parent": "Base",
+     "pivot": [
+      0.945,
+      -0.6,
+      0.04
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.04..0 (down = on the floor)"
+    },
+    {
+     "name": "DeckLift",
+     "mesh": "DeckLift",
+     "parent": "Base",
+     "pivot": [
+      0,
+      0,
+      2.5
+     ],
+     "move": "lifts z 0..+1.5 m (deck 2.5..4.0 m)"
+    },
+    {
+     "name": "Button_Up",
+     "mesh": "Button_Up",
+     "parent": "DeckLift",
+     "pivot": [
+      0.7,
+      -0.36,
+      3.552
+     ],
+     "move": "pushes down z 0..-0.006 m: hold = deck up"
+    },
+    {
+     "name": "Button_Down",
+     "mesh": "Button_Down",
+     "parent": "DeckLift",
+     "pivot": [
+      0.7,
+      -0.28,
+      3.552
+     ],
+     "move": "pushes down z 0..-0.006 m: hold = deck down"
+    },
+    {
+     "name": "Deck_Extension",
+     "mesh": "Deck_Extension",
+     "parent": "DeckLift",
+     "pivot": [
+      0,
+      0.53,
+      2.491
+     ],
+     "move": "slides along +y 0..0.40 m to the fuselage"
+    },
+    {
+     "name": "FrontGate",
+     "mesh": "FrontGate",
+     "parent": "DeckLift",
+     "pivot": [
+      -0.83,
+      0.6,
+      2.51
+     ],
+     "move": "swings about x on the left lug, up 0..85 deg to open the front"
+    },
+    {
+     "name": "Stair",
+     "mesh": "Stair",
+     "parent": "DeckLift",
+     "pivot": [
+      0,
+      -0.635,
+      2.43
+     ],
+     "move": "hinge about x at the deck: 31.2 deg (deck 2.5 m) .. 57.5 deg (4.0 m); foot rolls on the floor"
+    },
+    {
+     "name": "Tread_01",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -4.269,
+      0.283
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_02",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -3.966,
+      0.466
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_03",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -3.663,
+      0.649
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_04",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -3.36,
+      0.832
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_05",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -3.057,
+      1.015
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_06",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -2.755,
+      1.198
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_07",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -2.452,
+      1.382
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_08",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -2.149,
+      1.565
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_09",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -1.846,
+      1.748
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_10",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -1.543,
+      1.931
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_11",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -1.241,
+      2.114
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "Tread_12",
+     "mesh": "DWS_Tread",
+     "parent": "Stair",
+     "pivot": [
+      0,
+      -0.938,
+      2.297
+     ],
+     "move": "turns about x on its pins: always minus the stair turn (stays level)"
+    },
+    {
+     "name": "StairRoller_L",
+     "mesh": "DWS_StairRoller",
+     "parent": "Stair",
+     "pivot": [
+      -0.535,
+      -4.571,
+      0.05
+     ],
+     "move": "spins about x as the stair foot rolls"
+    },
+    {
+     "name": "StairRoller_R",
+     "mesh": "DWS_StairRoller",
+     "parent": "Stair",
+     "pivot": [
+      0.535,
+      -4.571,
+      0.05
+     ],
+     "move": "spins about x as the stair foot rolls"
+    },
+    {
+     "name": "TowBar",
+     "mesh": "TowBar",
+     "parent": "Base",
+     "pivot": [
+      0,
+      0.79,
+      0.368
+     ],
+     "move": "hinge about x: 0 = up (parked) .. 85 deg forward = towing"
+    },
+    {
+     "name": "PumpLever",
+     "mesh": "PumpLever",
+     "parent": "Base",
+     "pivot": [
+      0.69,
+      -0.26,
+      0.673
+     ],
+     "move": "pumps about y -15..+35 deg: hand back-up to raise the deck"
+    },
+    {
+     "name": "LowerValve",
+     "mesh": "LowerValve",
+     "parent": "Base",
+     "pivot": [
+      0.686,
+      -0.13,
+      0.483
+     ],
+     "move": "turns about x 0..360 deg: open = deck comes down slowly"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Brake_FL",
+     "kind": "foot",
+     "parent": "Brake_FL",
+     "pos": [
+      -0.65,
+      0.484,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Brake_FR",
+     "kind": "foot",
+     "parent": "Brake_FR",
+     "pos": [
+      0.79,
+      0.484,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Brake_RL",
+     "kind": "foot",
+     "parent": "Brake_RL",
+     "pos": [
+      -0.65,
+      -0.416,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Brake_RR",
+     "kind": "foot",
+     "parent": "Brake_RR",
+     "pos": [
+      0.79,
+      -0.416,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Stabiliser_FL",
+     "kind": "hand",
+     "parent": "Stabiliser_FL",
+     "pos": [
+      -0.945,
+      0.72,
+      0.44
+     ]
+    },
+    {
+     "name": "IK_Stabiliser_FR",
+     "kind": "hand",
+     "parent": "Stabiliser_FR",
+     "pos": [
+      0.945,
+      0.72,
+      0.44
+     ]
+    },
+    {
+     "name": "IK_Stabiliser_RL",
+     "kind": "hand",
+     "parent": "Stabiliser_RL",
+     "pos": [
+      -0.945,
+      -0.48,
+      0.44
+     ]
+    },
+    {
+     "name": "IK_Stabiliser_RR",
+     "kind": "hand",
+     "parent": "Stabiliser_RR",
+     "pos": [
+      0.945,
+      -0.48,
+      0.44
+     ]
+    },
+    {
+     "name": "IK_Button_Up",
+     "kind": "hand",
+     "parent": "Button_Up",
+     "pos": [
+      0.7,
+      -0.36,
+      3.566
+     ]
+    },
+    {
+     "name": "IK_Button_Down",
+     "kind": "hand",
+     "parent": "Button_Down",
+     "pos": [
+      0.7,
+      -0.28,
+      3.566
+     ]
+    },
+    {
+     "name": "IK_Extension_Pull",
+     "kind": "hand",
+     "parent": "Deck_Extension",
+     "pos": [
+      0,
+      0.52,
+      2.455
+     ]
+    },
+    {
+     "name": "IK_FrontGate",
+     "kind": "hand",
+     "parent": "FrontGate",
+     "pos": [
+      0.5,
+      0.6,
+      3.6
+     ]
+    },
+    {
+     "name": "IK_Step_01",
+     "kind": "foot",
+     "parent": "Tread_01",
+     "pos": [
+      0,
+      -4.269,
+      0.283
+     ]
+    },
+    {
+     "name": "IK_Step_02",
+     "kind": "foot",
+     "parent": "Tread_02",
+     "pos": [
+      0,
+      -3.966,
+      0.466
+     ]
+    },
+    {
+     "name": "IK_Step_03",
+     "kind": "foot",
+     "parent": "Tread_03",
+     "pos": [
+      0,
+      -3.663,
+      0.649
+     ]
+    },
+    {
+     "name": "IK_Step_04",
+     "kind": "foot",
+     "parent": "Tread_04",
+     "pos": [
+      0,
+      -3.36,
+      0.832
+     ]
+    },
+    {
+     "name": "IK_Step_05",
+     "kind": "foot",
+     "parent": "Tread_05",
+     "pos": [
+      0,
+      -3.057,
+      1.015
+     ]
+    },
+    {
+     "name": "IK_Step_06",
+     "kind": "foot",
+     "parent": "Tread_06",
+     "pos": [
+      0,
+      -2.755,
+      1.198
+     ]
+    },
+    {
+     "name": "IK_Step_07",
+     "kind": "foot",
+     "parent": "Tread_07",
+     "pos": [
+      0,
+      -2.452,
+      1.382
+     ]
+    },
+    {
+     "name": "IK_Step_08",
+     "kind": "foot",
+     "parent": "Tread_08",
+     "pos": [
+      0,
+      -2.149,
+      1.565
+     ]
+    },
+    {
+     "name": "IK_Step_09",
+     "kind": "foot",
+     "parent": "Tread_09",
+     "pos": [
+      0,
+      -1.846,
+      1.748
+     ]
+    },
+    {
+     "name": "IK_Step_10",
+     "kind": "foot",
+     "parent": "Tread_10",
+     "pos": [
+      0,
+      -1.543,
+      1.931
+     ]
+    },
+    {
+     "name": "IK_Step_11",
+     "kind": "foot",
+     "parent": "Tread_11",
+     "pos": [
+      0,
+      -1.241,
+      2.114
+     ]
+    },
+    {
+     "name": "IK_Step_12",
+     "kind": "foot",
+     "parent": "Tread_12",
+     "pos": [
+      0,
+      -0.938,
+      2.297
+     ]
+    },
+    {
+     "name": "IK_StairRail_L",
+     "kind": "hand",
+     "parent": "Stair",
+     "pos": [
+      -0.485,
+      -2.603,
+      2.22
+     ]
+    },
+    {
+     "name": "IK_StairRail_R",
+     "kind": "hand",
+     "parent": "Stair",
+     "pos": [
+      0.485,
+      -2.603,
+      2.22
+     ]
+    },
+    {
+     "name": "IK_TowBar_L",
+     "kind": "push",
+     "parent": "TowBar",
+     "pos": [
+      -0.08,
+      0.79,
+      1.288
+     ]
+    },
+    {
+     "name": "IK_TowBar_R",
+     "kind": "push",
+     "parent": "TowBar",
+     "pos": [
+      0.08,
+      0.79,
+      1.288
+     ]
+    },
+    {
+     "name": "IK_PumpLever",
+     "kind": "hand",
+     "parent": "PumpLever",
+     "pos": [
+      0.456,
+      -0.26,
+      1.301
+     ]
+    },
+    {
+     "name": "IK_LowerValve",
+     "kind": "hand",
+     "parent": "LowerValve",
+     "pos": [
+      0.74,
+      -0.13,
+      0.483
+     ]
+    },
+    {
+     "name": "IK_Deck",
+     "kind": "stand",
+     "parent": "DeckLift",
+     "pos": [
+      0,
+      0,
+      2.5
+     ]
+    },
+    {
+     "name": "IK_DeckRail_L",
+     "kind": "hand",
+     "parent": "DeckLift",
+     "pos": [
+      -0.78,
+      0.2,
+      3.6
+     ]
+    },
+    {
+     "name": "IK_DeckRail_R",
+     "kind": "hand",
+     "parent": "DeckLift",
+     "pos": [
+      0.78,
+      0.2,
+      3.6
+     ]
+    },
+    {
+     "name": "IK_Push_L",
+     "kind": "push",
+     "parent": "Base",
+     "pos": [
+      -0.92,
+      0,
+      1.05
+     ]
+    },
+    {
+     "name": "IK_Push_R",
+     "kind": "push",
+     "parent": "Base",
+     "pos": [
+      0.92,
+      0,
+      1.05
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Castor brake FL",
+     "part": "Brake_FL",
+     "ik": "IK_Brake_FL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake FR",
+     "part": "Brake_FR",
+     "ik": "IK_Brake_FR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RL",
+     "part": "Brake_RL",
+     "ik": "IK_Brake_RL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RR",
+     "part": "Brake_RR",
+     "ik": "IK_Brake_RR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Stabiliser FL",
+     "part": "Stabiliser_FL",
+     "ik": "IK_Stabiliser_FL",
+     "by": "hand",
+     "does": "crank down before climbing, up before moving"
+    },
+    {
+     "control": "Stabiliser FR",
+     "part": "Stabiliser_FR",
+     "ik": "IK_Stabiliser_FR",
+     "by": "hand",
+     "does": "crank down before climbing, up before moving"
+    },
+    {
+     "control": "Stabiliser RL",
+     "part": "Stabiliser_RL",
+     "ik": "IK_Stabiliser_RL",
+     "by": "hand",
+     "does": "crank down before climbing, up before moving"
+    },
+    {
+     "control": "Stabiliser RR",
+     "part": "Stabiliser_RR",
+     "ik": "IK_Stabiliser_RR",
+     "by": "hand",
+     "does": "crank down before climbing, up before moving"
+    },
+    {
+     "control": "Deck up button",
+     "part": "Button_Up",
+     "ik": "IK_Button_Up",
+     "by": "hand",
+     "does": "hold to move the deck up (electro-hydraulic)"
+    },
+    {
+     "control": "Deck down button",
+     "part": "Button_Down",
+     "ik": "IK_Button_Down",
+     "by": "hand",
+     "does": "hold to move the deck down (electro-hydraulic)"
+    },
+    {
+     "control": "Front gate",
+     "part": "FrontGate",
+     "ik": "IK_FrontGate",
+     "by": "hand",
+     "does": "lift to open the front at the door, lower to close"
+    },
+    {
+     "control": "Deck extension",
+     "part": "Deck_Extension",
+     "ik": "IK_Extension_Pull",
+     "by": "hand",
+     "does": "pull out 0..0.40 m until the bumper meets the skin"
+    },
+    {
+     "control": "Tow bar",
+     "part": "TowBar",
+     "ik": "IK_TowBar_R",
+     "by": "hand",
+     "does": "lower forward to tow, lift up to park"
+    },
+    {
+     "control": "Hand pump lever (deck up)",
+     "part": "PumpLever",
+     "ik": "IK_PumpLever",
+     "by": "hand",
+     "does": "pump: each stroke raises the deck (back-up)"
+    },
+    {
+     "control": "Lowering valve (deck down)",
+     "part": "LowerValve",
+     "ik": "IK_LowerValve",
+     "by": "hand",
+     "does": "turn open = deck comes down, close = holds"
+    },
+    {
+     "control": "Stair",
+     "part": "Stair",
+     "ik": "IK_StairRail_R",
+     "by": "hand",
+     "does": "follows the deck by itself; its foot rolls"
+    }
+   ],
+   "reference": "Wikimedia Commons: 374 AW MXS, AMXS perform engine maintenance operations in Sri Lanka (public domain); A320 door sill heights; published docking-platform sizes",
+   "root_part": "Base"
+  },
+  {
+   "name": "TailDockStand",
+   "asset": "/Game/Babylon/TailDockStand/taildockstand",
+   "kind": "tail dock stand (mobile stair tower)",
+   "glb": "Art/HangarEquipment/TailDockStand/taildockstand.glb",
+   "blend": "Art/HangarEquipment/TailDockStand/TailDockStand.blend",
+   "size_m": [
+    2.359,
+    2.515,
+    9.627
+   ],
+   "sizes": {
+    "top_deck_m": 8.5,
+    "rail_top_m": 9.6,
+    "tower_m": [
+     2.0,
+     2.4
+    ],
+    "flights": 6,
+    "risers_per_flight": 7,
+    "riser_m": 0.192,
+    "going_m": 0.171,
+    "stair_deg": 48.2,
+    "extension_m": 0.55,
+    "castors_mm": 250
+   },
+   "footprint": {
+    "x_min": -1.11,
+    "x_max": 1.11,
+    "y_min": -1.21,
+    "y_max": 1.31,
+    "outriggers_out": {
+     "x_min": -1.85,
+     "x_max": 1.85,
+     "y_min": -1.95,
+     "y_max": 1.95
+    },
+    "note": "rolling = folded outriggers; working = outriggers out (bigger box); tow bar down reaches y 2.20"
+   },
+   "tris": 58120,
+   "moving_parts": [
+    {
+     "name": "Castor_FL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.8,
+      0.98,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.8,
+      0.924,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_FL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FL",
+     "pivot": [
+      -0.8,
+      0.924,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_FR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.8,
+      0.98,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_FR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.8,
+      0.924,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_FR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_FR",
+     "pivot": [
+      0.8,
+      0.924,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RL",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.8,
+      -0.98,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RL",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.8,
+      -1.036,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_RL",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RL",
+     "pivot": [
+      -0.8,
+      -1.036,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_RR",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.8,
+      -0.98,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_RR",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.8,
+      -1.036,
+      0.125
+     ],
+     "move": "spin about x, rolls r=0.125 m"
+    },
+    {
+     "name": "Brake_RR",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_RR",
+     "pivot": [
+      0.8,
+      -1.036,
+      0.125
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Outrigger_FL",
+     "mesh": "TDS_OutriggerArm_F",
+     "parent": "Frame",
+     "pivot": [
+      -1.07,
+      1.17,
+      0.423
+     ],
+     "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+    },
+    {
+     "name": "OutriggerFoot_FL",
+     "mesh": "TDS_OutriggerFoot",
+     "parent": "Outrigger_FL",
+     "pivot": [
+      -1.07,
+      0.17,
+      0.06
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+    },
+    {
+     "name": "Outrigger_FR",
+     "mesh": "TDS_OutriggerArm_F",
+     "parent": "Frame",
+     "pivot": [
+      1.07,
+      1.17,
+      0.423
+     ],
+     "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+    },
+    {
+     "name": "OutriggerFoot_FR",
+     "mesh": "TDS_OutriggerFoot",
+     "parent": "Outrigger_FR",
+     "pivot": [
+      1.07,
+      0.17,
+      0.06
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+    },
+    {
+     "name": "Outrigger_RL",
+     "mesh": "TDS_OutriggerArm_R",
+     "parent": "Frame",
+     "pivot": [
+      -1.07,
+      -1.17,
+      0.423
+     ],
+     "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+    },
+    {
+     "name": "OutriggerFoot_RL",
+     "mesh": "TDS_OutriggerFoot",
+     "parent": "Outrigger_RL",
+     "pivot": [
+      -1.07,
+      -0.17,
+      0.06
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+    },
+    {
+     "name": "Outrigger_RR",
+     "mesh": "TDS_OutriggerArm_R",
+     "parent": "Frame",
+     "pivot": [
+      1.07,
+      -1.17,
+      0.423
+     ],
+     "move": "swings about z 0..135 deg out to the diagonal (stowed along the side)"
+    },
+    {
+     "name": "OutriggerFoot_RR",
+     "mesh": "TDS_OutriggerFoot",
+     "parent": "Outrigger_RR",
+     "pivot": [
+      1.07,
+      -0.17,
+      0.06
+     ],
+     "move": "screw foot: crank turns, foot slides z -0.06..0 (down = on the floor)"
+    },
+    {
+     "name": "Deck_Extension",
+     "mesh": "Deck_Extension",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0.65,
+      8.504
+     ],
+     "move": "slides along +y 0..0.55 m toward the fin"
+    },
+    {
+     "name": "TopGate",
+     "mesh": "TopGate",
+     "parent": "Frame",
+     "pivot": [
+      0.08,
+      -0.72,
+      8.55
+     ],
+     "move": "swings about z 0..90 deg toward -y, springs shut"
+    },
+    {
+     "name": "GateLatch",
+     "mesh": "GateLatch",
+     "parent": "TopGate",
+     "pivot": [
+      0.87,
+      -0.72,
+      9.54
+     ],
+     "move": "flips about y 0..70 deg up to free the gate"
+    },
+    {
+     "name": "TowBar",
+     "mesh": "TowBar",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      1.24,
+      0.368
+     ],
+     "move": "hinge about x: 0 = up (parked) .. 85 deg forward = towing"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Step_F1_1",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.429,
+      0.641
+     ]
+    },
+    {
+     "name": "IK_Step_F1_2",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.257,
+      0.832
+     ]
+    },
+    {
+     "name": "IK_Step_F1_3",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.086,
+      1.024
+     ]
+    },
+    {
+     "name": "IK_Step_F1_4",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.086,
+      1.216
+     ]
+    },
+    {
+     "name": "IK_Step_F1_5",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.257,
+      1.407
+     ]
+    },
+    {
+     "name": "IK_Step_F1_6",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.429,
+      1.599
+     ]
+    },
+    {
+     "name": "IK_Rail_F1",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      -0.07,
+      0.0,
+      2.07
+     ]
+    },
+    {
+     "name": "IK_Step_F2_1",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.429,
+      1.983
+     ]
+    },
+    {
+     "name": "IK_Step_F2_2",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.257,
+      2.174
+     ]
+    },
+    {
+     "name": "IK_Step_F2_3",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.086,
+      2.366
+     ]
+    },
+    {
+     "name": "IK_Step_F2_4",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.086,
+      2.558
+     ]
+    },
+    {
+     "name": "IK_Step_F2_5",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.257,
+      2.749
+     ]
+    },
+    {
+     "name": "IK_Step_F2_6",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.429,
+      2.941
+     ]
+    },
+    {
+     "name": "IK_Rail_F2",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      0.07,
+      0.0,
+      3.412
+     ]
+    },
+    {
+     "name": "IK_Step_F3_1",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.429,
+      3.324
+     ]
+    },
+    {
+     "name": "IK_Step_F3_2",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.257,
+      3.516
+     ]
+    },
+    {
+     "name": "IK_Step_F3_3",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.086,
+      3.708
+     ]
+    },
+    {
+     "name": "IK_Step_F3_4",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.086,
+      3.899
+     ]
+    },
+    {
+     "name": "IK_Step_F3_5",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.257,
+      4.091
+     ]
+    },
+    {
+     "name": "IK_Step_F3_6",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.429,
+      4.283
+     ]
+    },
+    {
+     "name": "IK_Rail_F3",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      -0.07,
+      0.0,
+      4.754
+     ]
+    },
+    {
+     "name": "IK_Step_F4_1",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.429,
+      4.666
+     ]
+    },
+    {
+     "name": "IK_Step_F4_2",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.257,
+      4.858
+     ]
+    },
+    {
+     "name": "IK_Step_F4_3",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.086,
+      5.05
+     ]
+    },
+    {
+     "name": "IK_Step_F4_4",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.086,
+      5.241
+     ]
+    },
+    {
+     "name": "IK_Step_F4_5",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.257,
+      5.433
+     ]
+    },
+    {
+     "name": "IK_Step_F4_6",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.429,
+      5.625
+     ]
+    },
+    {
+     "name": "IK_Rail_F4",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      0.07,
+      0.0,
+      6.095
+     ]
+    },
+    {
+     "name": "IK_Step_F5_1",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.429,
+      6.008
+     ]
+    },
+    {
+     "name": "IK_Step_F5_2",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.257,
+      6.2
+     ]
+    },
+    {
+     "name": "IK_Step_F5_3",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      -0.086,
+      6.391
+     ]
+    },
+    {
+     "name": "IK_Step_F5_4",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.086,
+      6.583
+     ]
+    },
+    {
+     "name": "IK_Step_F5_5",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.257,
+      6.775
+     ]
+    },
+    {
+     "name": "IK_Step_F5_6",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      -0.475,
+      0.429,
+      6.966
+     ]
+    },
+    {
+     "name": "IK_Rail_F5",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      -0.07,
+      0.0,
+      7.437
+     ]
+    },
+    {
+     "name": "IK_Step_F6_1",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.429,
+      7.35
+     ]
+    },
+    {
+     "name": "IK_Step_F6_2",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.257,
+      7.542
+     ]
+    },
+    {
+     "name": "IK_Step_F6_3",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      0.086,
+      7.733
+     ]
+    },
+    {
+     "name": "IK_Step_F6_4",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.086,
+      7.925
+     ]
+    },
+    {
+     "name": "IK_Step_F6_5",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.257,
+      8.117
+     ]
+    },
+    {
+     "name": "IK_Step_F6_6",
+     "kind": "foot",
+     "parent": "Frame",
+     "pos": [
+      0.475,
+      -0.429,
+      8.308
+     ]
+    },
+    {
+     "name": "IK_Rail_F6",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      0.07,
+      0.0,
+      8.779
+     ]
+    },
+    {
+     "name": "IK_Landing_1",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      0.88,
+      1.791
+     ]
+    },
+    {
+     "name": "IK_Landing_2",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      -0.88,
+      3.133
+     ]
+    },
+    {
+     "name": "IK_Landing_3",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      0.88,
+      4.474
+     ]
+    },
+    {
+     "name": "IK_Landing_4",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      -0.88,
+      5.816
+     ]
+    },
+    {
+     "name": "IK_Landing_5",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      0,
+      0.88,
+      7.158
+     ]
+    },
+    {
+     "name": "IK_Brake_FL",
+     "kind": "foot",
+     "parent": "Brake_FL",
+     "pos": [
+      -0.73,
+      1.014,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Brake_FR",
+     "kind": "foot",
+     "parent": "Brake_FR",
+     "pos": [
+      0.87,
+      1.014,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Brake_RL",
+     "kind": "foot",
+     "parent": "Brake_RL",
+     "pos": [
+      -0.73,
+      -0.946,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Brake_RR",
+     "kind": "foot",
+     "parent": "Brake_RR",
+     "pos": [
+      0.87,
+      -0.946,
+      0.137
+     ]
+    },
+    {
+     "name": "IK_Outrigger_FL",
+     "kind": "hand",
+     "parent": "Outrigger_FL",
+     "pos": [
+      -1.07,
+      0.6,
+      0.323
+     ]
+    },
+    {
+     "name": "IK_OutriggerCrank_FL",
+     "kind": "hand",
+     "parent": "OutriggerFoot_FL",
+     "pos": [
+      -0.95,
+      0.17,
+      0.653
+     ]
+    },
+    {
+     "name": "IK_Outrigger_FR",
+     "kind": "hand",
+     "parent": "Outrigger_FR",
+     "pos": [
+      1.07,
+      0.6,
+      0.323
+     ]
+    },
+    {
+     "name": "IK_OutriggerCrank_FR",
+     "kind": "hand",
+     "parent": "OutriggerFoot_FR",
+     "pos": [
+      1.19,
+      0.17,
+      0.653
+     ]
+    },
+    {
+     "name": "IK_Outrigger_RL",
+     "kind": "hand",
+     "parent": "Outrigger_RL",
+     "pos": [
+      -1.07,
+      -0.6,
+      0.323
+     ]
+    },
+    {
+     "name": "IK_OutriggerCrank_RL",
+     "kind": "hand",
+     "parent": "OutriggerFoot_RL",
+     "pos": [
+      -0.95,
+      -0.17,
+      0.653
+     ]
+    },
+    {
+     "name": "IK_Outrigger_RR",
+     "kind": "hand",
+     "parent": "Outrigger_RR",
+     "pos": [
+      1.07,
+      -0.6,
+      0.323
+     ]
+    },
+    {
+     "name": "IK_OutriggerCrank_RR",
+     "kind": "hand",
+     "parent": "OutriggerFoot_RR",
+     "pos": [
+      1.19,
+      -0.17,
+      0.653
+     ]
+    },
+    {
+     "name": "IK_Extension_Pull",
+     "kind": "hand",
+     "parent": "Deck_Extension",
+     "pos": [
+      0,
+      1.23,
+      9.6
+     ]
+    },
+    {
+     "name": "IK_GateLatch",
+     "kind": "hand",
+     "parent": "GateLatch",
+     "pos": [
+      0.89,
+      -0.72,
+      9.54
+     ]
+    },
+    {
+     "name": "IK_TopGate",
+     "kind": "hand",
+     "parent": "TopGate",
+     "pos": [
+      0.6,
+      -0.72,
+      9.6
+     ]
+    },
+    {
+     "name": "IK_TowBar_L",
+     "kind": "push",
+     "parent": "TowBar",
+     "pos": [
+      -0.08,
+      1.24,
+      1.288
+     ]
+    },
+    {
+     "name": "IK_TowBar_R",
+     "kind": "push",
+     "parent": "TowBar",
+     "pos": [
+      0.08,
+      1.24,
+      1.288
+     ]
+    },
+    {
+     "name": "IK_Deck",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      -0.45,
+      0,
+      8.5
+     ]
+    },
+    {
+     "name": "IK_Floor",
+     "kind": "stand",
+     "parent": "Frame",
+     "pos": [
+      -0.45,
+      -0.9,
+      0.449
+     ]
+    },
+    {
+     "name": "IK_DeckRail_L",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      -0.97,
+      0.2,
+      9.6
+     ]
+    },
+    {
+     "name": "IK_DeckRail_R",
+     "kind": "hand",
+     "parent": "Frame",
+     "pos": [
+      0.97,
+      0.2,
+      9.6
+     ]
+    },
+    {
+     "name": "IK_Push_L",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      -1.0,
+      0,
+      1.05
+     ]
+    },
+    {
+     "name": "IK_Push_R",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      1.0,
+      0,
+      1.05
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Castor brake FL",
+     "part": "Brake_FL",
+     "ik": "IK_Brake_FL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake FR",
+     "part": "Brake_FR",
+     "ik": "IK_Brake_FR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RL",
+     "part": "Brake_RL",
+     "ik": "IK_Brake_RL",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake RR",
+     "part": "Brake_RR",
+     "ik": "IK_Brake_RR",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Outrigger FL",
+     "part": "Outrigger_FL",
+     "ik": "IK_Outrigger_FL",
+     "by": "hand",
+     "does": "swing out before climbing, fold in before moving"
+    },
+    {
+     "control": "Outrigger foot FL",
+     "part": "OutriggerFoot_FL",
+     "ik": "IK_OutriggerCrank_FL",
+     "by": "hand",
+     "does": "crank down onto the floor / up before moving"
+    },
+    {
+     "control": "Outrigger FR",
+     "part": "Outrigger_FR",
+     "ik": "IK_Outrigger_FR",
+     "by": "hand",
+     "does": "swing out before climbing, fold in before moving"
+    },
+    {
+     "control": "Outrigger foot FR",
+     "part": "OutriggerFoot_FR",
+     "ik": "IK_OutriggerCrank_FR",
+     "by": "hand",
+     "does": "crank down onto the floor / up before moving"
+    },
+    {
+     "control": "Outrigger RL",
+     "part": "Outrigger_RL",
+     "ik": "IK_Outrigger_RL",
+     "by": "hand",
+     "does": "swing out before climbing, fold in before moving"
+    },
+    {
+     "control": "Outrigger foot RL",
+     "part": "OutriggerFoot_RL",
+     "ik": "IK_OutriggerCrank_RL",
+     "by": "hand",
+     "does": "crank down onto the floor / up before moving"
+    },
+    {
+     "control": "Outrigger RR",
+     "part": "Outrigger_RR",
+     "ik": "IK_Outrigger_RR",
+     "by": "hand",
+     "does": "swing out before climbing, fold in before moving"
+    },
+    {
+     "control": "Outrigger foot RR",
+     "part": "OutriggerFoot_RR",
+     "ik": "IK_OutriggerCrank_RR",
+     "by": "hand",
+     "does": "crank down onto the floor / up before moving"
+    },
+    {
+     "control": "Deck extension",
+     "part": "Deck_Extension",
+     "ik": "IK_Extension_Pull",
+     "by": "hand",
+     "does": "push out to the fin until the bumper touches, pull back before moving"
+    },
+    {
+     "control": "Top gate latch",
+     "part": "GateLatch",
+     "ik": "IK_GateLatch",
+     "by": "hand",
+     "does": "flip up to open the gate"
+    },
+    {
+     "control": "Top gate",
+     "part": "TopGate",
+     "ik": "IK_TopGate",
+     "by": "hand",
+     "does": "push open, it springs shut behind"
+    },
+    {
+     "control": "Tow bar",
+     "part": "TowBar",
+     "ik": "IK_TowBar_R",
+     "by": "hand",
+     "does": "lower forward to tow, lift up to park"
+    }
+   ],
+   "reference": "Wikimedia Commons public-domain USAF / US Navy photos of mobile maintenance towers and tail docks; published narrow-body tail stand sizes",
+   "root_part": "Frame"
+  },
+  {
+   "name": "ScissorLift",
+   "asset": "/Game/Babylon/ScissorLift/scissorlift",
+   "kind": "scissor lift (19 ft slab class)",
+   "glb": "Art/HangarEquipment/ScissorLift/scissorlift.glb",
+   "blend": "Art/HangarEquipment/ScissorLift/ScissorLift.blend",
+   "size_m": [
+    0.85,
+    1.908,
+    2.332
+   ],
+   "sizes": {
+    "width_m": 0.76,
+    "length_m": 1.83,
+    "deck_stowed_m": 1.05,
+    "deck_max_m": 5.83,
+    "rail_m": 1.1,
+    "extension_m": 0.9,
+    "wheel_mm": 310,
+    "stages": 4,
+    "pin_to_pin_m": 1.55,
+    "Z0": 0.44,
+    "h_stowed": 0.115,
+    "h_full": 1.31
+   },
+   "footprint": {
+    "x_min": -0.4,
+    "x_max": 0.4,
+    "y_min": -0.99,
+    "y_max": 0.92,
+    "extension_out_y_max": 1.74
+   },
+   "tris": 21018,
+   "moving_parts": [
+    {
+     "name": "Steer_FL",
+     "mesh": "SCL_Knuckle_L",
+     "parent": "Chassis",
+     "pivot": [
+      -0.32,
+      0.66,
+      0
+     ],
+     "move": "steers about z -35..+35 deg"
+    },
+    {
+     "name": "Wheel_FL",
+     "mesh": "SCL_Wheel",
+     "parent": "Steer_FL",
+     "pivot": [
+      -0.322,
+      0.66,
+      0.155
+     ],
+     "move": "spins about x, r 0.155"
+    },
+    {
+     "name": "Steer_FR",
+     "mesh": "SCL_Knuckle_R",
+     "parent": "Chassis",
+     "pivot": [
+      0.32,
+      0.66,
+      0
+     ],
+     "move": "steers about z -35..+35 deg"
+    },
+    {
+     "name": "Wheel_FR",
+     "mesh": "SCL_Wheel",
+     "parent": "Steer_FR",
+     "pivot": [
+      0.322,
+      0.66,
+      0.155
+     ],
+     "move": "spins about x, r 0.155"
+    },
+    {
+     "name": "Wheel_RL",
+     "mesh": "SCL_Wheel",
+     "parent": "Chassis",
+     "pivot": [
+      -0.322,
+      -0.66,
+      0.155
+     ],
+     "move": "spins about x, r 0.155 (drive, braked)"
+    },
+    {
+     "name": "Wheel_RR",
+     "mesh": "SCL_Wheel",
+     "parent": "Chassis",
+     "pivot": [
+      0.322,
+      -0.66,
+      0.155
+     ],
+     "move": "spins about x, r 0.155 (drive, braked)"
+    },
+    {
+     "name": "PotholeGuard_R",
+     "mesh": "SCL_PotholeGuard",
+     "parent": "Chassis",
+     "pivot": [
+      0.375,
+      0,
+      0.095
+     ],
+     "move": "turns about y 0..-60 deg (down) above 0.5 m lift"
+    },
+    {
+     "name": "PotholeGuard_L",
+     "mesh": "PotholeGuard_L",
+     "parent": "Chassis",
+     "pivot": [
+      -0.375,
+      0,
+      0.095
+     ],
+     "move": "turns about y 0..+60 deg (down) above 0.5 m lift"
+    },
+    {
+     "name": "BrakeRelease",
+     "mesh": "BrakeRelease",
+     "parent": "Chassis",
+     "pivot": [
+      0.31,
+      -0.92,
+      0.34
+     ],
+     "move": "turns about y 0..90 deg: up = brakes released (push mode)"
+    },
+    {
+     "name": "Scissor_1_A",
+     "mesh": "SCL_Arms_Outer",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.497
+     ],
+     "move": "stage 1 outer arms: centre pin z = 0.44 + 0.5*h, turn about x +theta (4.26..57.7 deg)",
+     "rot_x_deg": 4.25
+    },
+    {
+     "name": "Scissor_1_B",
+     "mesh": "SCL_Arms_Inner",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.497
+     ],
+     "move": "stage 1 inner arms: centre pin as A, turn about x -theta",
+     "rot_x_deg": -4.25
+    },
+    {
+     "name": "Scissor_2_A",
+     "mesh": "SCL_Arms_Outer",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.613
+     ],
+     "move": "stage 2 outer arms: centre pin z = 0.44 + 1.5*h, turn about x +theta (4.26..57.7 deg)",
+     "rot_x_deg": 4.25
+    },
+    {
+     "name": "Scissor_2_B",
+     "mesh": "SCL_Arms_Inner",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.613
+     ],
+     "move": "stage 2 inner arms: centre pin as A, turn about x -theta",
+     "rot_x_deg": -4.25
+    },
+    {
+     "name": "Scissor_3_A",
+     "mesh": "SCL_Arms_Outer",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.728
+     ],
+     "move": "stage 3 outer arms: centre pin z = 0.44 + 2.5*h, turn about x +theta (4.26..57.7 deg)",
+     "rot_x_deg": 4.25
+    },
+    {
+     "name": "Scissor_3_B",
+     "mesh": "SCL_Arms_Inner",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.728
+     ],
+     "move": "stage 3 inner arms: centre pin as A, turn about x -theta",
+     "rot_x_deg": -4.25
+    },
+    {
+     "name": "Scissor_4_A",
+     "mesh": "SCL_Arms_Outer",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.843
+     ],
+     "move": "stage 4 outer arms: centre pin z = 0.44 + 3.5*h, turn about x +theta (4.26..57.7 deg)",
+     "rot_x_deg": 4.25
+    },
+    {
+     "name": "Scissor_4_B",
+     "mesh": "SCL_Arms_Inner",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.843
+     ],
+     "move": "stage 4 inner arms: centre pin as A, turn about x -theta",
+     "rot_x_deg": -4.25
+    },
+    {
+     "name": "LiftCylinder",
+     "mesh": "LiftCylinder",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      -0.45,
+      0.43
+     ],
+     "move": "tilts about x with the stages"
+    },
+    {
+     "name": "LiftRam",
+     "mesh": "LiftRam",
+     "parent": "LiftCylinder",
+     "pivot": [
+      0,
+      0.25,
+      0.43
+     ],
+     "move": "slides out along the cylinder 0..0.9 m"
+    },
+    {
+     "name": "Platform",
+     "mesh": "Platform",
+     "parent": "Chassis",
+     "pivot": [
+      0,
+      0,
+      0.9
+     ],
+     "move": "lifts z 0..+4.78 m (deck 1.05 -> 5.83 m)"
+    },
+    {
+     "name": "Gate",
+     "mesh": "Gate",
+     "parent": "Platform",
+     "pivot": [
+      -0.09,
+      -0.8,
+      1.15
+     ],
+     "move": "self-closing, swings about z 0..100 deg inward"
+    },
+    {
+     "name": "Platform_Extension",
+     "mesh": "Platform_Extension",
+     "parent": "Platform",
+     "pivot": [
+      0,
+      -0.05,
+      1.055
+     ],
+     "move": "slides along +y 0..0.90 m"
+    },
+    {
+     "name": "ControlBox",
+     "mesh": "ControlBox",
+     "parent": "Platform",
+     "pivot": [
+      -0.26,
+      -0.55,
+      2.15
+     ],
+     "move": "hangs on the rail; lifts off"
+    },
+    {
+     "name": "Joystick",
+     "mesh": "Joystick",
+     "parent": "ControlBox",
+     "pivot": [
+      -0.305,
+      -0.5,
+      2.122
+     ],
+     "move": "tilts about x and y +-20 deg (drive, steer, lift)"
+    },
+    {
+     "name": "EStop",
+     "mesh": "EStop",
+     "parent": "ControlBox",
+     "pivot": [
+      -0.305,
+      -0.62,
+      2.122
+     ],
+     "move": "pushes down z 0..-0.01 m (stop), turns to release"
+    },
+    {
+     "name": "LiftDriveSwitch",
+     "mesh": "LiftDriveSwitch",
+     "parent": "ControlBox",
+     "pivot": [
+      -0.305,
+      -0.565,
+      2.122
+     ],
+     "move": "turns about z -45 / +45 deg: lift or drive"
+    },
+    {
+     "name": "GateLatch",
+     "mesh": "GateLatch",
+     "parent": "Gate",
+     "pivot": [
+      0.108,
+      -0.8,
+      1.7
+     ],
+     "move": "turns about y 0..40 deg: up = unlatched"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Deck",
+     "kind": "stand",
+     "parent": "Platform",
+     "pos": [
+      0,
+      -0.3,
+      1.05
+     ]
+    },
+    {
+     "name": "IK_Rail_L",
+     "kind": "hand",
+     "parent": "Platform",
+     "pos": [
+      -0.395,
+      -0.2,
+      2.15
+     ]
+    },
+    {
+     "name": "IK_Rail_R",
+     "kind": "hand",
+     "parent": "Platform",
+     "pos": [
+      0.395,
+      -0.2,
+      2.15
+     ]
+    },
+    {
+     "name": "IK_Joystick",
+     "kind": "hand",
+     "parent": "Joystick",
+     "pos": [
+      -0.305,
+      -0.5,
+      2.3
+     ]
+    },
+    {
+     "name": "IK_EStop",
+     "kind": "hand",
+     "parent": "EStop",
+     "pos": [
+      -0.305,
+      -0.62,
+      2.154
+     ]
+    },
+    {
+     "name": "IK_LiftDriveSwitch",
+     "kind": "hand",
+     "parent": "LiftDriveSwitch",
+     "pos": [
+      -0.305,
+      -0.565,
+      2.155
+     ]
+    },
+    {
+     "name": "IK_GateLatch",
+     "kind": "hand",
+     "parent": "GateLatch",
+     "pos": [
+      0.12,
+      -0.8,
+      1.72
+     ]
+    },
+    {
+     "name": "IK_Gate",
+     "kind": "hand",
+     "parent": "Gate",
+     "pos": [
+      0.0,
+      -0.8,
+      2.1
+     ]
+    },
+    {
+     "name": "IK_Extension_Rail",
+     "kind": "hand",
+     "parent": "Platform_Extension",
+     "pos": [
+      0.0,
+      0.82,
+      2.15
+     ]
+    },
+    {
+     "name": "IK_Step_1",
+     "kind": "foot",
+     "parent": "Chassis",
+     "pos": [
+      0,
+      -0.955,
+      0.32
+     ]
+    },
+    {
+     "name": "IK_Step_2",
+     "kind": "foot",
+     "parent": "Chassis",
+     "pos": [
+      0,
+      -0.955,
+      0.58
+     ]
+    },
+    {
+     "name": "IK_Push_L",
+     "kind": "push",
+     "parent": "Chassis",
+     "pos": [
+      -0.2,
+      -0.97,
+      0.84
+     ]
+    },
+    {
+     "name": "IK_Push_R",
+     "kind": "push",
+     "parent": "Chassis",
+     "pos": [
+      0.2,
+      -0.97,
+      0.84
+     ]
+    },
+    {
+     "name": "IK_BrakeRelease",
+     "kind": "hand",
+     "parent": "BrakeRelease",
+     "pos": [
+      0.31,
+      -0.98,
+      0.37
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Platform up / down, drive, steer",
+     "part": "Joystick",
+     "ik": "IK_Joystick",
+     "by": "hand",
+     "does": "hold the trigger, push forward = up / drive forward; left-right = steer"
+    },
+    {
+     "control": "Lift or drive selector",
+     "part": "LiftDriveSwitch",
+     "ik": "IK_LiftDriveSwitch",
+     "by": "hand",
+     "does": "chooses what the joystick does"
+    },
+    {
+     "control": "Emergency stop",
+     "part": "EStop",
+     "ik": "IK_EStop",
+     "by": "hand",
+     "does": "press = everything stops; turn to release"
+    },
+    {
+     "control": "Gate latch",
+     "part": "GateLatch",
+     "ik": "IK_GateLatch",
+     "by": "hand",
+     "does": "lift to open the gate"
+    },
+    {
+     "control": "Gate",
+     "part": "Gate",
+     "ik": "IK_Gate",
+     "by": "hand",
+     "does": "swing in to step on, self-closing"
+    },
+    {
+     "control": "Extension deck",
+     "part": "Platform_Extension",
+     "ik": "IK_Extension_Rail",
+     "by": "hand",
+     "does": "pull out / push in 0.9 m"
+    },
+    {
+     "control": "Brake release (push mode)",
+     "part": "BrakeRelease",
+     "ik": "IK_BrakeRelease",
+     "by": "hand",
+     "does": "up = drive wheels free to push"
+    }
+   ],
+   "reference": "Wikimedia Commons: Hy-Brid Lifts PS-1930 scissor lift with worker working while elevated; JCB S1930E at Hyderabad airport; published 19 ft class data",
+   "root_part": "Chassis"
+  },
+  {
+   "name": "WingJack",
+   "asset": "/Game/Babylon/WingJack/wingjack",
+   "kind": "tripod aircraft jack (wing)",
+   "glb": "Art/HangarEquipment/WingJack/wingjack.glb",
+   "blend": "Art/HangarEquipment/WingJack/WingJack.blend",
+   "size_m": [
+    1.988,
+    1.898,
+    2.05
+   ],
+   "sizes": {
+    "closed_m": 2.05,
+    "ram_stroke_m": 0.95,
+    "screw_m": 0.5,
+    "max_reach_m": 3.5,
+    "feet_radius_m": 1.05
+   },
+   "footprint": {
+    "shape": "tripod",
+    "radius_m": 1.135,
+    "x_min": -0.983,
+    "x_max": 0.983,
+    "y_min": -1.135,
+    "y_max": 0.568,
+    "note": "three foot pads on the radius; the open side (+y, pump) faces the mechanic"
+   },
+   "tris": 8082,
+   "moving_parts": [
+    {
+     "name": "Castor_1",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.0,
+      -0.71,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_1",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_1",
+     "pivot": [
+      0.0,
+      -0.744,
+      0.075
+     ],
+     "move": "spin about x, rolls r=0.075 m"
+    },
+    {
+     "name": "Brake_1",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_1",
+     "pivot": [
+      0.0,
+      -0.744,
+      0.075
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_2",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.615,
+      0.355,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_2",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_2",
+     "pivot": [
+      0.615,
+      0.321,
+      0.075
+     ],
+     "move": "spin about x, rolls r=0.075 m"
+    },
+    {
+     "name": "Brake_2",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_2",
+     "pivot": [
+      0.615,
+      0.321,
+      0.075
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_3",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.615,
+      0.355,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_3",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_3",
+     "pivot": [
+      -0.615,
+      0.321,
+      0.075
+     ],
+     "move": "spin about x, rolls r=0.075 m"
+    },
+    {
+     "name": "Brake_3",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_3",
+     "pivot": [
+      -0.615,
+      0.321,
+      0.075
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Ram",
+     "mesh": "Ram",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0,
+      1.84
+     ],
+     "move": "slides up z 0..0.95 m"
+    },
+    {
+     "name": "LockNut",
+     "mesh": "LockNut",
+     "parent": "Ram",
+     "pivot": [
+      0,
+      0,
+      1.844
+     ],
+     "move": "turns about z (runs down the ram thread onto the cylinder): 0..0.95 m down"
+    },
+    {
+     "name": "Extension_Screw",
+     "mesh": "Extension_Screw",
+     "parent": "Ram",
+     "pivot": [
+      0,
+      0,
+      1.92
+     ],
+     "move": "screws up z 0..0.50 m (with the lift pad)"
+    },
+    {
+     "name": "PumpHandle",
+     "mesh": "PumpHandle",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0.27,
+      0.48
+     ],
+     "move": "pumps about x: -15..+35 deg"
+    },
+    {
+     "name": "ReleaseValve",
+     "mesh": "ReleaseValve",
+     "parent": "Frame",
+     "pivot": [
+      0.088,
+      0.18,
+      0.37
+     ],
+     "move": "turns about x 0..360 deg (open = ram goes down)"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Brake_1",
+     "kind": "foot",
+     "parent": "Brake_1",
+     "pos": [
+      0.06,
+      -0.654,
+      0.087
+     ]
+    },
+    {
+     "name": "IK_Brake_2",
+     "kind": "foot",
+     "parent": "Brake_2",
+     "pos": [
+      0.675,
+      0.411,
+      0.087
+     ]
+    },
+    {
+     "name": "IK_Brake_3",
+     "kind": "foot",
+     "parent": "Brake_3",
+     "pos": [
+      -0.555,
+      0.411,
+      0.087
+     ]
+    },
+    {
+     "name": "IK_LiftPad",
+     "kind": "contact",
+     "parent": "Extension_Screw",
+     "pos": [
+      0,
+      0,
+      2.05
+     ]
+    },
+    {
+     "name": "IK_PumpHandle_Grip",
+     "kind": "hand",
+     "parent": "PumpHandle",
+     "pos": [
+      0.0,
+      0.7,
+      1.225
+     ]
+    },
+    {
+     "name": "IK_ReleaseValve",
+     "kind": "hand",
+     "parent": "ReleaseValve",
+     "pos": [
+      0.138,
+      0.18,
+      0.37
+     ]
+    },
+    {
+     "name": "IK_LockNut_A",
+     "kind": "hand",
+     "parent": "LockNut",
+     "pos": [
+      0.23,
+      0,
+      1.874
+     ]
+    },
+    {
+     "name": "IK_LockNut_B",
+     "kind": "hand",
+     "parent": "LockNut",
+     "pos": [
+      -0.23,
+      0,
+      1.874
+     ]
+    },
+    {
+     "name": "IK_Push_1",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      0.551,
+      0.318,
+      1.0
+     ]
+    },
+    {
+     "name": "IK_Push_2",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      -0.551,
+      0.318,
+      1.0
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Castor brake 1",
+     "part": "Brake_1",
+     "ik": "IK_Brake_1",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake 2",
+     "part": "Brake_2",
+     "ik": "IK_Brake_2",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake 3",
+     "part": "Brake_3",
+     "ik": "IK_Brake_3",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Pump handle (raise)",
+     "part": "PumpHandle",
+     "ik": "IK_PumpHandle_Grip",
+     "by": "hand",
+     "does": "pump up and down: each stroke raises the ram"
+    },
+    {
+     "control": "Release valve (lower)",
+     "part": "ReleaseValve",
+     "ik": "IK_ReleaseValve",
+     "by": "hand",
+     "does": "turn open = the ram goes down slowly, close = holds"
+    },
+    {
+     "control": "Lock nut",
+     "part": "LockNut",
+     "ik": "IK_LockNut_A",
+     "by": "hand",
+     "does": "spin down onto the cylinder = load locked mechanically"
+    },
+    {
+     "control": "Extension screw",
+     "part": "Extension_Screw",
+     "ik": "IK_LiftPad",
+     "by": "hand",
+     "does": "wind up to the jacking point before pumping"
+    }
+   ],
+   "reference": "Wikimedia Commons US Navy 091211-N-2367S-213 and 130807-N-XZ031-072 (public domain); published tripod-jack sizes",
+   "root_part": "Frame"
+  },
+  {
+   "name": "NoseJack",
+   "asset": "/Game/Babylon/NoseJack/nosejack",
+   "kind": "tripod aircraft jack (nose)",
+   "glb": "Art/HangarEquipment/NoseJack/nosejack.glb",
+   "blend": "Art/HangarEquipment/NoseJack/NoseJack.blend",
+   "size_m": [
+    1.244,
+    1.323,
+    1.06
+   ],
+   "sizes": {
+    "closed_m": 1.05,
+    "ram_stroke_m": 0.45,
+    "screw_m": 0.15,
+    "max_reach_m": 1.65,
+    "feet_radius_m": 0.62
+   },
+   "footprint": {
+    "shape": "tripod",
+    "radius_m": 0.705,
+    "x_min": -0.611,
+    "x_max": 0.611,
+    "y_min": -0.705,
+    "y_max": 0.352,
+    "note": "three foot pads on the radius; the open side (+y, pump) faces the mechanic"
+   },
+   "tris": 8082,
+   "moving_parts": [
+    {
+     "name": "Castor_1",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.0,
+      -0.309,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_1",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_1",
+     "pivot": [
+      0.0,
+      -0.331,
+      0.05
+     ],
+     "move": "spin about x, rolls r=0.050 m"
+    },
+    {
+     "name": "Brake_1",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_1",
+     "pivot": [
+      0.0,
+      -0.331,
+      0.05
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_2",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      0.267,
+      0.154,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_2",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_2",
+     "pivot": [
+      0.267,
+      0.132,
+      0.05
+     ],
+     "move": "spin about x, rolls r=0.050 m"
+    },
+    {
+     "name": "Brake_2",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_2",
+     "pivot": [
+      0.267,
+      0.132,
+      0.05
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Castor_3",
+     "mesh": "Castor_Fork_0",
+     "parent": "Frame",
+     "pivot": [
+      -0.267,
+      0.154,
+      0
+     ],
+     "move": "swivel about z, free 360 deg"
+    },
+    {
+     "name": "Wheel_3",
+     "mesh": "Castor_Wheel_0",
+     "parent": "Castor_3",
+     "pivot": [
+      -0.267,
+      0.132,
+      0.05
+     ],
+     "move": "spin about x, rolls r=0.050 m"
+    },
+    {
+     "name": "Brake_3",
+     "mesh": "Castor_Brake_0",
+     "parent": "Castor_3",
+     "pivot": [
+      -0.267,
+      0.132,
+      0.05
+     ],
+     "move": "pedal tips about x 0..20 deg: down = wheel locked"
+    },
+    {
+     "name": "Ram",
+     "mesh": "Ram",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0,
+      0.98
+     ],
+     "move": "slides up z 0..0.45 m"
+    },
+    {
+     "name": "LockNut",
+     "mesh": "LockNut",
+     "parent": "Ram",
+     "pivot": [
+      0,
+      0,
+      0.984
+     ],
+     "move": "turns about z (runs down the ram thread onto the cylinder): 0..0.45 m down"
+    },
+    {
+     "name": "Extension_Screw",
+     "mesh": "Extension_Screw",
+     "parent": "Ram",
+     "pivot": [
+      0,
+      0,
+      1.06
+     ],
+     "move": "screws up z 0..0.15 m (with the lift pad)"
+    },
+    {
+     "name": "PumpHandle",
+     "mesh": "PumpHandle",
+     "parent": "Frame",
+     "pivot": [
+      0,
+      0.25,
+      0.4
+     ],
+     "move": "pumps about x: -15..+35 deg"
+    },
+    {
+     "name": "ReleaseValve",
+     "mesh": "ReleaseValve",
+     "parent": "Frame",
+     "pivot": [
+      0.088,
+      0.16,
+      0.29
+     ],
+     "move": "turns about x 0..360 deg (open = ram goes down)"
+    }
+   ],
+   "ik": [
+    {
+     "name": "IK_Brake_1",
+     "kind": "foot",
+     "parent": "Brake_1",
+     "pos": [
+      0.06,
+      -0.241,
+      0.062
+     ]
+    },
+    {
+     "name": "IK_Brake_2",
+     "kind": "foot",
+     "parent": "Brake_2",
+     "pos": [
+      0.327,
+      0.222,
+      0.062
+     ]
+    },
+    {
+     "name": "IK_Brake_3",
+     "kind": "foot",
+     "parent": "Brake_3",
+     "pos": [
+      -0.207,
+      0.222,
+      0.062
+     ]
+    },
+    {
+     "name": "IK_LiftPad",
+     "kind": "contact",
+     "parent": "Extension_Screw",
+     "pos": [
+      0,
+      0,
+      1.05
+     ]
+    },
+    {
+     "name": "IK_PumpHandle_Grip",
+     "kind": "hand",
+     "parent": "PumpHandle",
+     "pos": [
+      0.0,
+      0.555,
+      0.928
+     ]
+    },
+    {
+     "name": "IK_ReleaseValve",
+     "kind": "hand",
+     "parent": "ReleaseValve",
+     "pos": [
+      0.138,
+      0.16,
+      0.29
+     ]
+    },
+    {
+     "name": "IK_LockNut_A",
+     "kind": "hand",
+     "parent": "LockNut",
+     "pos": [
+      0.21,
+      0,
+      1.014
+     ]
+    },
+    {
+     "name": "IK_LockNut_B",
+     "kind": "hand",
+     "parent": "LockNut",
+     "pos": [
+      -0.21,
+      0,
+      1.014
+     ]
+    },
+    {
+     "name": "IK_Push_1",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      0.313,
+      0.181,
+      0.62
+     ]
+    },
+    {
+     "name": "IK_Push_2",
+     "kind": "push",
+     "parent": "Frame",
+     "pos": [
+      -0.313,
+      0.181,
+      0.62
+     ]
+    }
+   ],
+   "controls": [
+    {
+     "control": "Castor brake 1",
+     "part": "Brake_1",
+     "ik": "IK_Brake_1",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake 2",
+     "part": "Brake_2",
+     "ik": "IK_Brake_2",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Castor brake 3",
+     "part": "Brake_3",
+     "ik": "IK_Brake_3",
+     "by": "foot",
+     "does": "step down = locked, flip up = free"
+    },
+    {
+     "control": "Pump handle (raise)",
+     "part": "PumpHandle",
+     "ik": "IK_PumpHandle_Grip",
+     "by": "hand",
+     "does": "pump up and down: each stroke raises the ram"
+    },
+    {
+     "control": "Release valve (lower)",
+     "part": "ReleaseValve",
+     "ik": "IK_ReleaseValve",
+     "by": "hand",
+     "does": "turn open = the ram goes down slowly, close = holds"
+    },
+    {
+     "control": "Lock nut",
+     "part": "LockNut",
+     "ik": "IK_LockNut_A",
+     "by": "hand",
+     "does": "spin down onto the cylinder = load locked mechanically"
+    },
+    {
+     "control": "Extension screw",
+     "part": "Extension_Screw",
+     "ik": "IK_LiftPad",
+     "by": "hand",
+     "does": "wind up to the jacking point before pumping"
+    }
+   ],
+   "reference": "Wikimedia Commons US Navy 091211-N-2367S-213 and 130807-N-XZ031-072 (public domain); published tripod-jack sizes",
+   "root_part": "Frame"
+  }
+ ]
+}

@@ -1,0 +1,529 @@
+{
+ "asset": "EngineWorkStand",
+ "kind": "engine work stand (A320 nacelle)",
+ "blend": "Art/HangarEquipment/EngineWorkStand/EngineWorkStand.blend",
+ "glb": "Art/HangarEquipment/EngineWorkStand/engineworkstand.glb",
+ "sizes": {
+  "deck_height_m": 1.75,
+  "deck_m": [
+   1.2,
+   1.0
+  ],
+  "rail_m": 1.1,
+  "ladder_deg": 62.6,
+  "castors_mm": 200,
+  "extension_m": 0.45
+ },
+ "bounds_min": [
+  -0.8,
+  -1.52,
+  0.0
+ ],
+ "bounds_max": [
+  0.8,
+  0.89,
+  2.874
+ ],
+ "size_m": [
+  1.6,
+  2.41,
+  2.874
+ ],
+ "footprint": {
+  "x_min": -0.79,
+  "x_max": 0.79,
+  "y_min": -1.52,
+  "y_max": 0.8,
+  "towbar_down_reach_y": 1.75,
+  "note": "floor size with the ladder down; ladder folded: y_min -0.65"
+ },
+ "reference": "Wikimedia Commons: 374 AW MXS, AMXS perform engine maintenance operations in Sri Lanka (public domain); A320 nacelle heights",
+ "tris": 19120,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the stand, rolls on its castors"
+  },
+  {
+   "name": "Castor_FL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.62,
+    0.475,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.62,
+    0.43,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_FL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.62,
+    0.43,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_FR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.62,
+    0.475,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.62,
+    0.43,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_FR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.62,
+    0.43,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.62,
+    -0.475,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.62,
+    -0.52,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_RL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.62,
+    -0.52,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.62,
+    -0.475,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.62,
+    -0.52,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_RR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.62,
+    -0.52,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "TowBar",
+   "mesh": "TowBar",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    0.83,
+    0.313
+   ],
+   "move": "hinge about x: 0 = up (parked) .. 85 deg forward = towing"
+  },
+  {
+   "name": "Ladder",
+   "mesh": "Ladder",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    -0.58,
+    1.7
+   ],
+   "move": "hinge about x at the deck: 0 = on the floor .. 75 deg folded up"
+  },
+  {
+   "name": "Rail_Front",
+   "mesh": "Rail_Front",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    0.515,
+    1.762
+   ],
+   "move": "hinge about x: 0 = up .. 90 deg down forward"
+  },
+  {
+   "name": "Deck_Extension",
+   "mesh": "Deck_Extension",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    0.48,
+    1.741
+   ],
+   "move": "slides along +y 0..0.45 m"
+  },
+  {
+   "name": "LadderLatch",
+   "mesh": "LadderLatch",
+   "parent": "Frame",
+   "pivot": [
+    0.4,
+    -0.52,
+    1.71
+   ],
+   "move": "turns about x 0..60 deg: up = ladder free to fold"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_Brake_FL",
+   "kind": "foot",
+   "parent": "Brake_FL",
+   "pos": [
+    -0.555,
+    0.52,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_FR",
+   "kind": "foot",
+   "parent": "Brake_FR",
+   "pos": [
+    0.685,
+    0.52,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_RL",
+   "kind": "foot",
+   "parent": "Brake_RL",
+   "pos": [
+    -0.555,
+    -0.43,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_RR",
+   "kind": "foot",
+   "parent": "Brake_RR",
+   "pos": [
+    0.685,
+    -0.43,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_TowBar_L",
+   "kind": "push",
+   "parent": "TowBar",
+   "pos": [
+    -0.08,
+    0.83,
+    1.233
+   ]
+  },
+  {
+   "name": "IK_TowBar_R",
+   "kind": "push",
+   "parent": "TowBar",
+   "pos": [
+    0.08,
+    0.83,
+    1.233
+   ]
+  },
+  {
+   "name": "IK_Step_1",
+   "kind": "foot",
+   "parent": "Ladder",
+   "pos": [
+    0,
+    -1.331,
+    0.25
+   ]
+  },
+  {
+   "name": "IK_Step_2",
+   "kind": "foot",
+   "parent": "Ladder",
+   "pos": [
+    0,
+    -1.201,
+    0.5
+   ]
+  },
+  {
+   "name": "IK_Step_3",
+   "kind": "foot",
+   "parent": "Ladder",
+   "pos": [
+    0,
+    -1.072,
+    0.75
+   ]
+  },
+  {
+   "name": "IK_Step_4",
+   "kind": "foot",
+   "parent": "Ladder",
+   "pos": [
+    0,
+    -0.942,
+    1.0
+   ]
+  },
+  {
+   "name": "IK_Step_5",
+   "kind": "foot",
+   "parent": "Ladder",
+   "pos": [
+    0,
+    -0.813,
+    1.25
+   ]
+  },
+  {
+   "name": "IK_Step_6",
+   "kind": "foot",
+   "parent": "Ladder",
+   "pos": [
+    0,
+    -0.684,
+    1.5
+   ]
+  },
+  {
+   "name": "IK_LadderRail_L",
+   "kind": "hand",
+   "parent": "Ladder",
+   "pos": [
+    -0.335,
+    -0.994,
+    1.83
+   ]
+  },
+  {
+   "name": "IK_LadderRail_R",
+   "kind": "hand",
+   "parent": "Ladder",
+   "pos": [
+    0.335,
+    -0.994,
+    1.83
+   ]
+  },
+  {
+   "name": "IK_RailFront_Grip",
+   "kind": "hand",
+   "parent": "Rail_Front",
+   "pos": [
+    0,
+    0.515,
+    2.85
+   ]
+  },
+  {
+   "name": "IK_Extension_Pull",
+   "kind": "hand",
+   "parent": "Deck_Extension",
+   "pos": [
+    0,
+    0.49,
+    1.705
+   ]
+  },
+  {
+   "name": "IK_LadderLatch",
+   "kind": "hand",
+   "parent": "LadderLatch",
+   "pos": [
+    0.43,
+    -0.535,
+    1.71
+   ]
+  },
+  {
+   "name": "IK_Deck",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    0,
+    1.75
+   ]
+  },
+  {
+   "name": "IK_DeckRail_L",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    -0.58,
+    0.1,
+    2.85
+   ]
+  },
+  {
+   "name": "IK_DeckRail_R",
+   "kind": "hand",
+   "parent": "Frame",
+   "pos": [
+    0.58,
+    0.1,
+    2.85
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    -0.77,
+    0,
+    1.05
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    0.77,
+    0,
+    1.05
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Castor brake FL",
+   "part": "Brake_FL",
+   "ik": "IK_Brake_FL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake FR",
+   "part": "Brake_FR",
+   "ik": "IK_Brake_FR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RL",
+   "part": "Brake_RL",
+   "ik": "IK_Brake_RL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RR",
+   "part": "Brake_RR",
+   "ik": "IK_Brake_RR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Ladder latch",
+   "part": "LadderLatch",
+   "ik": "IK_LadderLatch",
+   "by": "hand",
+   "does": "lift to free the ladder, then fold it up for moving"
+  },
+  {
+   "control": "Ladder fold",
+   "part": "Ladder",
+   "ik": "IK_LadderRail_R",
+   "by": "hand",
+   "does": "fold up 75 deg for moving / down to climb"
+  },
+  {
+   "control": "Front rail",
+   "part": "Rail_Front",
+   "ik": "IK_RailFront_Grip",
+   "by": "hand",
+   "does": "drop forward onto the cowl side / lift back up"
+  },
+  {
+   "control": "Deck extension",
+   "part": "Deck_Extension",
+   "ik": "IK_Extension_Pull",
+   "by": "hand",
+   "does": "pull out toward the cowl 0..0.45 m"
+  },
+  {
+   "control": "Tow bar",
+   "part": "TowBar",
+   "ik": "IK_TowBar_R",
+   "by": "hand",
+   "does": "lower forward to tow, lift up to park"
+  }
+ ]
+}
