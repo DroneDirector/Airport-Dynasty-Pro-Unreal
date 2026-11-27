@@ -440,6 +440,8 @@ ITEMS = [
     ('353', 'AIRPORT EXTRAS (owner, 2026-11-26: a real to-do now) - VIP VISITS (2026-11-26): a minister, a royal or a celebrity arrives - red carpet, a separate exit, extra security.', '3-4 h (rough, not measured)', ['none'], '', False),
     ('354', 'AIRPORT EXTRAS (owner, 2026-11-26: a real to-do now) - SHOP CONTRACTS (2026-11-26): shops and restaurants rent space; the airport negotiates rent and contract length and chooses who gets the best spots.', '3-4 h (rough, not measured)', ['none'], '', False),
     ('355', 'AIRPORT EXTRAS (owner, 2026-11-26: a real to-do now) - EMPLOYEE OF THE MONTH (2026-11-26): the owner picks a staff member each month; morale goes up and their photo hangs in the staff area.', '1-2 h (rough, not measured)', ['none'], '', False),
+    ('356', 'AIRPORT EXTRAS (owner, 2026-11-27) - HEARING LOOP: a system that sends the announcements straight to hearing aids, with the blue ear signs showing where it works (check-in, gates, information desk, the Grand Hall).', '1-2 h (rough, not measured)', ['none'], '', False),
+    ('357', 'AIRPORT EXTRAS (owner, 2026-11-27) - NIGHT FLOOR SCRUBBERS: cleaning machines ride and polish the hall floors in the quiet night hours, driven by cleaning staff.', '2-3 h (rough, not measured)', ['none'], '', False),
 ]
 import os as _os
 # (into docs/, wherever it is run from: it used to land in the current folder and docs/ kept an old copy, 2026-11-14)

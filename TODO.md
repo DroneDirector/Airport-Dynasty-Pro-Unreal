@@ -681,7 +681,7 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       reports, or show each only once
 - [ ] After all of the above: the next logical things that make the game run and give it features
 
-## 10. Airport extras (owner, 2026-11-26: to-dos 319-355 - real to-dos to build, numbered as in the to-do PDF)
+## 10. Airport extras (owner, 2026-11-26: to-dos 319-357 - real to-dos to build, numbered as in the to-do PDF)
 - [ ] **319. NOTAMs** (2026-11-26): official notices the airport publishes - a taxiway closed, a stand out of use, a PAPI
       or ILS unserviceable, work in progress, a crane near the approach. The NPC airlines, ATC and the taxi routes really
       work around them; each has a start and end time; shown on the holographic map and in the tower.
@@ -765,6 +765,10 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       length and chooses who gets the best spots.
 - [ ] **355. Employee of the month** (2026-11-26): the owner picks a staff member each month; morale goes up and their
       photo hangs in the staff area.
+- [ ] **356. Hearing loop** (2026-11-27): a system that sends the announcements straight to hearing aids, with the
+      blue ear signs showing where it works (check-in, gates, information desk, the Grand Hall).
+- [ ] **357. Night floor scrubbers** (2026-11-27): cleaning machines ride and polish the hall floors in the quiet
+      night hours, driven by cleaning staff.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
