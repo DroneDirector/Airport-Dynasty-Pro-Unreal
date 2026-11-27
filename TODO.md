@@ -681,7 +681,7 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       reports, or show each only once
 - [ ] After all of the above: the next logical things that make the game run and give it features
 
-## 10. Airport extras (owner, 2026-11-26: to-dos 319-357 - real to-dos to build, numbered as in the to-do PDF)
+## 10. Airport extras (owner, 2026-11-26: to-dos 319-363 - real to-dos to build, numbered as in the to-do PDF)
 - [ ] **319. NOTAMs** (2026-11-26): official notices the airport publishes - a taxiway closed, a stand out of use, a PAPI
       or ILS unserviceable, work in progress, a crane near the approach. The NPC airlines, ATC and the taxi routes really
       work around them; each has a start and end time; shown on the holographic map and in the tower.
@@ -769,6 +769,12 @@ details behind each item. Marks: [ ] open, [~] started or partly done, [?] built
       blue ear signs showing where it works (check-in, gates, information desk, the Grand Hall).
 - [ ] **357. Night floor scrubbers** (2026-11-27): cleaning machines ride and polish the hall floors in the quiet
       night hours, driven by cleaning staff.
+- [ ] **358. Tutorial career (an option)** (owner, 2026-11-27): The first time a new player enters the 3D world, a pop-up asks whether they want the tutorial career or to start normally. The tutorial is a guided first week that teaches one system a day: the first flight, the crew, a turnaround, the money screens (and onward). It can be skipped or reopened from the menu at any time. The game is deep - without this most players quit within the first hour.
+- [ ] **359. Advisors** (owner, 2026-11-27): A few named NPC department heads (operations, money, safety, passengers) who warn the player before a problem becomes a crisis, e.g. 'Fire cover drops below category 7 tomorrow at 14:00', with a button straight to the fix.
+- [ ] **360. Airport growth levels (an option)** (owner, 2026-11-27): From small regional field to international hub: each level unlocks bigger aircraft, more stands and new buildings, so there is always a next goal. An option (Settings / new game): players who want everything open from the start can turn it off.
+- [ ] **361. Scenarios** (owner, 2026-11-27): Short challenges with a clear goal and an end - 'get through a winter storm week', 'win a new airline within 6 months', 'take over a failing airport' - beside the endless career.
+- [ ] **362. Rival airports** (owner, 2026-11-27): Nearby NPC airports (for Chablais: Geneva, Sion) compete with the player for airlines and passengers; fees, service and punctuality decide who wins. Uses the shared world's airlines and demand.
+- [ ] **363. Follow anything** (owner, 2026-11-27): Click any passenger, bag, vehicle or aircraft and the camera follows it through its whole journey (check-in, security, gate, bus, aircraft; a bag through the sorting to the hold), with a small card of what it is doing and why.
 
 ## Done recently (for reference)
 - 0.14.4 the globe's satellite pictures and land cover in the right place; the detailed sea only near the ground
