@@ -1,0 +1,605 @@
+{
+ "asset": "NitrogenCart",
+ "kind": "nitrogen servicing cart (tyres, struts, accumulators)",
+ "blend": "Art/HangarEquipment/NitrogenCart/NitrogenCart.blend",
+ "glb": "Art/HangarEquipment/NitrogenCart/nitrogencart.glb",
+ "sizes": {
+  "bottles": "3 x 230 mm x 0.92 m, about 35 l, 200 bar",
+  "wheels": "4.00-8 pneumatic, 410 mm",
+  "panel_height_m": [
+   0.84,
+   1.26
+  ],
+  "hose_m": 10,
+  "steer_deg": 35
+ },
+ "bounds_min": [
+  -0.53,
+  -1.146,
+  -0.009
+ ],
+ "bounds_max": [
+  0.535,
+  0.934,
+  1.341
+ ],
+ "size_m": [
+  1.065,
+  2.08,
+  1.35
+ ],
+ "footprint": {
+  "x_min": -0.52,
+  "x_max": 0.56,
+  "y_min": -1.1600000000000001,
+  "y_max": 0.97,
+  "towbar_down_reach_y": 1.92,
+  "note": "tow bar up; operator stands behind the panel (y about -1.5)"
+ },
+ "reference": "Wikimedia Commons: US Navy 070430-N-4420S-029 nitrogen cart (public domain); 4.00-8 wheel and 50 l bottle sizes",
+ "tris": 55386,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the cart, rolls on its wheels"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "CartWheel_205",
+   "parent": "Frame",
+   "pivot": [
+    -0.46,
+    -0.72,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "CartWheel_205",
+   "parent": "Frame",
+   "pivot": [
+    0.46,
+    -0.72,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "FrontAxle",
+   "mesh": "FrontAxle",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    0.72,
+    0
+   ],
+   "move": "steers about z +-35 deg (turntable), led by the tow bar"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "CartWheel_205",
+   "parent": "FrontAxle",
+   "pivot": [
+    -0.46,
+    0.72,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "CartWheel_205",
+   "parent": "FrontAxle",
+   "pivot": [
+    0.46,
+    0.72,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "TowBar",
+   "mesh": "TowBar",
+   "parent": "FrontAxle",
+   "pivot": [
+    0,
+    0.81,
+    0.215
+   ],
+   "move": "hinge about x: 0 = up (parked) .. 80 deg forward = on the tug hitch; steers FrontAxle"
+  },
+  {
+   "name": "Bottle_1",
+   "mesh": "N2Bottle",
+   "parent": "Frame",
+   "pivot": [
+    -0.235,
+    -0.84,
+    0.605
+   ],
+   "move": "fixed: strapped in the saddles"
+  },
+  {
+   "name": "BottleValve_1",
+   "mesh": "Wheel_BottleValve_1",
+   "parent": "Frame",
+   "pivot": [
+    -0.235,
+    0.15,
+    0.605
+   ],
+   "move": "turns about the panel normal 0..3 turns: open / close the bottle (turn left to open)"
+  },
+  {
+   "name": "Bottle_2",
+   "mesh": "N2Bottle",
+   "parent": "Frame",
+   "pivot": [
+    0.0,
+    -0.84,
+    0.605
+   ],
+   "move": "fixed: strapped in the saddles"
+  },
+  {
+   "name": "BottleValve_2",
+   "mesh": "Wheel_BottleValve_2",
+   "parent": "Frame",
+   "pivot": [
+    0.0,
+    0.15,
+    0.605
+   ],
+   "move": "turns about the panel normal 0..3 turns: open / close the bottle (turn left to open)"
+  },
+  {
+   "name": "Bottle_3",
+   "mesh": "N2Bottle",
+   "parent": "Frame",
+   "pivot": [
+    0.235,
+    -0.84,
+    0.605
+   ],
+   "move": "fixed: strapped in the saddles"
+  },
+  {
+   "name": "BottleValve_3",
+   "mesh": "Wheel_BottleValve_3",
+   "parent": "Frame",
+   "pivot": [
+    0.235,
+    0.15,
+    0.605
+   ],
+   "move": "turns about the panel normal 0..3 turns: open / close the bottle (turn left to open)"
+  },
+  {
+   "name": "Gauge_Supply",
+   "mesh": "GaugeBody_55",
+   "parent": "Frame",
+   "pivot": [
+    -0.17,
+    -1.073,
+    1.12
+   ],
+   "move": "fixed: bottle pressure 0..300 bar"
+  },
+  {
+   "name": "Needle_Supply",
+   "mesh": "Needle_55",
+   "parent": "Gauge_Supply",
+   "pivot": [
+    -0.17,
+    -1.073,
+    1.12
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: bottle pressure 0..300 bar"
+  },
+  {
+   "name": "Gauge_Outlet",
+   "mesh": "GaugeBody_55",
+   "parent": "Frame",
+   "pivot": [
+    0.17,
+    -1.073,
+    1.12
+   ],
+   "move": "fixed: charging pressure 0..250 bar"
+  },
+  {
+   "name": "Needle_Outlet",
+   "mesh": "Needle_55",
+   "parent": "Gauge_Outlet",
+   "pivot": [
+    0.17,
+    -1.073,
+    1.12
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: charging pressure 0..250 bar"
+  },
+  {
+   "name": "Regulator",
+   "mesh": "Wheel_Regulator",
+   "parent": "Frame",
+   "pivot": [
+    0.0,
+    -1.073,
+    1.1
+   ],
+   "move": "turns about the panel normal 0..3 turns: set the charging pressure (turn right = more)"
+  },
+  {
+   "name": "Valve_Supply",
+   "mesh": "T_Valve_Supply",
+   "parent": "Frame",
+   "pivot": [
+    -0.2,
+    -1.073,
+    0.95
+   ],
+   "move": "turns about the panel normal 0..270 deg (open): bottles to the regulator"
+  },
+  {
+   "name": "Valve_Outlet",
+   "mesh": "T_Valve_Outlet",
+   "parent": "Frame",
+   "pivot": [
+    0.2,
+    -1.073,
+    0.95
+   ],
+   "move": "turns about the panel normal 0..270 deg (open): regulator to the hose"
+  },
+  {
+   "name": "Valve_Vent",
+   "mesh": "Lever_Valve_Vent",
+   "parent": "Frame",
+   "pivot": [
+    0.0,
+    -1.073,
+    0.96
+   ],
+   "move": "quarter turn about the panel normal 0..90 deg: bleeds the hose before the chuck comes off"
+  },
+  {
+   "name": "Lid",
+   "mesh": "Lid",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    -0.84,
+    1.272
+   ],
+   "move": "hinge about x: 0 = shut .. 100 deg open (rear edge up)"
+  },
+  {
+   "name": "HoseReel",
+   "mesh": "HoseReel",
+   "parent": "Frame",
+   "pivot": [
+    0.425,
+    -0.95,
+    0.9
+   ],
+   "move": "spins about x: pay out / wind in 10 m of hose; the crank turns with it"
+  },
+  {
+   "name": "Chuck",
+   "mesh": "Chuck",
+   "parent": "Frame",
+   "pivot": [
+    0.375,
+    -1.015,
+    0.64
+   ],
+   "move": "off its hook by hand onto the tyre or strut valve; clip lever holds it"
+  },
+  {
+   "name": "ReelBracket",
+   "mesh": "ReelBracket",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "fixed: reel bracket, hook and the hanging hose"
+  },
+  {
+   "name": "Door_Cabinet",
+   "mesh": "Door_Cabinet",
+   "parent": "Frame",
+   "pivot": [
+    -0.33,
+    -1.069,
+    0.52
+   ],
+   "move": "hinge about z: 0 = shut .. 110 deg open"
+  },
+  {
+   "name": "ParkBrake",
+   "mesh": "ParkBrake",
+   "parent": "Frame",
+   "pivot": [
+    -0.39,
+    -0.4,
+    0.43
+   ],
+   "move": "lever about x: 0 = off (forward) .. 50 deg back = rear wheels braked"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_TowBar_Eye",
+   "kind": "hand",
+   "parent": "TowBar",
+   "pos": [
+    0,
+    0.81,
+    1.245
+   ]
+  },
+  {
+   "name": "IK_TowBar_Grip",
+   "kind": "push",
+   "parent": "TowBar",
+   "pos": [
+    0,
+    0.81,
+    0.815
+   ]
+  },
+  {
+   "name": "IK_BottleValve_1",
+   "kind": "hand",
+   "parent": "BottleValve_1",
+   "pos": [
+    -0.235,
+    0.195,
+    0.605
+   ]
+  },
+  {
+   "name": "IK_BottleValve_2",
+   "kind": "hand",
+   "parent": "BottleValve_2",
+   "pos": [
+    0.0,
+    0.195,
+    0.605
+   ]
+  },
+  {
+   "name": "IK_BottleValve_3",
+   "kind": "hand",
+   "parent": "BottleValve_3",
+   "pos": [
+    0.235,
+    0.195,
+    0.605
+   ]
+  },
+  {
+   "name": "IK_Regulator",
+   "kind": "hand",
+   "parent": "Regulator",
+   "pos": [
+    0.0,
+    -1.118,
+    1.1
+   ]
+  },
+  {
+   "name": "IK_Valve_Supply",
+   "kind": "hand",
+   "parent": "Valve_Supply",
+   "pos": [
+    -0.2,
+    -1.118,
+    0.95
+   ]
+  },
+  {
+   "name": "IK_Valve_Outlet",
+   "kind": "hand",
+   "parent": "Valve_Outlet",
+   "pos": [
+    0.2,
+    -1.118,
+    0.95
+   ]
+  },
+  {
+   "name": "IK_Valve_Vent",
+   "kind": "hand",
+   "parent": "Valve_Vent",
+   "pos": [
+    0.0,
+    -1.118,
+    0.96
+   ]
+  },
+  {
+   "name": "IK_Lid",
+   "kind": "hand",
+   "parent": "Lid",
+   "pos": [
+    0,
+    -1.11,
+    1.255
+   ]
+  },
+  {
+   "name": "IK_ReelCrank",
+   "kind": "hand",
+   "parent": "HoseReel",
+   "pos": [
+    0.525,
+    -0.83,
+    0.9
+   ]
+  },
+  {
+   "name": "IK_Chuck",
+   "kind": "hand",
+   "parent": "Chuck",
+   "pos": [
+    0.375,
+    -1.015,
+    0.62
+   ]
+  },
+  {
+   "name": "IK_Door_Cabinet",
+   "kind": "hand",
+   "parent": "Door_Cabinet",
+   "pos": [
+    0.28,
+    -1.1,
+    0.86
+   ]
+  },
+  {
+   "name": "IK_ParkBrake",
+   "kind": "hand",
+   "parent": "ParkBrake",
+   "pos": [
+    -0.39,
+    -0.45,
+    0.75
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    -0.38,
+    -1.125,
+    1.01
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    0.38,
+    -1.125,
+    1.01
+   ]
+  },
+  {
+   "name": "IK_Operator",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    -1.515,
+    0
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Tow bar",
+   "part": "TowBar",
+   "ik": "IK_TowBar_Eye",
+   "by": "hand",
+   "does": "lower onto the tug hitch / lift up to park; steer by hand to push"
+  },
+  {
+   "control": "BottleValve 1",
+   "part": "BottleValve_1",
+   "ik": "IK_BottleValve_1",
+   "by": "hand",
+   "does": "open / close the bottle (turn left to open)"
+  },
+  {
+   "control": "BottleValve 2",
+   "part": "BottleValve_2",
+   "ik": "IK_BottleValve_2",
+   "by": "hand",
+   "does": "open / close the bottle (turn left to open)"
+  },
+  {
+   "control": "BottleValve 3",
+   "part": "BottleValve_3",
+   "ik": "IK_BottleValve_3",
+   "by": "hand",
+   "does": "open / close the bottle (turn left to open)"
+  },
+  {
+   "control": "Regulator",
+   "part": "Regulator",
+   "ik": "IK_Regulator",
+   "by": "hand",
+   "does": "set the charging pressure (turn right = more)"
+  },
+  {
+   "control": "Valve Supply",
+   "part": "Valve_Supply",
+   "ik": "IK_Valve_Supply",
+   "by": "hand",
+   "does": "bottles to the regulator"
+  },
+  {
+   "control": "Valve Outlet",
+   "part": "Valve_Outlet",
+   "ik": "IK_Valve_Outlet",
+   "by": "hand",
+   "does": "regulator to the hose"
+  },
+  {
+   "control": "Valve Vent",
+   "part": "Valve_Vent",
+   "ik": "IK_Valve_Vent",
+   "by": "hand",
+   "does": "bleeds the hose before the chuck comes off"
+  },
+  {
+   "control": "Lid",
+   "part": "Lid",
+   "ik": "IK_Lid",
+   "by": "hand",
+   "does": "lift open / shut over the regulator"
+  },
+  {
+   "control": "Hose reel",
+   "part": "HoseReel",
+   "ik": "IK_ReelCrank",
+   "by": "hand",
+   "does": "wind the hose in after charging"
+  },
+  {
+   "control": "Charging chuck",
+   "part": "Chuck",
+   "ik": "IK_Chuck",
+   "by": "hand",
+   "does": "take off the hook, push onto the valve, clip"
+  },
+  {
+   "control": "Cabinet door",
+   "part": "Door_Cabinet",
+   "ik": "IK_Door_Cabinet",
+   "by": "hand",
+   "does": "open / shut the lower cabinet"
+  },
+  {
+   "control": "Parking brake",
+   "part": "ParkBrake",
+   "ik": "IK_ParkBrake",
+   "by": "hand",
+   "does": "pull back = braked (before unhooking), forward = free to tow"
+  }
+ ]
+}

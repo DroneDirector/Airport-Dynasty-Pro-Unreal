@@ -1,0 +1,479 @@
+{
+ "asset": "HangarGPU",
+ "kind": "hangar ground power unit, electric 400 Hz",
+ "blend": "Art/HangarEquipment/HangarGPU/HangarGPU.blend",
+ "glb": "Art/HangarEquipment/HangarGPU/hangargpu.glb",
+ "sizes": {
+  "power_kva": 90,
+  "output": "115/200 V 400 Hz",
+  "cable": "20 m, 70 mm2, 6-pin aircraft plug",
+  "castors_mm": 200
+ },
+ "bounds_min": [
+  -0.38,
+  -0.602,
+  0.0
+ ],
+ "bounds_max": [
+  0.53,
+  0.691,
+  1.68
+ ],
+ "size_m": [
+  0.91,
+  1.293,
+  1.68
+ ],
+ "footprint": {
+  "x_min": -0.5,
+  "x_max": 0.5,
+  "y_min": -0.5800000000000001,
+  "y_max": 0.7000000000000001,
+  "note": "pushed by hand; cable reaches 20 m"
+ },
+ "reference": "No free photo found; published sizes of mobile 90 kVA 400 Hz frequency converters",
+ "tris": 41914,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the unit, rolls on its castors"
+  },
+  {
+   "name": "Castor_FL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.28,
+    0.42,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.28,
+    0.375,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_FL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FL",
+   "pivot": [
+    -0.28,
+    0.375,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_FR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.28,
+    0.42,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.28,
+    0.375,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_FR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_FR",
+   "pivot": [
+    0.28,
+    0.375,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RL",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    -0.28,
+    -0.42,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.28,
+    -0.465,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_RL",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RL",
+   "pivot": [
+    -0.28,
+    -0.465,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "Castor_RR",
+   "mesh": "Castor_Fork_0",
+   "parent": "Frame",
+   "pivot": [
+    0.28,
+    -0.42,
+    0
+   ],
+   "move": "swivel about z, free 360 deg"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "Castor_Wheel_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.28,
+    -0.465,
+    0.1
+   ],
+   "move": "spin about x, rolls r=0.100 m"
+  },
+  {
+   "name": "Brake_RR",
+   "mesh": "Castor_Brake_0",
+   "parent": "Castor_RR",
+   "pivot": [
+    0.28,
+    -0.465,
+    0.1
+   ],
+   "move": "pedal tips about x 0..20 deg: down = wheel locked"
+  },
+  {
+   "name": "CableReel",
+   "mesh": "CableReel",
+   "parent": "Frame",
+   "pivot": [
+    0.0,
+    0.18,
+    1.42
+   ],
+   "move": "spins about x: pays out / winds in 20 m of cable; the crank turns with it"
+  },
+  {
+   "name": "Plug",
+   "mesh": "Plug",
+   "parent": "Frame",
+   "pivot": [
+    0.42,
+    0.25,
+    0.609
+   ],
+   "move": "out of its holster by hand into the aircraft ground power socket"
+  },
+  {
+   "name": "Button_Start",
+   "mesh": "Button_Button_Start",
+   "parent": "Frame",
+   "pivot": [
+    -0.17,
+    -0.556,
+    0.88
+   ],
+   "move": "pushes in 6 mm: power on to the aircraft"
+  },
+  {
+   "name": "Button_Stop",
+   "mesh": "Button_Button_Stop",
+   "parent": "Frame",
+   "pivot": [
+    -0.09,
+    -0.556,
+    0.88
+   ],
+   "move": "pushes in 6 mm: power off"
+  },
+  {
+   "name": "KeySwitch",
+   "mesh": "Knob_KeySwitch",
+   "parent": "Frame",
+   "pivot": [
+    0.0,
+    -0.556,
+    0.88
+   ],
+   "move": "turns about the panel normal 0..270 deg: unit on / off"
+  },
+  {
+   "name": "EStop",
+   "mesh": "Mushroom_EStop",
+   "parent": "Frame",
+   "pivot": [
+    0.2,
+    -0.556,
+    0.87
+   ],
+   "move": "pushes in 8 mm and latches (emergency stop), twist to release: emergency stop"
+  },
+  {
+   "name": "Switch_Mode",
+   "mesh": "Toggle_Switch_Mode",
+   "parent": "Frame",
+   "pivot": [
+    0.1,
+    -0.556,
+    0.88
+   ],
+   "move": "flips about its local x -30..+30 deg: 28 V DC / 400 Hz output select"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_Brake_FL",
+   "kind": "foot",
+   "parent": "Brake_FL",
+   "pos": [
+    -0.215,
+    0.465,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_FR",
+   "kind": "foot",
+   "parent": "Brake_FR",
+   "pos": [
+    0.345,
+    0.465,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_RL",
+   "kind": "foot",
+   "parent": "Brake_RL",
+   "pos": [
+    -0.215,
+    -0.375,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_Brake_RR",
+   "kind": "foot",
+   "parent": "Brake_RR",
+   "pos": [
+    0.345,
+    -0.375,
+    0.112
+   ]
+  },
+  {
+   "name": "IK_ReelCrank",
+   "kind": "hand",
+   "parent": "CableReel",
+   "pos": [
+    0.39,
+    0.18,
+    1.26
+   ]
+  },
+  {
+   "name": "IK_Plug",
+   "kind": "hand",
+   "parent": "Plug",
+   "pos": [
+    0.42,
+    0.25,
+    0.524
+   ]
+  },
+  {
+   "name": "IK_Button_Start",
+   "kind": "hand",
+   "parent": "Button_Start",
+   "pos": [
+    -0.17,
+    -0.601,
+    0.88
+   ]
+  },
+  {
+   "name": "IK_Button_Stop",
+   "kind": "hand",
+   "parent": "Button_Stop",
+   "pos": [
+    -0.09,
+    -0.601,
+    0.88
+   ]
+  },
+  {
+   "name": "IK_KeySwitch",
+   "kind": "hand",
+   "parent": "KeySwitch",
+   "pos": [
+    0.0,
+    -0.601,
+    0.88
+   ]
+  },
+  {
+   "name": "IK_EStop",
+   "kind": "hand",
+   "parent": "EStop",
+   "pos": [
+    0.2,
+    -0.601,
+    0.87
+   ]
+  },
+  {
+   "name": "IK_Switch_Mode",
+   "kind": "hand",
+   "parent": "Switch_Mode",
+   "pos": [
+    0.1,
+    -0.601,
+    0.88
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    -0.15,
+    0.67,
+    0.894
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    0.15,
+    0.67,
+    0.894
+   ]
+  },
+  {
+   "name": "IK_Operator",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    -1.05,
+    0
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Castor brake FL",
+   "part": "Brake_FL",
+   "ik": "IK_Brake_FL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake FR",
+   "part": "Brake_FR",
+   "ik": "IK_Brake_FR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RL",
+   "part": "Brake_RL",
+   "ik": "IK_Brake_RL",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Castor brake RR",
+   "part": "Brake_RR",
+   "ik": "IK_Brake_RR",
+   "by": "foot",
+   "does": "step down = locked, flip up = free"
+  },
+  {
+   "control": "Cable reel",
+   "part": "CableReel",
+   "ik": "IK_ReelCrank",
+   "by": "hand",
+   "does": "wind the cable in after use"
+  },
+  {
+   "control": "Power plug",
+   "part": "Plug",
+   "ik": "IK_Plug",
+   "by": "hand",
+   "does": "take to the aircraft socket and push in; out again after"
+  },
+  {
+   "control": "Button Start",
+   "part": "Button_Start",
+   "ik": "IK_Button_Start",
+   "by": "hand",
+   "does": "power on to the aircraft"
+  },
+  {
+   "control": "Button Stop",
+   "part": "Button_Stop",
+   "ik": "IK_Button_Stop",
+   "by": "hand",
+   "does": "power off"
+  },
+  {
+   "control": "KeySwitch",
+   "part": "KeySwitch",
+   "ik": "IK_KeySwitch",
+   "by": "hand",
+   "does": "unit on / off"
+  },
+  {
+   "control": "EStop",
+   "part": "EStop",
+   "ik": "IK_EStop",
+   "by": "hand",
+   "does": "emergency stop"
+  },
+  {
+   "control": "Switch Mode",
+   "part": "Switch_Mode",
+   "ik": "IK_Switch_Mode",
+   "by": "hand",
+   "does": "28 V DC / 400 Hz output select"
+  }
+ ]
+}

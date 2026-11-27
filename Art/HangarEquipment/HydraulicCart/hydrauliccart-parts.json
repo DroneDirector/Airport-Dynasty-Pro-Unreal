@@ -1,0 +1,651 @@
+{
+ "asset": "HydraulicCart",
+ "kind": "hydraulic ground cart (mule), 3000 psi",
+ "blend": "Art/HangarEquipment/HydraulicCart/HydraulicCart.blend",
+ "glb": "Art/HangarEquipment/HydraulicCart/hydrauliccart.glb",
+ "sizes": {
+  "pressure_bar": 207,
+  "flow_l_min": 40,
+  "hoses": "2 x 10 m, 1 in pressure / 1 1/4 in return, quick-disconnect",
+  "cabinet_m": [
+   0.84,
+   1.26,
+   0.84
+  ],
+  "wheels": "4.00-8 pneumatic",
+  "steer_deg": 35
+ },
+ "bounds_min": [
+  -0.516,
+  -1.061,
+  -0.009
+ ],
+ "bounds_max": [
+  0.588,
+  0.934,
+  1.341
+ ],
+ "size_m": [
+  1.104,
+  1.995,
+  1.35
+ ],
+ "footprint": {
+  "x_min": -0.52,
+  "x_max": 0.63,
+  "y_min": -1.08,
+  "y_max": 0.97,
+  "towbar_down_reach_y": 1.92,
+  "note": "tow bar up; operator stands behind the panel (y about -1.4); hoses reach 10 m"
+ },
+ "reference": "Wikimedia Commons: U.S. Air Force Hydraulic Test Stand inspection; 332nd EMS AGE Operations (public domain); 3000 psi ground cart sizes",
+ "tris": 59666,
+ "parts": [
+  {
+   "name": "Frame",
+   "mesh": "Frame",
+   "parent": null,
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "move": "root: the cart, rolls on its wheels"
+  },
+  {
+   "name": "Wheel_RL",
+   "mesh": "CartWheel_205",
+   "parent": "Frame",
+   "pivot": [
+    -0.46,
+    -0.62,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "Wheel_RR",
+   "mesh": "CartWheel_205",
+   "parent": "Frame",
+   "pivot": [
+    0.46,
+    -0.62,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "FrontAxle",
+   "mesh": "FrontAxle",
+   "parent": "Frame",
+   "pivot": [
+    0,
+    0.72,
+    0
+   ],
+   "move": "steers about z +-35 deg (turntable), led by the tow bar"
+  },
+  {
+   "name": "Wheel_FL",
+   "mesh": "CartWheel_205",
+   "parent": "FrontAxle",
+   "pivot": [
+    -0.46,
+    0.72,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "Wheel_FR",
+   "mesh": "CartWheel_205",
+   "parent": "FrontAxle",
+   "pivot": [
+    0.46,
+    0.72,
+    0.205
+   ],
+   "move": "spin about x, rolls r=0.205 m"
+  },
+  {
+   "name": "TowBar",
+   "mesh": "TowBar",
+   "parent": "FrontAxle",
+   "pivot": [
+    0,
+    0.81,
+    0.215
+   ],
+   "move": "hinge about x: 0 = up (parked) .. 80 deg forward = on the tug hitch; steers FrontAxle"
+  },
+  {
+   "name": "Gauge_System",
+   "mesh": "GaugeBody_60",
+   "parent": "Frame",
+   "pivot": [
+    -0.24,
+    -0.99,
+    1.1
+   ],
+   "move": "fixed: pump pressure 0..350 bar"
+  },
+  {
+   "name": "Needle_System",
+   "mesh": "Needle_60",
+   "parent": "Gauge_System",
+   "pivot": [
+    -0.24,
+    -0.99,
+    1.1
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: pump pressure 0..350 bar"
+  },
+  {
+   "name": "Gauge_Delivery",
+   "mesh": "GaugeBody_60",
+   "parent": "Frame",
+   "pivot": [
+    -0.08,
+    -0.99,
+    1.1
+   ],
+   "move": "fixed: pressure to the aircraft 0..350 bar"
+  },
+  {
+   "name": "Needle_Delivery",
+   "mesh": "Needle_60",
+   "parent": "Gauge_Delivery",
+   "pivot": [
+    -0.08,
+    -0.99,
+    1.1
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: pressure to the aircraft 0..350 bar"
+  },
+  {
+   "name": "Gauge_Return",
+   "mesh": "GaugeBody_60",
+   "parent": "Frame",
+   "pivot": [
+    0.08,
+    -0.99,
+    1.1
+   ],
+   "move": "fixed: return pressure 0..10 bar"
+  },
+  {
+   "name": "Needle_Return",
+   "mesh": "Needle_60",
+   "parent": "Gauge_Return",
+   "pivot": [
+    0.08,
+    -0.99,
+    1.1
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: return pressure 0..10 bar"
+  },
+  {
+   "name": "Gauge_Flow",
+   "mesh": "GaugeBody_60",
+   "parent": "Frame",
+   "pivot": [
+    0.24,
+    -0.99,
+    1.1
+   ],
+   "move": "fixed: flow 0..60 l/min"
+  },
+  {
+   "name": "Needle_Flow",
+   "mesh": "Needle_60",
+   "parent": "Gauge_Flow",
+   "pivot": [
+    0.24,
+    -0.99,
+    1.1
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: flow 0..60 l/min"
+  },
+  {
+   "name": "Gauge_Temperature",
+   "mesh": "GaugeBody_35",
+   "parent": "Frame",
+   "pivot": [
+    -0.24,
+    -0.99,
+    0.93
+   ],
+   "move": "fixed: fluid temperature"
+  },
+  {
+   "name": "Needle_Temperature",
+   "mesh": "Needle_35",
+   "parent": "Gauge_Temperature",
+   "pivot": [
+    -0.24,
+    -0.99,
+    0.93
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: fluid temperature"
+  },
+  {
+   "name": "Gauge_HourMeter",
+   "mesh": "GaugeBody_30",
+   "parent": "Frame",
+   "pivot": [
+    0.25,
+    -0.99,
+    0.93
+   ],
+   "move": "fixed: pump hours"
+  },
+  {
+   "name": "Needle_HourMeter",
+   "mesh": "Needle_30",
+   "parent": "Gauge_HourMeter",
+   "pivot": [
+    0.25,
+    -0.99,
+    0.93
+   ],
+   "move": "turns about its local z (out of the dial) 0..270 deg clockwise from -135: pump hours"
+  },
+  {
+   "name": "Valve_Pressure",
+   "mesh": "Wheel_Valve_Pressure",
+   "parent": "Frame",
+   "pivot": [
+    -0.08,
+    -0.99,
+    0.93
+   ],
+   "move": "turns about the panel normal 0..3 turns: sets the delivery pressure (right = more)"
+  },
+  {
+   "name": "Valve_Bypass",
+   "mesh": "T_Valve_Bypass",
+   "parent": "Frame",
+   "pivot": [
+    0.05,
+    -0.99,
+    0.93
+   ],
+   "move": "turns about the panel normal 0..270 deg (open): bypass open = no pressure to the aircraft"
+  },
+  {
+   "name": "Valve_Supply",
+   "mesh": "Lever_Valve_Supply",
+   "parent": "Frame",
+   "pivot": [
+    -0.1,
+    -0.99,
+    0.77
+   ],
+   "move": "quarter turn about the panel normal 0..90 deg: opens the pressure line"
+  },
+  {
+   "name": "Valve_Return",
+   "mesh": "Lever_Valve_Return",
+   "parent": "Frame",
+   "pivot": [
+    0.02,
+    -0.99,
+    0.77
+   ],
+   "move": "quarter turn about the panel normal 0..90 deg: opens the return line"
+  },
+  {
+   "name": "Button_Start",
+   "mesh": "Button_Button_Start",
+   "parent": "Frame",
+   "pivot": [
+    -0.3,
+    -0.99,
+    0.83
+   ],
+   "move": "pushes in 6 mm: starts the pump motor"
+  },
+  {
+   "name": "Button_Stop",
+   "mesh": "Button_Button_Stop",
+   "parent": "Frame",
+   "pivot": [
+    -0.22,
+    -0.99,
+    0.83
+   ],
+   "move": "pushes in 6 mm: stops the pump motor"
+  },
+  {
+   "name": "EStop",
+   "mesh": "Mushroom_EStop",
+   "parent": "Frame",
+   "pivot": [
+    0.27,
+    -0.99,
+    0.8
+   ],
+   "move": "pushes in 8 mm and latches (emergency stop), twist to release: emergency stop"
+  },
+  {
+   "name": "Switch_Lamp",
+   "mesh": "Toggle_Switch_Lamp",
+   "parent": "Frame",
+   "pivot": [
+    -0.32,
+    -0.99,
+    0.765
+   ],
+   "move": "flips about its local x -30..+30 deg: panel lamp on / off"
+  },
+  {
+   "name": "Coupling_Return",
+   "mesh": "Coupling_Return",
+   "parent": "Frame",
+   "pivot": [
+    0.55,
+    -0.5,
+    0.64
+   ],
+   "move": "quick-disconnect coupling: off its coil to the aircraft ground service port; sleeve slides back to couple"
+  },
+  {
+   "name": "Coupling_Pressure",
+   "mesh": "Coupling_Pressure",
+   "parent": "Frame",
+   "pivot": [
+    0.55,
+    0.02,
+    0.64
+   ],
+   "move": "quick-disconnect coupling: off its coil to the aircraft ground service port; sleeve slides back to couple"
+  },
+  {
+   "name": "Door_Service",
+   "mesh": "Door_Service",
+   "parent": "Frame",
+   "pivot": [
+    -0.399,
+    0.18,
+    0.62
+   ],
+   "move": "hinge about z: 0 = shut .. 110 deg open (pump, motor, filters)"
+  },
+  {
+   "name": "ParkBrake",
+   "mesh": "ParkBrake",
+   "parent": "Frame",
+   "pivot": [
+    -0.41,
+    -0.32,
+    0.43
+   ],
+   "move": "lever about x: 0 = off (forward) .. 50 deg back = rear wheels braked"
+  }
+ ],
+ "ik": [
+  {
+   "name": "IK_TowBar_Eye",
+   "kind": "hand",
+   "parent": "TowBar",
+   "pos": [
+    0,
+    0.81,
+    1.245
+   ]
+  },
+  {
+   "name": "IK_TowBar_Grip",
+   "kind": "push",
+   "parent": "TowBar",
+   "pos": [
+    0,
+    0.81,
+    0.815
+   ]
+  },
+  {
+   "name": "IK_Valve_Pressure",
+   "kind": "hand",
+   "parent": "Valve_Pressure",
+   "pos": [
+    -0.08,
+    -1.035,
+    0.93
+   ]
+  },
+  {
+   "name": "IK_Valve_Bypass",
+   "kind": "hand",
+   "parent": "Valve_Bypass",
+   "pos": [
+    0.05,
+    -1.035,
+    0.93
+   ]
+  },
+  {
+   "name": "IK_Valve_Supply",
+   "kind": "hand",
+   "parent": "Valve_Supply",
+   "pos": [
+    -0.1,
+    -1.035,
+    0.77
+   ]
+  },
+  {
+   "name": "IK_Valve_Return",
+   "kind": "hand",
+   "parent": "Valve_Return",
+   "pos": [
+    0.02,
+    -1.035,
+    0.77
+   ]
+  },
+  {
+   "name": "IK_Button_Start",
+   "kind": "hand",
+   "parent": "Button_Start",
+   "pos": [
+    -0.3,
+    -1.035,
+    0.83
+   ]
+  },
+  {
+   "name": "IK_Button_Stop",
+   "kind": "hand",
+   "parent": "Button_Stop",
+   "pos": [
+    -0.22,
+    -1.035,
+    0.83
+   ]
+  },
+  {
+   "name": "IK_EStop",
+   "kind": "hand",
+   "parent": "EStop",
+   "pos": [
+    0.27,
+    -1.035,
+    0.8
+   ]
+  },
+  {
+   "name": "IK_Switch_Lamp",
+   "kind": "hand",
+   "parent": "Switch_Lamp",
+   "pos": [
+    -0.32,
+    -1.035,
+    0.765
+   ]
+  },
+  {
+   "name": "IK_Coupling_Return",
+   "kind": "hand",
+   "parent": "Coupling_Return",
+   "pos": [
+    0.55,
+    -0.5,
+    0.6
+   ]
+  },
+  {
+   "name": "IK_Coupling_Pressure",
+   "kind": "hand",
+   "parent": "Coupling_Pressure",
+   "pos": [
+    0.55,
+    0.02,
+    0.6
+   ]
+  },
+  {
+   "name": "IK_Door_Service",
+   "kind": "hand",
+   "parent": "Door_Service",
+   "pos": [
+    -0.425,
+    -0.26,
+    0.92
+   ]
+  },
+  {
+   "name": "IK_ParkBrake",
+   "kind": "hand",
+   "parent": "ParkBrake",
+   "pos": [
+    -0.41,
+    -0.37,
+    0.75
+   ]
+  },
+  {
+   "name": "IK_Push_L",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    -0.42,
+    -1.04,
+    1.01
+   ]
+  },
+  {
+   "name": "IK_Push_R",
+   "kind": "push",
+   "parent": "Frame",
+   "pos": [
+    0.42,
+    -1.04,
+    1.01
+   ]
+  },
+  {
+   "name": "IK_Operator",
+   "kind": "stand",
+   "parent": "Frame",
+   "pos": [
+    0,
+    -1.43,
+    0
+   ]
+  }
+ ],
+ "controls": [
+  {
+   "control": "Tow bar",
+   "part": "TowBar",
+   "ik": "IK_TowBar_Eye",
+   "by": "hand",
+   "does": "lower onto the tug hitch / lift up to park; steer by hand to push"
+  },
+  {
+   "control": "Valve Pressure",
+   "part": "Valve_Pressure",
+   "ik": "IK_Valve_Pressure",
+   "by": "hand",
+   "does": "sets the delivery pressure (right = more)"
+  },
+  {
+   "control": "Valve Bypass",
+   "part": "Valve_Bypass",
+   "ik": "IK_Valve_Bypass",
+   "by": "hand",
+   "does": "bypass open = no pressure to the aircraft"
+  },
+  {
+   "control": "Valve Supply",
+   "part": "Valve_Supply",
+   "ik": "IK_Valve_Supply",
+   "by": "hand",
+   "does": "opens the pressure line"
+  },
+  {
+   "control": "Valve Return",
+   "part": "Valve_Return",
+   "ik": "IK_Valve_Return",
+   "by": "hand",
+   "does": "opens the return line"
+  },
+  {
+   "control": "Button Start",
+   "part": "Button_Start",
+   "ik": "IK_Button_Start",
+   "by": "hand",
+   "does": "starts the pump motor"
+  },
+  {
+   "control": "Button Stop",
+   "part": "Button_Stop",
+   "ik": "IK_Button_Stop",
+   "by": "hand",
+   "does": "stops the pump motor"
+  },
+  {
+   "control": "EStop",
+   "part": "EStop",
+   "ik": "IK_EStop",
+   "by": "hand",
+   "does": "emergency stop"
+  },
+  {
+   "control": "Switch Lamp",
+   "part": "Switch_Lamp",
+   "ik": "IK_Switch_Lamp",
+   "by": "hand",
+   "does": "panel lamp on / off"
+  },
+  {
+   "control": "Return hose",
+   "part": "Coupling_Return",
+   "ik": "IK_Coupling_Return",
+   "by": "hand",
+   "does": "take the coupling to the aircraft port and couple it (sleeve back, push, release)"
+  },
+  {
+   "control": "Pressure hose",
+   "part": "Coupling_Pressure",
+   "ik": "IK_Coupling_Pressure",
+   "by": "hand",
+   "does": "take the coupling to the aircraft port and couple it (sleeve back, push, release)"
+  },
+  {
+   "control": "Service door",
+   "part": "Door_Service",
+   "ik": "IK_Door_Service",
+   "by": "hand",
+   "does": "open / shut"
+  },
+  {
+   "control": "Parking brake",
+   "part": "ParkBrake",
+   "ik": "IK_ParkBrake",
+   "by": "hand",
+   "does": "pull back = braked (before unhooking), forward = free to tow"
+  }
+ ]
+}
