@@ -1,31 +1,34 @@
-# Stop note - Friday 27 November 2026: the Airbus A320neo model
-
-You said: "And just stop the creation of the Airbus model." It is stopped. Nothing is running on it.
+# Stop note - 2026-11-27, evening
 
 ## Done
-- The whole fuselage shell is built and pushed (last commit 2ca6b358): nose, radome, barrel, tail cone, APU,
-  fin and tailplane roots, 38 cabin windows a side, every door its own hinged part modelled open, panel lines,
-  skin joints, rivet rows, belly and wing-root fairing, service panels, probes, antennas.
-- The cockpit windows were rebuilt against two licensed photos (head-on and side), scaled by the Door 1 opening.
-  That round found and fixed the real position: the glazing had to move about 1 m aft, to straddle the measured
-  pilot eye point.
-- The nose seam work (the radome joint and the skin stations across the curved nose) is committed, so the two
-  faults I found in the 4K render - a ring of latch boxes standing 13 mm proud, and the nose terraced into bands
-  because the skin was only cut at frame stations - have a fix in the file.
+- Bus-station bay signs now count the way the road paints them (A1 at the east end), proved from the rebuilt
+  model's own node positions. Commit `cdf14f46`, pushed.
+- The plan doc corrected: plan y is not world y (`ToWorld` flips the sign).
+- One full stress walk on the packaged **0.20.2** build (terminal route + coaches route, 13:00, visible,
+  20:22-20:39, ended by itself). 65 fps drawn on average, slowest 1 % 43 fps, worst frame 71 ms, 3 bad frames
+  after warm-up. Findings stored in memory (`stress-walk-1127-findings`) and indexed in the testing notes.
+- A repeatable picture run `Tools/views/pics-cargo-hangar.txt` (commit `a30614e2`, pushed) and nine 4K PNGs of
+  the cargo terminal and the hangars sent.
 
-## Half-done - measured but NOT built
-Your two notes are written into `Art/A320neo/BUILD-PLAN.md` so no future builder can miss them, but the model does
-not have them yet:
-- **The window pillars.** Measured off the photos: the post between window 1 and 2 is raked about 30 deg leaning
-  aft, the post between 2 and 3 is vertical - they are not alike, which is the thing that keeps getting built wrong.
-  The gaps are 55 mm at the first post and 100 mm at the second, not equal.
-- **The sill falls going aft** (4.46 m down to 4.28 m); an earlier round built it rising. Wrong sign.
-- **The nose roundness** you objected to: the fix is committed but I never saw a render of it, so I cannot tell you
-  it is round again. It is unjudged.
+## Half-done
+- Nothing is half-built. No code was changed for any of the seven issues below.
+- One picture (`hangar-h1-inside-out`) came out a dud and was dropped, not retaken.
 
-## Next, when you say so
-Nothing until your word. Then: judge the nose in one render, build the pillar and sill corrections, and only after
-that the wing - and I tell you the wing plan first, as you asked, before any of it is built.
+## Next, when the PC comes on again
+He asked to be reminded: **the first job is fixing the seven issues the stress test found**, worst first.
+
+1. A coach cannot be walked into - the feet stay 1.63 m out of the coach's own frame the whole aisle leg.
+2. The coach's front door does not answer E ("nothing in reach" at 141 cm / 122 cm) - follows from 1.
+3. The forecourt kerb `SM_RoadCurbs_1` (plan x 75.1, y -54.6) blocks the way to the zebra crossing.
+4. Pathing gives up in three places and sets the walker down at the point: jetway to its cab, back to the
+   rotunda (a Babylon instanced mesh at world -5030.0, -9696.2, 100.3), the crew-side baggage hall past the belts.
+5. The load hitch at the start: 37 bad frames, one frame 3.6 s of game thread.
+6. No grass colour tiles (`Tools/make_grass_area.py`); the office laptop has no imported `Screen` part.
+7. A black untextured box on the cargo apron and flat-black slabs under every dock door - a missing material
+   in the cargo dock kit.
+
+Then, in the order agreed before: coaches into bays A1-A12, the bus-station picture run, to-do 373 (town hub
+passengers), the hangar chain (366, 364, 367, 368, step 7, then the hangar visual test), to-do 374.
 
 ## Testing issues
-None - nothing was run. No game run, no publish.
+The seven above, none fixed. Nothing else was run.
