@@ -1,0 +1,2600 @@
+{
+ "model": "Art/A320/A320.glb (made by Art/A320/make_a320_panels.py from the owner's Meshy model; shape unchanged)",
+ "frame": "Blender metres: nose tyre at the origin, nose +y, up +z. The loader mirrors x: Blender +x is the aircraft's left (port, engine 1), -x its right (starboard, cargo doors). _L/_R as the existing gear parts: _L = Blender -x.",
+ "rotation": "right-hand rule about axis through pivot; the axis is signed so a positive angle is the opening / deploy direction (flaps, ailerons, elevators: trailing edge down; spoilers: up; slats: leading edge down; rudder: trailing edge to +x; doors and cowls: open)",
+ "engine": "CFM56-5B shape (short fan duct, core nozzle and plug outside): fan cowls on the pylon hinge, a pivoting-door thrust reverser (4 doors)",
+ "engine_inside": {
+  "Eng1": {
+   "centre": [
+    5.4965,
+    0.0,
+    1.9559
+   ],
+   "cowl_min_r": 1.2,
+   "case_r": 1.06,
+   "y": [
+    -8.5,
+    -7.6
+   ]
+  },
+  "Eng2": {
+   "centre": [
+    -5.5117,
+    0.0,
+    1.9587
+   ],
+   "cowl_min_r": 1.2,
+   "case_r": 1.06,
+   "y": [
+    -8.5,
+    -7.6
+   ]
+  }
+ },
+ "parts": [
+  {
+   "name": "FlapInner_R",
+   "kind": "flap",
+   "pivot": [
+    4.275,
+    -12.6,
+    3.5947
+   ],
+   "axis": [
+    0.996,
+    0.0,
+    0.0896
+   ],
+   "hinge_line": [
+    [
+     2.35,
+     -12.6,
+     3.4215
+    ],
+    [
+     6.2,
+     -12.6,
+     3.768
+    ]
+   ],
+   "source": "texture+web",
+   "note": "inner end at the wing root fairing, outer end on the panel line drawn at the trailing-edge kink (texture); chord web",
+   "motion": {
+    "deploy_deg": 40.0,
+    "travel_m": 1.1,
+    "travel_dir": "aft along the chord (Fowler), then the angle",
+    "settings": {
+     "1+F": 10,
+     "2": 15,
+     "3": 20,
+     "FULL": 40
+    }
+   },
+   "faces": 178,
+   "box": [
+    [
+     2.35,
+     -13.8208,
+     3.1419
+    ],
+    [
+     6.2,
+     -12.6,
+     3.705
+    ]
+   ]
+  },
+  {
+   "name": "FlapOuter_R",
+   "kind": "flap",
+   "pivot": [
+    9.075,
+    -13.2839,
+    4.0268
+   ],
+   "axis": [
+    0.9839,
+    -0.1555,
+    0.0885
+   ],
+   "hinge_line": [
+    [
+     6.3,
+     -12.8455,
+     3.777
+    ],
+    [
+     11.85,
+     -13.7224,
+     4.2765
+    ]
+   ],
+   "source": "texture+web",
+   "note": "ends on the panel lines drawn on the lower skin at the kink and at the aileron (texture); chord web",
+   "motion": {
+    "deploy_deg": 35.0,
+    "travel_m": 1.0,
+    "travel_dir": "aft along the chord (Fowler), then the angle",
+    "settings": {
+     "1+F": 10,
+     "2": 15,
+     "3": 20,
+     "FULL": 35
+    }
+   },
+   "faces": 1346,
+   "box": [
+    [
+     6.3,
+     -14.7854,
+     3.4795
+    ],
+    [
+     11.85,
+     -12.8613,
+     4.2349
+    ]
+   ]
+  },
+  {
+   "name": "Aileron_R",
+   "kind": "aileron",
+   "pivot": [
+    13.45,
+    -14.2587,
+    4.4205
+   ],
+   "axis": [
+    0.9839,
+    -0.1555,
+    0.0885
+   ],
+   "hinge_line": [
+    [
+     11.95,
+     -14.0217,
+     4.2855
+    ],
+    [
+     14.95,
+     -14.4957,
+     4.5555
+    ]
+   ],
+   "source": "texture",
+   "note": "both ends on the panel lines drawn on the lower skin; chord web",
+   "motion": {
+    "range_deg": [
+     -25.0,
+     25.0
+    ],
+    "positive": "trailing edge down",
+    "droop_deg": 5.0
+   },
+   "faces": 1365,
+   "box": [
+    [
+     11.95,
+     -15.2393,
+     4.0228
+    ],
+    [
+     14.95,
+     -14.0217,
+     4.5553
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler1_R",
+   "kind": "spoiler",
+   "pivot": [
+    4.45,
+    -12.0,
+    3.7105
+   ],
+   "axis": [
+    -0.996,
+    -0.0,
+    -0.0896
+   ],
+   "hinge_line": [
+    [
+     3.0,
+     -12.0,
+     3.58
+    ],
+    [
+     5.9,
+     -12.0,
+     3.841
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": null,
+    "ground_deg": 50.0
+   },
+   "faces": 39,
+   "box": [
+    [
+     3.0,
+     -12.6,
+     3.4237
+    ],
+    [
+     5.9,
+     -12.0,
+     3.7158
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler2_R",
+   "kind": "spoiler",
+   "pivot": [
+    7.1125,
+    -12.3664,
+    3.9501
+   ],
+   "axis": [
+    -0.9839,
+    0.1555,
+    -0.0885
+   ],
+   "hinge_line": [
+    [
+     6.45,
+     -12.2618,
+     3.8905
+    ],
+    [
+     7.775,
+     -12.4711,
+     4.0097
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": 40.0
+   },
+   "faces": 23,
+   "box": [
+    [
+     6.45,
+     -13.0785,
+     3.6937
+    ],
+    [
+     7.775,
+     -12.2618,
+     3.8581
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler3_R",
+   "kind": "spoiler",
+   "pivot": [
+    8.4375,
+    -12.5758,
+    4.0694
+   ],
+   "axis": [
+    -0.9839,
+    0.1555,
+    -0.0885
+   ],
+   "hinge_line": [
+    [
+     7.775,
+     -12.4711,
+     4.0097
+    ],
+    [
+     9.1,
+     -12.6805,
+     4.129
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": 40.0
+   },
+   "faces": 21,
+   "box": [
+    [
+     7.775,
+     -13.2879,
+     3.8027
+    ],
+    [
+     9.1,
+     -12.5157,
+     4.0246
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler4_R",
+   "kind": "spoiler",
+   "pivot": [
+    9.7625,
+    -12.7851,
+    4.1886
+   ],
+   "axis": [
+    -0.9839,
+    0.1555,
+    -0.0885
+   ],
+   "hinge_line": [
+    [
+     9.1,
+     -12.6805,
+     4.129
+    ],
+    [
+     10.425,
+     -12.8898,
+     4.2483
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": 40.0
+   },
+   "faces": 16,
+   "box": [
+    [
+     9.1,
+     -13.3821,
+     3.9343
+    ],
+    [
+     10.425,
+     -12.7304,
+     4.1527
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler5_R",
+   "kind": "spoiler",
+   "pivot": [
+    11.0875,
+    -12.9945,
+    4.3079
+   ],
+   "axis": [
+    -0.9839,
+    0.1555,
+    -0.0885
+   ],
+   "hinge_line": [
+    [
+     10.425,
+     -12.8898,
+     4.2483
+    ],
+    [
+     11.75,
+     -13.0992,
+     4.3675
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": null
+   },
+   "faces": 19,
+   "box": [
+    [
+     10.425,
+     -13.6894,
+     4.0829
+    ],
+    [
+     11.75,
+     -13.0123,
+     4.3002
+    ]
+   ]
+  },
+  {
+   "name": "Slat1_R",
+   "kind": "slat",
+   "pivot": [
+    4.0,
+    -9.642,
+    3.44
+   ],
+   "axis": [
+    -0.9467,
+    0.3105,
+    -0.0852
+   ],
+   "hinge_line": [
+    [
+     3.2,
+     -9.3796,
+     3.368
+    ],
+    [
+     4.8,
+     -9.9044,
+     3.512
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 689,
+   "box": [
+    [
+     3.2,
+     -9.8622,
+     2.9071
+    ],
+    [
+     4.8,
+     -7.538,
+     3.6994
+    ]
+   ]
+  },
+  {
+   "name": "Slat2_R",
+   "kind": "slat",
+   "pivot": [
+    7.6,
+    -10.8228,
+    3.764
+   ],
+   "axis": [
+    -0.9467,
+    0.3105,
+    -0.0852
+   ],
+   "hinge_line": [
+    [
+     6.4,
+     -10.4292,
+     3.656
+    ],
+    [
+     8.8,
+     -11.2164,
+     3.872
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 1050,
+   "box": [
+    [
+     6.4,
+     -11.2164,
+     3.4229
+    ],
+    [
+     8.8,
+     -9.9958,
+     4.0491
+    ]
+   ]
+  },
+  {
+   "name": "Slat3_R",
+   "kind": "slat",
+   "pivot": [
+    10.0,
+    -11.61,
+    3.98
+   ],
+   "axis": [
+    -0.9467,
+    0.3105,
+    -0.0852
+   ],
+   "hinge_line": [
+    [
+     8.8,
+     -11.2164,
+     3.872
+    ],
+    [
+     11.2,
+     -12.0036,
+     4.088
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 963,
+   "box": [
+    [
+     8.8,
+     -11.9763,
+     3.698
+    ],
+    [
+     11.2,
+     -10.8029,
+     4.2852
+    ]
+   ]
+  },
+  {
+   "name": "Slat4_R",
+   "kind": "slat",
+   "pivot": [
+    12.4,
+    -12.3972,
+    4.196
+   ],
+   "axis": [
+    -0.9467,
+    0.3105,
+    -0.0852
+   ],
+   "hinge_line": [
+    [
+     11.2,
+     -12.0036,
+     4.088
+    ],
+    [
+     13.6,
+     -12.7908,
+     4.304
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 1044,
+   "box": [
+    [
+     11.2,
+     -12.7908,
+     3.9545
+    ],
+    [
+     13.6,
+     -11.5954,
+     4.5381
+    ]
+   ]
+  },
+  {
+   "name": "Slat5_R",
+   "kind": "slat",
+   "pivot": [
+    14.75,
+    -13.168,
+    4.4075
+   ],
+   "axis": [
+    -0.9467,
+    0.3105,
+    -0.0852
+   ],
+   "hinge_line": [
+    [
+     13.6,
+     -12.7908,
+     4.304
+    ],
+    [
+     15.9,
+     -13.5452,
+     4.511
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 1078,
+   "box": [
+    [
+     13.6,
+     -13.5452,
+     4.2275
+    ],
+    [
+     15.9,
+     -12.3825,
+     4.752
+    ]
+   ]
+  },
+  {
+   "name": "FlapInner_L",
+   "kind": "flap",
+   "pivot": [
+    -4.275,
+    -12.6,
+    3.5947
+   ],
+   "axis": [
+    0.996,
+    -0.0,
+    -0.0896
+   ],
+   "hinge_line": [
+    [
+     -2.35,
+     -12.6,
+     3.4215
+    ],
+    [
+     -6.2,
+     -12.6,
+     3.768
+    ]
+   ],
+   "source": "texture+web",
+   "note": "inner end at the wing root fairing, outer end on the panel line drawn at the trailing-edge kink (texture); chord web",
+   "motion": {
+    "deploy_deg": 40.0,
+    "travel_m": 1.1,
+    "travel_dir": "aft along the chord (Fowler), then the angle",
+    "settings": {
+     "1+F": 10,
+     "2": 15,
+     "3": 20,
+     "FULL": 40
+    }
+   },
+   "faces": 151,
+   "box": [
+    [
+     -6.2,
+     -13.7982,
+     3.1372
+    ],
+    [
+     -2.35,
+     -12.6,
+     3.6995
+    ]
+   ]
+  },
+  {
+   "name": "FlapOuter_L",
+   "kind": "flap",
+   "pivot": [
+    -9.075,
+    -13.2839,
+    4.0268
+   ],
+   "axis": [
+    0.9839,
+    0.1555,
+    -0.0885
+   ],
+   "hinge_line": [
+    [
+     -6.3,
+     -12.8455,
+     3.777
+    ],
+    [
+     -11.85,
+     -13.7224,
+     4.2765
+    ]
+   ],
+   "source": "texture+web",
+   "note": "ends on the panel lines drawn on the lower skin at the kink and at the aileron (texture); chord web",
+   "motion": {
+    "deploy_deg": 35.0,
+    "travel_m": 1.0,
+    "travel_dir": "aft along the chord (Fowler), then the angle",
+    "settings": {
+     "1+F": 10,
+     "2": 15,
+     "3": 20,
+     "FULL": 35
+    }
+   },
+   "faces": 1444,
+   "box": [
+    [
+     -11.85,
+     -14.7372,
+     3.4841
+    ],
+    [
+     -6.3,
+     -12.8613,
+     4.2322
+    ]
+   ]
+  },
+  {
+   "name": "Aileron_L",
+   "kind": "aileron",
+   "pivot": [
+    -13.45,
+    -14.2587,
+    4.4205
+   ],
+   "axis": [
+    0.9839,
+    0.1555,
+    -0.0885
+   ],
+   "hinge_line": [
+    [
+     -11.95,
+     -14.0217,
+     4.2855
+    ],
+    [
+     -14.95,
+     -14.4957,
+     4.5555
+    ]
+   ],
+   "source": "texture",
+   "note": "both ends on the panel lines drawn on the lower skin; chord web",
+   "motion": {
+    "range_deg": [
+     -25.0,
+     25.0
+    ],
+    "positive": "trailing edge down",
+    "droop_deg": 5.0
+   },
+   "faces": 1365,
+   "box": [
+    [
+     -14.95,
+     -15.2321,
+     4.0205
+    ],
+    [
+     -11.95,
+     -14.0587,
+     4.5772
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler1_L",
+   "kind": "spoiler",
+   "pivot": [
+    -4.45,
+    -12.0,
+    3.7105
+   ],
+   "axis": [
+    -0.996,
+    0.0,
+    0.0896
+   ],
+   "hinge_line": [
+    [
+     -3.0,
+     -12.0,
+     3.58
+    ],
+    [
+     -5.9,
+     -12.0,
+     3.841
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": null,
+    "ground_deg": 50.0
+   },
+   "faces": 31,
+   "box": [
+    [
+     -5.9,
+     -12.6,
+     3.4252
+    ],
+    [
+     -3.0,
+     -12.0,
+     3.7423
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler2_L",
+   "kind": "spoiler",
+   "pivot": [
+    -7.1125,
+    -12.3664,
+    3.9501
+   ],
+   "axis": [
+    -0.9839,
+    -0.1555,
+    0.0885
+   ],
+   "hinge_line": [
+    [
+     -6.45,
+     -12.2618,
+     3.8905
+    ],
+    [
+     -7.775,
+     -12.4711,
+     4.0097
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": 40.0
+   },
+   "faces": 22,
+   "box": [
+    [
+     -7.775,
+     -13.0785,
+     3.6851
+    ],
+    [
+     -6.4604,
+     -12.3005,
+     3.8963
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler3_L",
+   "kind": "spoiler",
+   "pivot": [
+    -8.4375,
+    -12.5758,
+    4.0694
+   ],
+   "axis": [
+    -0.9839,
+    -0.1555,
+    0.0885
+   ],
+   "hinge_line": [
+    [
+     -7.775,
+     -12.4711,
+     4.0097
+    ],
+    [
+     -9.1,
+     -12.6805,
+     4.129
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": 40.0
+   },
+   "faces": 30,
+   "box": [
+    [
+     -9.1,
+     -13.2879,
+     3.8016
+    ],
+    [
+     -7.775,
+     -12.5622,
+     4.0234
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler4_L",
+   "kind": "spoiler",
+   "pivot": [
+    -9.7625,
+    -12.7851,
+    4.1886
+   ],
+   "axis": [
+    -0.9839,
+    -0.1555,
+    0.0885
+   ],
+   "hinge_line": [
+    [
+     -9.1,
+     -12.6805,
+     4.129
+    ],
+    [
+     -10.425,
+     -12.8898,
+     4.2483
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": 40.0
+   },
+   "faces": 23,
+   "box": [
+    [
+     -10.425,
+     -13.4816,
+     3.9443
+    ],
+    [
+     -9.1,
+     -12.692,
+     4.1586
+    ]
+   ]
+  },
+  {
+   "name": "Spoiler5_L",
+   "kind": "spoiler",
+   "pivot": [
+    -11.0875,
+    -12.9945,
+    4.3079
+   ],
+   "axis": [
+    -0.9839,
+    -0.1555,
+    0.0885
+   ],
+   "hinge_line": [
+    [
+     -10.425,
+     -12.8898,
+     4.2483
+    ],
+    [
+     -11.75,
+     -13.0992,
+     4.3675
+    ]
+   ],
+   "source": "web",
+   "note": "upper skin ahead of the outer flap; positive = up",
+   "motion": {
+    "open_deg": 50.0,
+    "roll_deg": 35.0,
+    "speedbrake_deg": null
+   },
+   "faces": 21,
+   "box": [
+    [
+     -11.75,
+     -13.6942,
+     4.1013
+    ],
+    [
+     -10.425,
+     -12.8898,
+     4.2981
+    ]
+   ]
+  },
+  {
+   "name": "Slat1_L",
+   "kind": "slat",
+   "pivot": [
+    -4.0,
+    -9.642,
+    3.44
+   ],
+   "axis": [
+    -0.9467,
+    -0.3105,
+    0.0852
+   ],
+   "hinge_line": [
+    [
+     -3.2,
+     -9.3796,
+     3.368
+    ],
+    [
+     -4.8,
+     -9.9044,
+     3.512
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 593,
+   "box": [
+    [
+     -4.8,
+     -9.8675,
+     2.9313
+    ],
+    [
+     -3.2,
+     -7.8819,
+     3.6778
+    ]
+   ]
+  },
+  {
+   "name": "Slat2_L",
+   "kind": "slat",
+   "pivot": [
+    -7.6,
+    -10.8228,
+    3.764
+   ],
+   "axis": [
+    -0.9467,
+    -0.3105,
+    0.0852
+   ],
+   "hinge_line": [
+    [
+     -6.4,
+     -10.4292,
+     3.656
+    ],
+    [
+     -8.8,
+     -11.2164,
+     3.872
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 1047,
+   "box": [
+    [
+     -8.8,
+     -11.2164,
+     3.4201
+    ],
+    [
+     -6.4,
+     -9.993,
+     4.0476
+    ]
+   ]
+  },
+  {
+   "name": "Slat3_L",
+   "kind": "slat",
+   "pivot": [
+    -10.0,
+    -11.61,
+    3.98
+   ],
+   "axis": [
+    -0.9467,
+    -0.3105,
+    0.0852
+   ],
+   "hinge_line": [
+    [
+     -8.8,
+     -11.2164,
+     3.872
+    ],
+    [
+     -11.2,
+     -12.0036,
+     4.088
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 1116,
+   "box": [
+    [
+     -11.2,
+     -12.0036,
+     3.6877
+    ],
+    [
+     -8.8,
+     -10.797,
+     4.2885
+    ]
+   ]
+  },
+  {
+   "name": "Slat4_L",
+   "kind": "slat",
+   "pivot": [
+    -12.4,
+    -12.3972,
+    4.196
+   ],
+   "axis": [
+    -0.9467,
+    -0.3105,
+    0.0852
+   ],
+   "hinge_line": [
+    [
+     -11.2,
+     -12.0036,
+     4.088
+    ],
+    [
+     -13.6,
+     -12.7908,
+     4.304
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 1099,
+   "box": [
+    [
+     -13.6,
+     -12.7058,
+     3.9523
+    ],
+    [
+     -11.2,
+     -11.5898,
+     4.5226
+    ]
+   ]
+  },
+  {
+   "name": "Slat5_L",
+   "kind": "slat",
+   "pivot": [
+    -14.75,
+    -13.168,
+    4.4075
+   ],
+   "axis": [
+    -0.9467,
+    -0.3105,
+    0.0852
+   ],
+   "hinge_line": [
+    [
+     -13.6,
+     -12.7908,
+     4.304
+    ],
+    [
+     -15.9,
+     -13.5452,
+     4.511
+    ]
+   ],
+   "source": "web",
+   "note": "slat: forward and down along its tracks",
+   "motion": {
+    "deploy_deg": 27.0,
+    "travel_m": 0.55,
+    "travel_dir": "forward-down along the chord"
+   },
+   "faces": 1166,
+   "box": [
+    [
+     -15.9,
+     -13.5424,
+     4.225
+    ],
+    [
+     -13.6,
+     -12.3786,
+     4.749
+    ]
+   ]
+  },
+  {
+   "name": "Elevator_R",
+   "kind": "elevator",
+   "pivot": [
+    3.5,
+    -30.463,
+    5.0105
+   ],
+   "axis": [
+    0.9282,
+    -0.3462,
+    0.1364
+   ],
+   "hinge_line": [
+    [
+     1.0,
+     -29.5305,
+     4.643
+    ],
+    [
+     6.0,
+     -31.3955,
+     5.378
+    ]
+   ],
+   "source": "web",
+   "note": "positive = trailing edge down",
+   "motion": {
+    "range_deg": [
+     -30.0,
+     17.0
+    ],
+    "positive": "trailing edge down"
+   },
+   "faces": 2955,
+   "box": [
+    [
+     0.85,
+     -31.8048,
+     4.5797
+    ],
+    [
+     6.077,
+     -29.4826,
+     5.3999
+    ]
+   ]
+  },
+  {
+   "name": "Elevator_L",
+   "kind": "elevator",
+   "pivot": [
+    -3.5,
+    -30.463,
+    5.0105
+   ],
+   "axis": [
+    0.9282,
+    0.3462,
+    -0.1364
+   ],
+   "hinge_line": [
+    [
+     -1.0,
+     -29.5305,
+     4.643
+    ],
+    [
+     -6.0,
+     -31.3955,
+     5.378
+    ]
+   ],
+   "source": "web",
+   "note": "positive = trailing edge down",
+   "motion": {
+    "range_deg": [
+     -30.0,
+     17.0
+    ],
+    "positive": "trailing edge down"
+   },
+   "faces": 3135,
+   "box": [
+    [
+     -6.0952,
+     -31.8034,
+     4.5803
+    ],
+    [
+     -0.85,
+     -29.4835,
+     5.4002
+    ]
+   ]
+  },
+  {
+   "name": "Rudder",
+   "kind": "rudder",
+   "pivot": [
+    0.0,
+    -30.661,
+    9.15
+   ],
+   "axis": [
+    0.0,
+    -0.4132,
+    0.9106
+   ],
+   "hinge_line": [
+    [
+     0.0,
+     -29.504,
+     6.6
+    ],
+    [
+     0.0,
+     -31.818,
+     11.7
+    ]
+   ],
+   "source": "web",
+   "note": "positive = trailing edge to Blender +x",
+   "motion": {
+    "range_deg": [
+     -30.0,
+     30.0
+    ]
+   },
+   "faces": 2421,
+   "box": [
+    [
+     -0.1775,
+     -32.4966,
+     6.6
+    ],
+    [
+     0.1603,
+     -29.5217,
+     11.7
+    ]
+   ]
+  },
+  {
+   "name": "FanCowl_Eng1_Out",
+   "kind": "fancowl",
+   "pivot": [
+    6.0621,
+    -7.87,
+    3.1504
+   ],
+   "axis": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "hinge_line": [
+    [
+     6.0621,
+     -7.22,
+     3.1504
+    ],
+    [
+     6.0621,
+     -8.52,
+     3.1504
+    ]
+   ],
+   "source": "texture",
+   "note": "front and rear edges on the panel lines drawn on the nacelle (texture); hinged beside the pylon, split at the bottom (web)",
+   "motion": {
+    "open_deg": 55.0,
+    "hold_open_rods": 2
+   },
+   "faces": 1932,
+   "box": [
+    [
+     5.5,
+     -8.5661,
+     0.5741
+    ],
+    [
+     6.8273,
+     -7.1986,
+     3.0945
+    ]
+   ]
+  },
+  {
+   "name": "FanCowl_Eng1_In",
+   "kind": "fancowl",
+   "pivot": [
+    4.9379,
+    -7.87,
+    3.1504
+   ],
+   "axis": [
+    -0.0,
+    1.0,
+    -0.0
+   ],
+   "hinge_line": [
+    [
+     4.9379,
+     -7.22,
+     3.1504
+    ],
+    [
+     4.9379,
+     -8.52,
+     3.1504
+    ]
+   ],
+   "source": "texture",
+   "note": "front and rear edges on the panel lines drawn on the nacelle (texture); hinged beside the pylon, split at the bottom (web)",
+   "motion": {
+    "open_deg": 55.0,
+    "hold_open_rods": 2
+   },
+   "faces": 1175,
+   "box": [
+    [
+     4.0671,
+     -8.52,
+     0.5728
+    ],
+    [
+     5.5,
+     -7.22,
+     3.1285
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng1_1",
+   "kind": "reverser",
+   "pivot": [
+    4.4812,
+    -9.05,
+    1.0901
+   ],
+   "axis": [
+    -0.6428,
+    0.0,
+    0.766
+   ],
+   "hinge_line": [
+    [
+     4.8026,
+     -9.05,
+     0.7071
+    ],
+    [
+     4.1598,
+     -9.05,
+     1.4731
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 669,
+   "box": [
+    [
+     4.1997,
+     -9.72,
+     0.683
+    ],
+    [
+     5.076,
+     -8.62,
+     1.7107
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng1_2",
+   "kind": "reverser",
+   "pivot": [
+    4.4812,
+    -9.05,
+    2.7999
+   ],
+   "axis": [
+    0.6428,
+    0.0,
+    0.766
+   ],
+   "hinge_line": [
+    [
+     4.1598,
+     -9.05,
+     2.4169
+    ],
+    [
+     4.8026,
+     -9.05,
+     3.1829
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 543,
+   "box": [
+    [
+     4.1453,
+     -9.78,
+     2.1772
+    ],
+    [
+     5.0734,
+     -8.5233,
+     3.5259
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng1_3",
+   "kind": "reverser",
+   "pivot": [
+    6.5188,
+    -9.05,
+    2.7999
+   ],
+   "axis": [
+    0.6428,
+    0.0,
+    -0.766
+   ],
+   "hinge_line": [
+    [
+     6.1974,
+     -9.05,
+     3.1829
+    ],
+    [
+     6.8402,
+     -9.05,
+     2.4169
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 514,
+   "box": [
+    [
+     5.9,
+     -9.7362,
+     2.1877
+    ],
+    [
+     6.8109,
+     -8.523,
+     3.0942
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng1_4",
+   "kind": "reverser",
+   "pivot": [
+    6.5188,
+    -9.05,
+    1.0901
+   ],
+   "axis": [
+    -0.6428,
+    0.0,
+    -0.766
+   ],
+   "hinge_line": [
+    [
+     6.8402,
+     -9.05,
+     1.4731
+    ],
+    [
+     6.1974,
+     -9.05,
+     0.7071
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 499,
+   "box": [
+    [
+     5.9204,
+     -9.72,
+     0.6868
+    ],
+    [
+     6.7523,
+     -8.62,
+     1.7089
+    ]
+   ]
+  },
+  {
+   "name": "FanCowl_Eng2_Out",
+   "kind": "fancowl",
+   "pivot": [
+    -6.0621,
+    -7.87,
+    3.1504
+   ],
+   "axis": [
+    -0.0,
+    1.0,
+    -0.0
+   ],
+   "hinge_line": [
+    [
+     -6.0621,
+     -7.22,
+     3.1504
+    ],
+    [
+     -6.0621,
+     -8.52,
+     3.1504
+    ]
+   ],
+   "source": "texture",
+   "note": "front and rear edges on the panel lines drawn on the nacelle (texture); hinged beside the pylon, split at the bottom (web)",
+   "motion": {
+    "open_deg": 55.0,
+    "hold_open_rods": 2
+   },
+   "faces": 2065,
+   "box": [
+    [
+     -6.8405,
+     -8.5785,
+     0.5733
+    ],
+    [
+     -5.5,
+     -7.1879,
+     3.1067
+    ]
+   ]
+  },
+  {
+   "name": "FanCowl_Eng2_In",
+   "kind": "fancowl",
+   "pivot": [
+    -4.9379,
+    -7.87,
+    3.1504
+   ],
+   "axis": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "hinge_line": [
+    [
+     -4.9379,
+     -7.22,
+     3.1504
+    ],
+    [
+     -4.9379,
+     -8.52,
+     3.1504
+    ]
+   ],
+   "source": "texture",
+   "note": "front and rear edges on the panel lines drawn on the nacelle (texture); hinged beside the pylon, split at the bottom (web)",
+   "motion": {
+    "open_deg": 55.0,
+    "hold_open_rods": 2
+   },
+   "faces": 1178,
+   "box": [
+    [
+     -5.5,
+     -8.52,
+     0.5726
+    ],
+    [
+     -4.0931,
+     -7.2173,
+     3.123
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng2_1",
+   "kind": "reverser",
+   "pivot": [
+    -4.4812,
+    -9.05,
+    1.0901
+   ],
+   "axis": [
+    -0.6428,
+    0.0,
+    -0.766
+   ],
+   "hinge_line": [
+    [
+     -4.1598,
+     -9.05,
+     1.4731
+    ],
+    [
+     -4.8026,
+     -9.05,
+     0.7071
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 539,
+   "box": [
+    [
+     -5.0697,
+     -9.72,
+     0.6783
+    ],
+    [
+     -4.2007,
+     -8.62,
+     1.7115
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng2_2",
+   "kind": "reverser",
+   "pivot": [
+    -4.4812,
+    -9.05,
+    2.7999
+   ],
+   "axis": [
+    0.6428,
+    0.0,
+    -0.766
+   ],
+   "hinge_line": [
+    [
+     -4.8026,
+     -9.05,
+     3.1829
+    ],
+    [
+     -4.1598,
+     -9.05,
+     2.4169
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 502,
+   "box": [
+    [
+     -5.0763,
+     -9.735,
+     2.18
+    ],
+    [
+     -4.1639,
+     -8.62,
+     3.5351
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng2_3",
+   "kind": "reverser",
+   "pivot": [
+    -6.5188,
+    -9.05,
+    2.7999
+   ],
+   "axis": [
+    0.6428,
+    0.0,
+    0.766
+   ],
+   "hinge_line": [
+    [
+     -6.8402,
+     -9.05,
+     2.4169
+    ],
+    [
+     -6.1974,
+     -9.05,
+     3.1829
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 528,
+   "box": [
+    [
+     -6.814,
+     -9.7362,
+     2.1837
+    ],
+    [
+     -5.9,
+     -8.62,
+     3.1114
+    ]
+   ]
+  },
+  {
+   "name": "ReverserDoor_Eng2_4",
+   "kind": "reverser",
+   "pivot": [
+    -6.5188,
+    -9.05,
+    1.0901
+   ],
+   "axis": [
+    -0.6428,
+    0.0,
+    0.766
+   ],
+   "hinge_line": [
+    [
+     -6.1974,
+     -9.05,
+     0.7071
+    ],
+    [
+     -6.8402,
+     -9.05,
+     1.4731
+    ]
+   ],
+   "source": "web",
+   "note": "CFM56-5B pivoting door: rear edge into the fan stream, front edge out",
+   "motion": {
+    "open_deg": 32.0
+   },
+   "faces": 467,
+   "box": [
+    [
+     -6.7508,
+     -9.72,
+     0.7033
+    ],
+    [
+     -5.9195,
+     -8.62,
+     1.7052
+    ]
+   ]
+  },
+  {
+   "name": "CargoDoorFwd",
+   "kind": "cargo",
+   "pivot": [
+    -1.983,
+    -2.81,
+    3.75
+   ],
+   "axis": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "hinge_line": [
+    [
+     -1.983,
+     -3.72,
+     3.75
+    ],
+    [
+     -1.983,
+     -1.9,
+     3.75
+    ]
+   ],
+   "source": "web",
+   "note": "hinged at the top; outward and up",
+   "motion": {
+    "open_deg": 120.0
+   },
+   "faces": 61,
+   "box": [
+    [
+     -1.9835,
+     -3.72,
+     2.5608
+    ],
+    [
+     -1.1473,
+     -1.9,
+     3.75
+    ]
+   ]
+  },
+  {
+   "name": "CargoDoorAft",
+   "kind": "cargo",
+   "pivot": [
+    -2.0326,
+    -17.51,
+    3.7
+   ],
+   "axis": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "hinge_line": [
+    [
+     -2.0326,
+     -18.42,
+     3.7
+    ],
+    [
+     -2.0326,
+     -16.6,
+     3.7
+    ]
+   ],
+   "source": "web",
+   "note": "hinged at the top; outward and up",
+   "motion": {
+    "open_deg": 120.0
+   },
+   "faces": 79,
+   "box": [
+    [
+     -2.0336,
+     -18.42,
+     2.5
+    ],
+    [
+     -1.3945,
+     -16.6,
+     3.7
+    ]
+   ]
+  },
+  {
+   "name": "CargoDoorBulk",
+   "kind": "cargo",
+   "pivot": [
+    -1.9784,
+    -20.075,
+    3.55
+   ],
+   "axis": [
+    -0.0,
+    -1.0,
+    -0.0
+   ],
+   "hinge_line": [
+    [
+     -1.9784,
+     -20.55,
+     3.55
+    ],
+    [
+     -1.9784,
+     -19.6,
+     3.55
+    ]
+   ],
+   "source": "web",
+   "note": "hinged at the top; inward (plug door) and up",
+   "motion": {
+    "open_deg": 95.0
+   },
+   "faces": 34,
+   "box": [
+    [
+     -1.9784,
+     -20.55,
+     2.65
+    ],
+    [
+     -1.4774,
+     -19.6,
+     3.5324
+    ]
+   ]
+  },
+  {
+   "name": "MainGearDoor_L",
+   "kind": "geardoor",
+   "pivot": [
+    -0.1,
+    -12.8034,
+    1.9683
+   ],
+   "axis": [
+    -0.0,
+    -1.0,
+    -0.0
+   ],
+   "hinge_line": [
+    [
+     -0.1,
+     -13.8534,
+     1.9683
+    ],
+    [
+     -0.1,
+     -11.7534,
+     1.9683
+    ]
+   ],
+   "source": "web",
+   "note": "main wheel-well door, hinged along its keel edge, opens down",
+   "motion": {
+    "open_deg": 90.0
+   },
+   "faces": 267,
+   "box": [
+    [
+     -1.9,
+     -13.8534,
+     1.9554
+    ],
+    [
+     -0.1,
+     -11.7534,
+     2.2735
+    ]
+   ]
+  },
+  {
+   "name": "MainGearDoor_R",
+   "kind": "geardoor",
+   "pivot": [
+    0.1,
+    -12.8034,
+    1.9694
+   ],
+   "axis": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "hinge_line": [
+    [
+     0.1,
+     -13.8534,
+     1.9694
+    ],
+    [
+     0.1,
+     -11.7534,
+     1.9694
+    ]
+   ],
+   "source": "web",
+   "note": "main wheel-well door, hinged along its keel edge, opens down",
+   "motion": {
+    "open_deg": 90.0
+   },
+   "faces": 301,
+   "box": [
+    [
+     0.1,
+     -13.8534,
+     1.9552
+    ],
+    [
+     1.9,
+     -11.7534,
+     2.2572
+    ]
+   ]
+  },
+  {
+   "name": "NoseGearDoor_L",
+   "kind": "geardoor",
+   "pivot": [
+    -0.55,
+    1.855,
+    2.3841
+   ],
+   "axis": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "hinge_line": [
+    [
+     -0.55,
+     0.96,
+     2.3841
+    ],
+    [
+     -0.55,
+     2.75,
+     2.3841
+    ]
+   ],
+   "source": "web",
+   "note": "nose gear forward door, hinged along its outer edge, opens down (closed with the gear down)",
+   "motion": {
+    "open_deg": 88.0
+   },
+   "faces": 61,
+   "box": [
+    [
+     -0.55,
+     1.4712,
+     2.2511
+    ],
+    [
+     0.0,
+     2.75,
+     2.4466
+    ]
+   ]
+  },
+  {
+   "name": "NoseGearDoor_R",
+   "kind": "geardoor",
+   "pivot": [
+    0.55,
+    1.855,
+    2.3313
+   ],
+   "axis": [
+    -0.0,
+    -1.0,
+    -0.0
+   ],
+   "hinge_line": [
+    [
+     0.55,
+     0.96,
+     2.3313
+    ],
+    [
+     0.55,
+     2.75,
+     2.3313
+    ]
+   ],
+   "source": "web",
+   "note": "nose gear forward door, hinged along its outer edge, opens down (closed with the gear down)",
+   "motion": {
+    "open_deg": 88.0
+   },
+   "faces": 54,
+   "box": [
+    [
+     0.0,
+     0.96,
+     2.23
+    ],
+    [
+     0.55,
+     2.75,
+     2.4364
+    ]
+   ]
+  }
+ ],
+ "own_parts": [
+  {
+   "name": "MainGearWell_L",
+   "moves_with": null,
+   "what": "wheel well lining behind MainGearDoor_L (fixed)"
+  },
+  {
+   "name": "MainGearDoor_L_Inner",
+   "moves_with": "MainGearDoor_L",
+   "what": "inner skin 3 cm inside MainGearDoor_L"
+  },
+  {
+   "name": "MainGearWell_R",
+   "moves_with": null,
+   "what": "wheel well lining behind MainGearDoor_R (fixed)"
+  },
+  {
+   "name": "MainGearDoor_R_Inner",
+   "moves_with": "MainGearDoor_R",
+   "what": "inner skin 3 cm inside MainGearDoor_R"
+  },
+  {
+   "name": "NoseGearWell_L",
+   "moves_with": null,
+   "what": "wheel well lining behind NoseGearDoor_L (fixed)"
+  },
+  {
+   "name": "NoseGearDoor_L_Inner",
+   "moves_with": "NoseGearDoor_L",
+   "what": "inner skin 3 cm inside NoseGearDoor_L"
+  },
+  {
+   "name": "NoseGearWell_R",
+   "moves_with": null,
+   "what": "wheel well lining behind NoseGearDoor_R (fixed)"
+  },
+  {
+   "name": "NoseGearDoor_R_Inner",
+   "moves_with": "NoseGearDoor_R",
+   "what": "inner skin 3 cm inside NoseGearDoor_R"
+  },
+  {
+   "name": "CargoHoldFwd",
+   "moves_with": null,
+   "what": "cargo hold lining behind CargoDoorFwd (fixed)"
+  },
+  {
+   "name": "CargoDoorFwd_Inner",
+   "moves_with": "CargoDoorFwd",
+   "what": "inner skin 4 cm inside CargoDoorFwd"
+  },
+  {
+   "name": "CargoHoldAft",
+   "moves_with": null,
+   "what": "cargo hold lining behind CargoDoorAft (fixed)"
+  },
+  {
+   "name": "CargoDoorAft_Inner",
+   "moves_with": "CargoDoorAft",
+   "what": "inner skin 4 cm inside CargoDoorAft"
+  },
+  {
+   "name": "CargoHoldBulk",
+   "moves_with": null,
+   "what": "cargo hold lining behind CargoDoorBulk (fixed)"
+  },
+  {
+   "name": "CargoDoorBulk_Inner",
+   "moves_with": "CargoDoorBulk",
+   "what": "inner skin 4 cm inside CargoDoorBulk"
+  },
+  {
+   "name": "EngCase_Eng1",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngGearbox_Eng1",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngStarterIDG_Eng1",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngOilTank_Eng1",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngMount_Eng1",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngPipes_Eng1",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngHarness_Eng1",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "FanCowl_Eng1_Out_Inner",
+   "moves_with": "FanCowl_Eng1_Out",
+   "what": "inner skin 3 cm inside FanCowl_Eng1_Out"
+  },
+  {
+   "name": "FanCowl_Eng1_In_Inner",
+   "moves_with": "FanCowl_Eng1_In",
+   "what": "inner skin 3 cm inside FanCowl_Eng1_In"
+  },
+  {
+   "name": "EngCase_Eng2",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngGearbox_Eng2",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngStarterIDG_Eng2",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngOilTank_Eng2",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngMount_Eng2",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngPipes_Eng2",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "EngHarness_Eng2",
+   "moves_with": null,
+   "what": "engine inside (own model), seen with the fan cowls open"
+  },
+  {
+   "name": "FanCowl_Eng2_Out_Inner",
+   "moves_with": "FanCowl_Eng2_Out",
+   "what": "inner skin 3 cm inside FanCowl_Eng2_Out"
+  },
+  {
+   "name": "FanCowl_Eng2_In_Inner",
+   "moves_with": "FanCowl_Eng2_In",
+   "what": "inner skin 3 cm inside FanCowl_Eng2_In"
+  }
+ ],
+ "gear": {
+  "parts": [
+   {
+    "name": "NoseGear",
+    "parts": [
+     "NoseStrut",
+     "NoseLeg",
+     "NoseWheels"
+    ],
+    "pivot": [
+     -0.0085,
+     -0.1434,
+     2.2385
+    ],
+    "axis": [
+     1.0,
+     0.0,
+     0.0
+    ],
+    "up_deg": 88.0,
+    "note": "folds forward into the nose well"
+   },
+   {
+    "name": "MainGear_L",
+    "parts": [
+     "MainStrut_L",
+     "MainLeg_L",
+     "MainWheels_L"
+    ],
+    "pivot": [
+     -4.0539,
+     -12.5646,
+     3.1209
+    ],
+    "axis": [
+     -0.0,
+     -1.0,
+     -0.0
+    ],
+    "up_deg": 88.0,
+    "note": "folds inward, wheels into the belly well"
+   },
+   {
+    "name": "SideBrace_L",
+    "parts": [
+     "SideBrace_L"
+    ],
+    "pivot": [
+     -3.7338,
+     -13.1068,
+     3.0215
+    ],
+    "axis": [
+     -0.0,
+     -1.0,
+     -0.0
+    ],
+    "up_deg": 88.0,
+    "note": "folding side stay: turned about its inboard (fixed) end with the leg - an approximation until the two links are split"
+   },
+   {
+    "name": "MainGear_R",
+    "parts": [
+     "MainStrut_R",
+     "MainLeg_R",
+     "MainWheels_R"
+    ],
+    "pivot": [
+     4.1079,
+     -12.5176,
+     3.2321
+    ],
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "up_deg": 88.0,
+    "note": "folds inward, wheels into the belly well"
+   },
+   {
+    "name": "SideBrace_R",
+    "parts": [
+     "SideBrace_R"
+    ],
+    "pivot": [
+     2.1095,
+     -13.6489,
+     2.691
+    ],
+    "axis": [
+     0.0,
+     1.0,
+     0.0
+    ],
+    "up_deg": 88.0,
+    "note": "folding side stay: turned about its inboard (fixed) end with the leg - an approximation until the two links are split"
+   }
+  ],
+  "doors": [
+   "MainGearDoor_L",
+   "MainGearDoor_R",
+   "NoseGearDoor_L",
+   "NoseGearDoor_R"
+  ],
+  "sequence_up": [
+   {
+    "t": [
+     0.0,
+     2.0
+    ],
+    "parts": [
+     "MainGearDoor_L",
+     "MainGearDoor_R",
+     "NoseGearDoor_L",
+     "NoseGearDoor_R"
+    ],
+    "action": "open"
+   },
+   {
+    "t": [
+     2.0,
+     8.0
+    ],
+    "parts": [
+     "NoseGear",
+     "MainGear_L",
+     "SideBrace_L",
+     "MainGear_R",
+     "SideBrace_R"
+    ],
+    "action": "fold up"
+   },
+   {
+    "t": [
+     8.0,
+     10.0
+    ],
+    "parts": [
+     "MainGearDoor_L",
+     "MainGearDoor_R",
+     "NoseGearDoor_L",
+     "NoseGearDoor_R"
+    ],
+    "action": "close"
+   }
+  ],
+  "sequence_down": [
+   {
+    "t": [
+     0.0,
+     3.0
+    ],
+    "parts": [
+     "MainGearDoor_L",
+     "MainGearDoor_R",
+     "NoseGearDoor_L",
+     "NoseGearDoor_R"
+    ],
+    "action": "open"
+   },
+   {
+    "t": [
+     3.0,
+     12.0
+    ],
+    "parts": [
+     "NoseGear",
+     "MainGear_L",
+     "SideBrace_L",
+     "MainGear_R",
+     "SideBrace_R"
+    ],
+    "action": "fold down (free fall, damped)"
+   },
+   {
+    "t": [
+     12.0,
+     15.0
+    ],
+    "parts": [
+     "MainGearDoor_L",
+     "MainGearDoor_R",
+     "NoseGearDoor_L",
+     "NoseGearDoor_R"
+    ],
+    "action": "close"
+   }
+  ],
+  "up_s": 10.0,
+  "down_s": 15.0,
+  "note": "gear down = legs at 0 deg, doors closed; up = legs at up_deg, doors closed. The struts/legs/wheels of each leg move together about its pivot; the wells are lined (NoseGearWell_*, MainGearWell_*)."
+ }
+}
