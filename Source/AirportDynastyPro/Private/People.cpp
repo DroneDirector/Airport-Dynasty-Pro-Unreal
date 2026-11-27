@@ -2,6 +2,7 @@
 #include "PeopleLayers.h"
 #include "TalkCamera.h"
 #include "TalkLook.h"
+#include "NpcChat.h"
 #include "PaxAnimInstance.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
@@ -291,6 +292,40 @@ FVector AADPPeople::TalkDir(const AActor* Who) const
 	return Me && Who ? (Me->GetActorLocation() - Who->GetActorLocation()).GetSafeNormal2D() : FVector::ZeroVector;
 }
 
+int32 AADPPeople::ChatState(const AActor* Who) const
+{
+	if (!Who || TalksToYou(Who) || SceneOn()) return 0;
+	for (const FStroll& S : Strollers)
+		if (S.A.Get() == Who)
+		{
+			if (S.bHeld || S.bRelease) return 0;   // (PaxFlow's own passenger, on its way to its flight)
+			switch (S.Doing)
+			{
+			case EDoing::Stand: return 1;
+			case EDoing::Lean:  return S.T >= 0.f ? 1 : 0;   // (still walking to the wall)
+			case EDoing::Sit:   return S.bCushionOk ? 2 : 0;
+			default:            return 0;                    // (walking, going to a seat, sitting down, getting up)
+			}
+		}
+	// not a strolling passenger (hired staff and the like): standing still, on nobody's job
+	for (const FWho& W : People)
+		if (W.A.Get() == Who)
+		{
+			if (W.Speed > 10.f || W.bUnruly || Who == Scene.Pax.Get() || Who == Scene.Guard.Get() || Who == Scene.Cop.Get()) return 0;
+			if (const UStaffPeople* Sp = UStaffPeople::Get(GetWorld()))
+			{
+				const FString Id = Sp->IdOf(Who);
+				if (!Id.IsEmpty())
+				{
+					FString OnJob, AtPlace;
+					if (!Sp->Status(Id, OnJob, AtPlace) || !OnJob.StartsWith(TEXT("standing by"))) return 0;   // (at a job, or on their way)
+				}
+			}
+			return 1;
+		}
+	return 0;
+}
+
 bool AADPPeople::Hearing(const FVector& At) const
 {
 	const APlayerController* PC = GetWorld()->GetFirstPlayerController();
@@ -339,6 +374,7 @@ void AADPPeople::Close()
 
 void AADPPeople::EndPlay(const EEndPlayReason::Type Why)
 {
+	ADPNpcChat::Drop();
 	ADPTalkLook::Drop();
 	ADPTalkCam::Drop(TEXT("the world goes"));
 	Super::EndPlay(Why);
@@ -1188,6 +1224,9 @@ void AADPPeople::StepStrollers(float Dt)
 	{
 		AActor* A = S.A.Get(); if (!A) continue;
 		FWho* W = Find(A); if (!W) continue;
+		// (talking with somebody else: they stay standing / seated until the conversation is over - NpcChat.h)
+		if (ADPNpcChat::Busy(A) && (S.Doing == EDoing::Stand || S.Doing == EDoing::Sit || (S.Doing == EDoing::Lean && S.T >= 0.f)))
+			S.T = FMath::Min(S.T, FMath::Max(0.f, S.For) - 0.05f);
 		// (you talk with them: they stay where they are, and go on after it)
 		if (TalksToYou(A) && (S.Doing == EDoing::Stand || S.Doing == EDoing::Walk || S.Doing == EDoing::ToSeat || (S.Doing == EDoing::Lean && S.T < 0.f))) { WalkTo(W, A->GetActorLocation(), Dt, 50.f); continue; }
 		S.T += Dt;
@@ -1285,6 +1324,7 @@ void AADPPeople::Tick(float Dt)
 	ADPLayers::Tick(GetWorld(), Dt);
 	ADPTalkCam::Tick();
 	if (!bMenu) ADPTalkLook::End();   // (however the talk ended)
+	ADPNpcChat::Tick(GetWorld(), Dt);   // (the conversations between people: their pairs before the eyes are stepped)
 	ADPTalkLook::Tick(GetWorld(), Dt);
 	if (SubT > 0.f) SubT -= Dt;
 	if (SceneOn()) StepScene(Dt);

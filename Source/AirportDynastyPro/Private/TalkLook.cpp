@@ -33,6 +33,22 @@ namespace
 	FVector GAt = FVector::ZeroVector; bool bGAt = false;
 	TArray<FEyes> GEyes;   // (the one you talk to, and any whose eyes are still going back)
 
+	/** One side of a conversation between two people (NpcChat.h): this body's head and eyes to the other one's head. */
+	struct FPairLook
+	{
+		TWeakObjectPtr<AActor> Who, At; TWeakObjectPtr<USkeletalMeshComponent> Body, AtBody;
+		FVector Point = FVector::ZeroVector; bool bPoint = false;
+	};
+	TArray<FPairLook> GPairs;
+
+	/** Where this body looks just now: at you, or at the one it talks with. */
+	bool LookPtFor(const USkeletalMeshComponent* B, FVector& Out)
+	{
+		if (bGAt && GBody.Get() == B) { Out = GAt; return true; }
+		for (const FPairLook& P : GPairs) if (P.bPoint && P.Body.Get() == B) { Out = P.Point; return true; }
+		return false;
+	}
+
 	FTransform LookRefOf(const FReferenceSkeleton& RS, int32 B)
 	{
 		FTransform T = FTransform::Identity;
@@ -99,7 +115,8 @@ namespace
 	{
 		USkeletalMeshComponent* S = E.Face.Get(); USkeletalMeshComponent* B = E.Body.Get(); UTalkFaceAnim* A = E.Anim.Get();
 		if (!S || !B || !A) return;
-		const bool bOn = bGAt && GBody == B;
+		FVector EyePt = FVector::ZeroVector;
+		const bool bOn = LookPtFor(B, EyePt);
 		E.W = FMath::FInterpConstantTo(E.W, bOn ? 1.f : 0.f, Dt, bOn ? 1.f / 0.12f : 1.f / EaseTime);
 		const FQuat Head = B->GetSocketTransform(TEXT("head")).GetRotation() * E.HeadRef.Inverse();
 		// (nobody's eyes rest on one point: a very small move now and then)
@@ -108,7 +125,7 @@ namespace
 		const float K = 1.f - FMath::Exp(-Dt * 22.f);
 		for (int32 I = 0; I < 2; ++I)
 		{
-			const FVector2f Want = bOn ? EyeTo(Head, S->GetSocketLocation(Bn[I]), GAt) + E.Dart : FVector2f::ZeroVector;
+			const FVector2f Want = bOn ? EyeTo(Head, S->GetSocketLocation(Bn[I]), EyePt) + E.Dart : FVector2f::ZeroVector;
 			E.Eye[I] += (Want - E.Eye[I]) * K;
 			A->Eye[I] = E.Eye[I] * E.W;
 		}
@@ -252,19 +269,35 @@ void End() { GWho = nullptr; GBody = nullptr; bGAt = false; }
 void Drop()
 {
 	End();
+	GPairs.Reset();
 	for (FEyes& E : GEyes) GiveBack(E);
 	GEyes.Reset();
 }
 
 bool For(const USkeletalMeshComponent* Body, FVector& OutAt)
 {
-	if (!bGAt || GBody.Get() != Body) return false;
-	OutAt = GAt; return true;
+	return LookPtFor(Body, OutAt);
+}
+
+void Pair(AActor* Who, USkeletalMeshComponent* Body, AActor* At, USkeletalMeshComponent* AtBody)
+{
+	if (!Who || !Body || !At || !AtBody || Who == At) return;
+	for (FPairLook& P : GPairs)
+		if (P.Who.Get() == Who) { P.Body = Body; P.At = At; P.AtBody = AtBody; return; }
+	if (GPairs.Num() >= 8) return;   // (never more than a handful: NpcChat caps the conversations)
+	FPairLook P; P.Who = Who; P.Body = Body; P.At = At; P.AtBody = AtBody;
+	GPairs.Add(P);
+}
+
+void Unpair(const AActor* Who)
+{
+	for (int32 I = GPairs.Num() - 1; I >= 0; --I)
+		if (!GPairs[I].Who.IsValid() || GPairs[I].Who.Get() == Who) GPairs.RemoveAtSwap(I);
 }
 
 void Tick(UWorld* W, float Dt)
 {
-	if (GEyes.Num() == 0 && !GBody.IsValid()) { if (bGAt) End(); return; }
+	if (GEyes.Num() == 0 && !GBody.IsValid() && GPairs.Num() == 0) { if (bGAt) End(); return; }
 	ADP_PERF_SCOPE("talk: their head and eyes to yours", 1.f);
 	if (!GWho.IsValid() || !GBody.IsValid() || GWho->IsHidden()) End();
 	if (USkeletalMeshComponent* B = GBody.Get())
@@ -281,12 +314,25 @@ void Tick(UWorld* W, float Dt)
 		}
 		else bGAt = false;
 	}
+	// the conversations between people: each one's point is the other one's head (the one you talk to keeps you)
+	for (int32 I = GPairs.Num() - 1; I >= 0; --I)
+	{
+		FPairLook& P = GPairs[I];
+		AActor* Who = P.Who.Get(); USkeletalMeshComponent* Body = P.Body.Get();
+		const AActor* At = P.At.Get(); const USkeletalMeshComponent* AtBody = P.AtBody.Get();
+		if (!Who || !Body || !At || !AtBody || Who->IsHidden() || At->IsHidden()) { GPairs.RemoveAtSwap(I); continue; }
+		if (Body == GBody.Get()) { P.bPoint = false; continue; }   // (you are talking to this one)
+		P.Point = AtBody->DoesSocketExist(TEXT("head")) ? AtBody->GetSocketLocation(TEXT("head")) : At->GetActorLocation() + FVector(0.f, 0.f, 160.f);
+		P.bPoint = true;
+		TakeFace(Who, Body);
+	}
 	for (int32 I = GEyes.Num() - 1; I >= 0; --I)
 	{
 		FEyes& E = GEyes[I];
 		if (!E.Face.IsValid() || !E.Body.IsValid() || !E.Anim.IsValid() || E.Face->GetAnimInstance() != E.Anim.Get()) { GEyes.RemoveAtSwap(I); continue; }
 		StepEyes(E, Dt);
-		if (GBody != E.Body && E.W <= 0.f && E.BlinkT < 0.f && GiveBack(E)) GEyes.RemoveAtSwap(I);
+		FVector Pt; const bool bKeep = GBody == E.Body || LookPtFor(E.Body.Get(), Pt);
+		if (!bKeep && E.W <= 0.f && E.BlinkT < 0.f && GiveBack(E)) GEyes.RemoveAtSwap(I);
 	}
 }
 }

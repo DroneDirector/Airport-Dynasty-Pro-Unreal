@@ -83,6 +83,18 @@ public:
 	bool TalksToYou(const AActor* Who) const { return bMenu && Who && MenuWho.Get() == Who; }
 	/** Where they look then: at you. */
 	FVector TalkDir(const AActor* Who) const;
+
+	// ---- the short conversations people hold with each other (NpcChat.h) ----
+	/** A line said aloud by this person: the subtitle while you are within hearing, and their own voice where they stand. */
+	void SayAloud(AActor* Who, const FString& Line, ETone T) { Say(Who, Line, T); }
+	/** Could you hear something said there (the same hearing the lines use)? */
+	bool CanHear(const FVector& At) const { return Hearing(At); }
+	/** Turns this person's body towards a place. */
+	void TurnTo(AActor* A, const FVector& At) { Face(A, At); }
+	/** Is this person free to hold a conversation, and how they are: 0 no (walking, sitting down or getting up, at a job,
+	 *  talking to you), 1 on their feet, 2 seated. */
+	int32 ChatState(const AActor* Who) const;
+
 	void Open(AActor* Who);
 	void Close();
 	void Choose(int32 I);

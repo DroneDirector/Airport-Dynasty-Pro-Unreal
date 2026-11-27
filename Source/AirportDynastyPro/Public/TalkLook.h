@@ -72,4 +72,11 @@ namespace ADPTalkLook
 	void Tick(UWorld* W, float Dt);
 	/** Is this the body that looks at you, and where (world). */
 	bool For(const USkeletalMeshComponent* Body, FVector& OutAt);
+
+	// ---- two people talking with each other (NpcChat.h) ----
+	/** This person's head and eyes follow the other one's head until Unpair. Begin / End (your own talk) never touch
+	 *  these, and the person you talk to keeps looking at you. */
+	void Pair(AActor* Who, USkeletalMeshComponent* Body, AActor* At, USkeletalMeshComponent* AtBody);
+	/** Their conversation is over: the head and the eyes ease back onto the pose they have. */
+	void Unpair(const AActor* Who);
 }
