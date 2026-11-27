@@ -741,8 +741,10 @@ bool ARoadNetwork::BuildSome(double Budget)
 					const bool bR = SideOf(O); double K = 0, Nb = 1, Len = 6, Gp = 1, In = 0.25; O->TryGetNumberField(TEXT("lane"), K); O->TryGetNumberField(TEXT("n"), Nb);
 					O->TryGetNumberField(TEXT("len"), Len); O->TryGetNumberField(TEXT("gap"), Gp); O->TryGetNumberField(TEXT("inset"), In);
 					const double Sg = bR ? 1.0 : -1.0;
-					auto E0 = [&](double d) { return Sg * (Edge(bR, int32(K), d) + In); };
-					auto E1 = [&](double d) { return Sg * (Edge(bR, int32(K) + 1, d) - In); };
+					double Acr = 0.0; O->TryGetNumberField(TEXT("across"), Acr);   // "across": the box narrower than the lane (m), in its middle
+					auto Mid = [&](double d) { return (Edge(bR, int32(K), d) + Edge(bR, int32(K) + 1, d)) / 2; };
+					auto E0 = [&](double d) { return Sg * (Acr > 0.0 ? Mid(d) - Acr / 2 : Edge(bR, int32(K), d) + In); };
+					auto E1 = [&](double d) { return Sg * (Acr > 0.0 ? Mid(d) + Acr / 2 : Edge(bR, int32(K) + 1, d) - In); };
 					for (int32 b = 0; b < int32(Nb); ++b)
 					{
 						const double S0 = From + b * (Len + Gp), S1 = S0 + Len;
@@ -794,6 +796,66 @@ bool ARoadNetwork::BuildSome(double Budget)
 						const FVector Qs[3] = {P_ + R_ * (X * 100.0), P_ + R_ * ((X + Sz) * 100.0), P_ + R_ * ((X + Sz / 2) * 100.0) + Back * (Sz * 1.5 * 100.0)};
 						for (const FVector& Q : Qs) { B.V.Add(Surface(Q) + FVector(0, 0, 0.6) - GetActorLocation()); B.N.Add(FVector::UpVector); B.UV.Add(FVector2D(X, At)); B.C.Add(FLinearColor(1.f, Grime(At), 1.f, 1.f)); }
 						B.I.Append({Bi, Bi + 1, Bi + 2});
+					}
+				}
+				else if (Kind == TEXT("bar"))
+				{
+					// one stripe ACROSS a lane at "at" (a head-of-rank marker, a stop bar): o0..o1 out from the path, w thick
+					double At = 0, A0 = 0, A1 = 0; O->TryGetNumberField(TEXT("at"), At);
+					O->TryGetNumberField(TEXT("o0"), A0); O->TryGetNumberField(TEXT("o1"), A1);
+					const double Sg = SideOf(O) ? 1.0 : -1.0;
+					Strip(Mat, At, At + Wl, [&](double) { return Sg * A0; }, [&](double) { return Sg * A1; }, Wl, Grime(At));
+				}
+				else if (Kind == TEXT("bays"))
+				{
+					// sawtooth (echelon) coach bays along a lane (the bus station's A1-A12): each bay a rectangle "bw" wide and
+					// "depth" long set at "angle" to the road, its tail on the lane's inner edge and its nose at the platform
+					// kerb, so a coach drives in and leaves forward without reversing. Side by side the bays stand "bw" apart
+					// measured across their own axis, which is bw / sin(angle) along the road. The number is painted in each.
+					const bool bR = SideOf(O);
+					double K = 0, Nb = 1, Bw = 3.6, Dp = 14.0, Ang = 25.0, In = 0.25, N0 = 1;
+					FString Pre = TEXT("A");
+					O->TryGetNumberField(TEXT("lane"), K); O->TryGetNumberField(TEXT("n"), Nb); O->TryGetNumberField(TEXT("bw"), Bw);
+					O->TryGetNumberField(TEXT("depth"), Dp); O->TryGetNumberField(TEXT("angle"), Ang); O->TryGetNumberField(TEXT("inset"), In);
+					O->TryGetNumberField(TEXT("first"), N0); O->TryGetStringField(TEXT("prefix"), Pre);
+					bool bNum = true; O->TryGetBoolField(TEXT("numbers"), bNum);
+					const double Sg = bR ? 1.0 : -1.0, Th = FMath::DegreesToRadians(FMath::Clamp(Ang, 5.0, 85.0));
+					const double Cs = FMath::Cos(Th), Sn = FMath::Sin(Th), Pitch = Bw / Sn;
+					for (int32 b = 0; b < int32(Nb); ++b)
+					{
+						const double S0 = From + b * Pitch;
+						if (S0 + Dp * Cs > To) break;
+						const double OIn = Edge(bR, int32(K), S0) + In;
+						// its four corners in (metres along the road from S0, metres out from the path): tail, nose, nose far
+						// side, tail far side - the far side the one toward the kerb, where the passengers get on
+						const FVector2D Cor[4] = {FVector2D(0.0, OIn), FVector2D(Dp * Cs, OIn + Dp * Sn),
+												  FVector2D(Dp * Cs - Bw * Sn, OIn + Dp * Sn + Bw * Cs), FVector2D(-Bw * Sn, OIn + Bw * Cs)};
+						for (int32 e = 0; e < 4; ++e)
+						{
+							const FVector2D U = Cor[e], V = Cor[(e + 1) % 4];
+							if (FMath::Abs(V.X - U.X) < 1e-4) continue;
+							const FVector2D A2 = U.X < V.X ? U : V, B2 = U.X < V.X ? V : U;
+							const double Sl = (B2.Y - A2.Y) / (B2.X - A2.X);               // how fast the line goes out along the road
+							const double T = Wl * FMath::Sqrt(1.0 + Sl * Sl);              // thickness measured across the road, so the
+							auto Ln = [&](double d) { return A2.Y + Sl * (d - (S0 + A2.X)); };   // painted line is Wl wide square to itself
+							Strip(Mat, S0 + A2.X, S0 + B2.X, [&](double d) { return Sg * (Ln(d) - T / 2); }, [&](double d) { return Sg * (Ln(d) + T / 2); }, 0.5, Grime(S0));
+						}
+						const double Dc = S0 + (Dp * Cs - Bw * Sn) / 2, Oc = OIn + (Dp * Sn + Bw * Cs) / 2;
+						FVector Pc, Fc, Rc; OnRoad(Dc, Pc, Fc, Rc);
+						const FVector Ax = (Fc * Cs + Rc * (Sg * Sn)).GetSafeNormal();   // the way the coach drives in
+						// the bay is a coach's stand: it stands in it on the bay's own line, nose the way it drives out
+						bool bPark = true; O->TryGetBoolField(TEXT("park"), bPark);
+						if (bPark) BusStands.Add(FTransform(FRotator(0.0, Ax.Rotation().Yaw, 0.0), Surface(Pc + Rc * (Sg * Oc * 100.0))));
+						if (!bNum) continue;
+						UTextRenderComponent* T = NewObject<UTextRenderComponent>(this);
+						T->SetupAttachment(RootComponent);
+						T->SetText(FText::FromString(Pre + FString::FromInt(int32(N0) + b)));
+						T->SetHorizontalAlignment(EHTA_Center); T->SetVerticalAlignment(EVRTA_TextCenter);
+						T->SetWorldSize(110.f); T->SetTextRenderColor(FColor(236, 178, 22));
+						T->SetWorldLocationAndRotation(Surface(Pc + Rc * (Sg * Oc * 100.0)) + FVector(0, 0, 0.8),
+													   FRotator(90.0, FMath::RadiansToDegrees(FMath::Atan2(-Ax.Y, -Ax.X)), 0.0));
+						T->SetWorldScale3D(FVector(1.0, 1.0, 1.9));
+						T->RegisterComponent(); AddInstanceComponent(T);
 					}
 				}
 			}
