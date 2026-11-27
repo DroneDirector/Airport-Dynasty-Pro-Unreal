@@ -162,3 +162,22 @@ connectivity check must not flag consecutive steps on the same road as a gap.
 The one real break found: **CARGO-ACCESS** touches nothing - 937.2 m of road whose nearest end is 1487.75 m from
 every other road, although its own note calls it the cargo terminal's gate out to the public road. Written up as
 **to-do 374** (commit 9b2b53f7). Not on the bus station's path, so not fixed here.
+
+## The clock shows the game's own time - owner, 2026-11-27
+"Have the clock show the in-game clock." The two-faced platform clock is not a painted dial: its hands turn with the
+game's clock, the same time the rest of the game runs on, and they keep turning as time passes and when time is sped
+up. Hour and minute hands both; the minute hand steps or sweeps, either is fine, but it must agree with the hour hand.
+
+Built for it in the model: each hand (`BusStn_Clock_HandH` / `HandM`, one pair per face, W and E) is a part of its
+own, modelled pointing at 12 o'clock, with its origin on its face's boss, so the runtime only sets a rotation.
+The wiring is C++ at the import step - the lamp/props path, not a web layer, and no per-frame world scan.
+
+## The waiting hall sits on the pavement, not the platform - 2026-11-27
+The first build put it on the island platform and had to cut it to 30.0 x 3.60 m: the 8.00 m deck carries kerbs,
+tactile strips, slot drains and the column footing pads, so a 9 m hall cannot stand there. A 3.6 m wide room 30 m
+long is a corridor, not the hall the plan asks for.
+
+The room is on the **pavement** instead - model y 4.35..12.35 (world y -10.00..-2.00), 8.0 m deep, 30 m long, under
+the vault, clear of the north column line at model y 13.0. The pavement is 0.18 m below the deck, so the hall's floor
+and sill sit at pavement level with a real threshold at each door, and the doors face the platform. The platform is
+left clear its whole length for passengers, benches and the bay signs.
