@@ -403,7 +403,7 @@ def draw_front():
     s.text(*Q(c9 * .5, .34), 'integral fuel tank between the spars', EST, 7.5, box=False)
     # ring angle / stringer note
     s.text(9.6, 13.5, 'STRINGERS: about %d a section, STR1 at the crown, numbering down each side (pitch est. 0.19 m).' % NSTR, EST, 9, ha='left', box=False)
-    s.text(9.6, 13.1, 'Frame depth is drawn at 3.5 %% of the ring (est.); skin thickness is not to scale.', EST, 9, ha='left', box=False)
+    s.text(9.6, 13.1, 'Frame depth is drawn at 3.5 % of the ring (est.); skin thickness is not to scale.', EST, 9, ha='left', box=False)
     s.block('Scale: 1 m = %.1f px on this 3840 x 2160 sheet (all four sections and the wing box at the same scale).' % s.k,
             ['Section outlines come from the same superellipse as sheets 1-4 (fuselage 3.95 x 4.14 measured); cabin floor 3.38 and hold floor 1.98 are the printed door sills.',
              'Stringer positions, floor strut angles, keel beam size and the wing box corners are estimated.'])
