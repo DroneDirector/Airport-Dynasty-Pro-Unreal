@@ -177,7 +177,7 @@ def refine_bm(bm, sdf, band, L, reach=0.03, label=''):
         bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 3])
     REPORT.setdefault('refined', {})[label] = dict(passes=it, faces_added=len(bm.faces) - n0); print('REFINED', label, it, len(bm.faces) - n0, flush=True)
 
-def cut_hole(sdf, band, label, refine=0.0, keep=None, cap=None, islands=None):
+def cut_hole(sdf, band, label, refine=0.0, keep=None, cap=None, islands=None, inside=None):
     """sdf(P Nx3) -> signed distance of the hole outline (<0 inside); band(P) -> bool, which of his vertices take part.
     Every edge crossing the outline is split exactly on it, the faces are split along it, the inside goes.
     refine: first split his faces near the outline to this edge length. keep: name -> the cut-out faces become that object.
@@ -215,6 +215,7 @@ def cut_hole(sdf, band, label, refine=0.0, keep=None, cap=None, islands=None):
         bmesh.ops.delete(b2, geom=[f for f in b2.faces if f.index not in gi], context='FACES')
         me2 = bpy.data.meshes.new(keep)
         if cap: _cap(b2, cap[0], -cap[1])
+        REPORT.setdefault('kept_loose_removed', {})[keep] = _keep_main(b2)
         b2.to_mesh(me2); b2.free()
         for m in o.data.materials: me2.materials.append(m)
         part = bpy.data.objects.new(keep, me2); bpy.context.scene.collection.objects.link(part)
@@ -236,21 +237,56 @@ def cut_hole(sdf, band, label, refine=0.0, keep=None, cap=None, islands=None):
             if ok: drop += comp
         bmesh.ops.delete(bm, geom=drop, context='FACES')
         REPORT.setdefault('loose_bits_removed', {})[label] = len(drop)
+    if inside:        # slivers of his left in the part's place (faces partly outside the band): they go
+        lo, hi = Vector(inside[0]), Vector(inside[1])
+        cand = [f_ for f_ in bm.faces if all(lo[k] < f_.verts[0].co[k] < hi[k] for k in range(3))]
+        ins = inside[2](np.array([f_.calc_center_median()[:] for f_ in cand])) if cand else []
+        sl = [f_ for f_, k in zip(cand, ins) if k]
+        bmesh.ops.delete(bm, geom=sl, context='FACES'); REPORT.setdefault('slivers_removed', {})[label] = len(sl)
     if cap: _cap(bm, cap[0], cap[1])
     bm.transform(MW.inverted()); bm.to_mesh(o.data); bm.free()
     REPORT.setdefault('cuts', {})[label] = dict(faces_removed=len(gone), faces_split=nsplit)
     return part
-def _cap(bm, c, nrm):     # close the open cut line (edges between cut vertices with one face) with a fan to c
-    c = Vector(c); cv = bm.verts.new(c); nf = 0
+def _cap(bm, c, nrm):     # close the open cut line (edges between cut vertices with one face) with a clean flat fill
+    c = Vector(c); sel = []
     for e in list(bm.edges):
         a, b = e.verts
         if len(e.link_faces) != 1 or abs((a.co - c).dot(nrm)) > 3e-4 or abs((b.co - c).dot(nrm)) > 3e-4: continue
         if (a.co - c).length > 0.6: continue
-        q = [a, b, cv]
-        if (b.co - a.co).cross(c - a.co).dot(nrm) < 0: q = [b, a, cv]
-        try: bm.faces.new(q); nf += 1
+        sel.append(e)
+    deg = {}
+    for e in sel:
+        for v in e.verts: deg[v] = deg.get(v, 0) + 1
+    ends = [v for v, k in deg.items() if k == 1]
+    while len(ends) >= 2:      # the cut line is open where it meets his skin: closed straight across before the fill
+        a = ends.pop(0); b = min(ends, key=lambda q: (q.co - a.co).length); ends.remove(b)
+        try: sel.append(bm.edges.new((a, b)))
         except Exception: pass
+    # a constrained fill of the cut outline (no fan to a centre: a fan makes long dark spikes where the outline is not convex)
+    r = bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=sel, normal=Vector(nrm)) if sel else {'geom': []}
+    nf = 0
+    for f in r['geom']:
+        if not isinstance(f, bmesh.types.BMFace): continue
+        f.normal_update()
+        if f.normal.dot(nrm) < 0: f.normal_flip()
+        f.smooth = False; nf += 1
     REPORT.setdefault('caps', []).append(nf)
+def _keep_main(bm, frac=0.02):   # loose bits of a kept part (smaller than frac of its faces) go: one solid piece
+    bm.faces.ensure_lookup_table(); seen = set(); comps = []
+    for f in bm.faces:
+        if f in seen: continue
+        st = [f]; seen.add(f); comp = []
+        while st:
+            g = st.pop(); comp.append(g)
+            for v in g.verts:
+                for h in v.link_faces:
+                    if h not in seen: seen.add(h); st.append(h)
+        comps.append(comp)
+    big = max(len(c_) for c_ in comps) if comps else 0
+    drop = [g for c_ in comps if len(c_) < frac * big for g in c_]
+    if drop: bmesh.ops.delete(bm, geom=drop, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    return len(comps) - 1
 
 # ------------------------------------------------------------------ a single-curvature panel (door, cowl): S(u,v) -> point
 def panel(name, S, D, out_rect, nU, nV, t, mat_in, step=0.02, gap=0.002, rb=0.004):
@@ -731,10 +767,13 @@ def build_flap():
     for x, row in ((a0 - 0.008, crow[0]), (a1 + 0.008, crow[-1])):        # end ribs of the cove behind the flap ends, from the front wall to the trailing edge
         _, top, bot = min(secs, key=lambda q: abs(q[0] - x))
         if len(top) < 3: continue
-        ids = [F.add(V(x, y, z - 0.004)) for y, z in top] + [F.add(V(x, y, z + 0.004)) for y, z in bot[::-1]]
-        ids += [row[k] for k in (6, 5, 4, 3, 2, 1)] + ids[:1]     # joined to the cove's end row: one closed piece
-        c = F.add(sum((F.v[k] for k in ids), Vector()) / len(ids))
-        for j in range(len(ids) - 1): F.face([ids[j], ids[j + 1], c], M_COVE)
+        nn = min(len(top), len(bot)); pr = [(top[k][0], top[k][1] - 0.004, bot[k][1] + 0.004) for k in range(nn)]
+        pr = [q for q in pr if math.isfinite(q[2]) and q[1] - q[2] > 0.004]
+        it = [F.add(V(x, y, z)) for y, z, _ in pr]; ib = [F.add(V(x, y, z)) for y, _, z in pr]
+        fl_ = x > (a0 + a1) / 2      # faces look into the hole
+        for j in range(len(pr) - 1):
+            q = [it[j], it[j + 1], ib[j + 1], ib[j]]; F.face(q if fl_ else q[::-1], M_COVE)
+        q = [it[0], row[1], row[2], row[5], row[6], ib[0]]; F.face(q[::-1] if fl_ else q, M_COVE)   # joined to the cove's end row
     STATIC.append(F.obj('FlapInner_R_Cove'))
     # the aft canoes (behind the flap's front line) go down with the flap, cut cleanly at yF and closed with a bulkhead each side
     for i, (c0, c1) in enumerate(CAN):
@@ -760,10 +799,21 @@ def build_flap():
         for k, a_, b_ in zip(ks, starts, ends):
             m = order[a_:b_]; _, ty_, tz_, bz_ = STN[k]; y = Q[m, 1]
             t = np.interp(-y, -ty_, tz_); b = np.interp(-y, -ty_, bz_)
-            r_[m] = (Q[m, 2] < t + 0.03) & (Q[m, 2] > b - 0.03) & (y > ty_[-1] - 0.015)
+            fw = np.maximum(y - ty_[0], 0.0) * 0.35        # ahead of the front line his skins keep rising / falling
+            r_[m] = (Q[m, 2] < t + 0.03 + fw) & (Q[m, 2] > b - 0.03 - fw) & (y > ty_[-1] - 0.015)
         ok[J] = r_
         return ok
-    cut_hole(sdf, band, name, refine=0.025, islands=((a0 - 0.45, -15.0, 2.3), (a1 + 0.3, yF + 0.45, 4.2)))
+    def inside(P):            # in the flap's place: between his skins (lower one filled over canoes / holes), aft of the front line
+        r_ = np.zeros(len(P), bool)
+        for i_, q in enumerate(P):
+            if not (a0 + 0.002 < q[0] < a1 - 0.002 and q[1] < yF - 0.002): continue
+            _, ty_, tz_, bz_ = stn(q[0])
+            if q[1] < ty_[-1] - 0.01: continue
+            r_[i_] = float(np.interp(-q[1], -ty_, bz_)) + 0.003 < q[2] < float(np.interp(-q[1], -ty_, tz_)) + 0.03
+        return r_
+    cut_hole(sdf, band, name, refine=0.025, islands=((a0 - 0.02, -15.0, 2.3), (a1 + 0.02, yF + 0.01, 4.2)),   # only bits in the hole: a wider box took his own skin patches ahead of it (notches)
+            
+             inside=((a0 - 0.05, -15.0, 2.3), (a1 + 0.05, yF + 0.05, 4.2), inside))
     return ob
 
 # ================================================================== main wheels: clean tyres and rims in his place and size
