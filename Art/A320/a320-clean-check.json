@@ -5,15 +5,31 @@
    "faces_split": 318
   },
   "CargoDoorFwd": {
-   "faces_removed": 43,
-   "faces_split": 22
+   "faces_removed": 119372,
+   "faces_split": 14484
+  },
+  "FlapInner_R_Fairing0": {
+   "faces_removed": 1253,
+   "faces_split": 51
   },
   "FlapInner_R": {
-   "faces_removed": 3545,
-   "faces_split": 187
+   "faces_removed": 2520,
+   "faces_split": 162
   }
  },
- "flap_filled_stations": 32,
+ "refined": {
+  "CargoDoorFwd": {
+   "passes": 15,
+   "faces_added": 230383
+  }
+ },
+ "flap_canoes": [
+  [
+   4.26,
+   4.495
+  ]
+ ],
+ "flap_filled_stations": 33,
  "flap_sections": {
   "n": 130,
   "first": [
@@ -29,8 +45,13 @@
    128
   ]
  },
- "flap_canoes_x": [
-  4.265
+ "flap_boot": [
+  true
+ ],
+ "flap_rail_points_outside_canoe": 26,
+ "caps": [
+  26,
+  50
  ],
  "wheels": {
   "_L": [
@@ -58,22 +79,22 @@
   "_R": [
    {
     "centre": [
-     3.4051,
+     3.4629,
      -12.8025,
      0.6475
     ],
-    "tyre_radius": 0.6574,
-    "half_width": 0.3104,
+    "tyre_radius": 0.6563,
+    "half_width": 0.3544,
     "outer_face": -1.0
    },
    {
     "centre": [
-     4.3609,
+     4.2518,
      -12.8025,
      0.6475
     ],
-    "tyre_radius": 0.6574,
-    "half_width": 0.2425,
+    "tyre_radius": 0.6563,
+    "half_width": 0.3451,
     "outer_face": 1.0
    }
   ]
@@ -137,21 +158,21 @@
     4
    ],
    [
+    -1.158,
+    -3.375,
+    2.56,
+    4
+   ],
+   [
     -1.156,
-    -3.05,
+    -3.084,
     2.563,
     4
    ],
    [
-    -1.153,
-    -2.588,
-    2.568,
-    4
-   ],
-   [
-    -1.158,
-    -3.375,
-    2.56,
+    -1.156,
+    -3.05,
+    2.563,
     4
    ]
   ],
@@ -197,7 +218,7 @@
  "over_10mm": {
   "FanCowl_Eng1_Out": 0,
   "CargoDoorFwd": 0,
-  "FlapInner_R": 731
+  "FlapInner_R": 786
  },
  "closed_check_mm": {
   "FanCowl_Eng1_Out": {
@@ -210,10 +231,10 @@
    "centre_p99": 3.23
   },
   "CargoDoorFwd": {
-   "vertices": 11313,
+   "vertices": 11315,
    "vert_max": 4.0,
    "vert_mean": 0.196,
-   "face_centres": 11219,
+   "face_centres": 11222,
    "centre_max": 3.55,
    "centre_mean": 0.157,
    "centre_p99": 3.0
@@ -221,10 +242,10 @@
   "FlapInner_R": {
    "vertices": 15470,
    "vert_max": 166.2,
-   "vert_mean": 3.263,
+   "vert_mean": 3.388,
    "face_centres": 15222,
    "centre_max": 157.96,
-   "centre_mean": 3.64,
+   "centre_mean": 3.715,
    "centre_p99": 100.8
   }
  },
