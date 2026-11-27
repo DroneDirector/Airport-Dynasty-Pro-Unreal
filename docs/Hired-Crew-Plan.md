@@ -1075,3 +1075,16 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Every check kind is towed to the hangar now, not only C and D checks.
 - Saving: FADPAircraft::HangarIn is saved; AHangarTow::Restore puts it back in its hall after loading (chocked, check time kept). An aircraft on its way out starts its tow again from its stand.
 - Not run: the settings tab, the lengths, the restore after load.
+
+### Hangar: maintenance page on every device (to-do 311) - 2026-11-27, compiled, not run
+- Private/UI/MaintPage.cpp: native page, "Maintenance" icon beside Vehicles on laptop, tablet and phone desktops
+  (laptop.ts key `uemaint`, main.ts `__ueMaint`, UADPBridge::Maintenance, AADPHUD::OpenMaint/CloseMaint, MaintBox).
+- One row per aircraft of ours: registration, type, condition, where, state (flying / at stand / waiting for the tow /
+  being towed in / in hangar X / being towed out - AHangarTow::TowOf), check or fault with game time left and a bar.
+- Send to hangar (our airport, not flying): A/C/D or its FaultDue, a free hall or "first free", price + length from
+  ADPMaint::Quote (StartCheck's sums without paying, current Realism). Refused: not enough money, flying, already in a
+  check, no free hall (or Quote/StartCheck's own reason). Starts via ADPMaint::StartCheck.
+- FADPAircraft::HangarWant (saved): HangarTow::Start takes that hall if no tow holds it, else the nearest free; cleared
+  when it is in the hall. AHangarTow::HallTaken = a hall a tow holds.
+- Only a game run can prove: the icon shows (web bundle rebuilt at release), page layout on the phone's small screen,
+  the chosen hall really used, the bars and times following game speed.

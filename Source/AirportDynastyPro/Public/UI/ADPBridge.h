@@ -71,6 +71,8 @@ public:
 	UFUNCTION() void OverviewBack(const FString& Kind);
 	/** The Vehicles app on a device's desktop (ue.adp.vehicles(kind)): the native Vehicles owned page - to-do 318. */
 	UFUNCTION() void Vehicles(const FString& Kind);
+	/** The Maintenance app on a device's desktop (ue.adp.maintenance(kind)): the native Maintenance page - to-do 311. */
+	UFUNCTION() void Maintenance(const FString& Kind);
 	/** The tablet's wallpaper for its 3D screen (ue.adp.wallpaper(kind, jpeg data url)). */
 	UFUNCTION() void Wallpaper(const FString& Kind, const FString& DataUrl);
 	/** The Esc question in the 3D world answered "stay" (ue.adp.back3d()). */

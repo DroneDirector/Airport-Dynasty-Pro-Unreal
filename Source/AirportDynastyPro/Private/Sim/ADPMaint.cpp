@@ -193,6 +193,40 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 	return true;
 }
 
+bool ADPMaint::Quote(const FADPWorld& W, const FADPAircraft& A, const FString& Kind, double& Usd, double& Hours, FString& Why)
+{
+	// (StartCheck's own sums, nothing paid or changed: keep the two the same)
+	Usd = 0.0; Hours = 0.0;
+	TArray<FCheckRule> Rs = Rules(A.TypeId); const FFault* Ft = nullptr;
+	if (Kind == TEXT("F"))
+	{
+		Ft = Fault(A.FaultDue); if (!Ft) { Why = TEXT("no fault to put right"); return false; }
+		const FADPTypeInfo* Ti = ADPWorldData::Type(A.TypeId);
+		Rs.Add({TEXT("F"), 0.0, 0.0, 0.0, Ft->RealH, 2, Ft->PartsUsd * (Ti ? FMath::Max(2.0, Ti->ValueM) : 100.0) / 100.0, true});
+	}
+	const FCheckRule* R = Rs.FindByPredicate([&](const FCheckRule& X) { return Kind == X.Kind; });
+	if (!R) { Why = TEXT("no such check"); return false; }
+	if (A.Status == TEXT("flying")) { Why = TEXT("in the air"); return false; }
+	if (A.Status == TEXT("maintenance")) { Why = TEXT("already in a check"); return false; }
+	double Labour = 1.0, H = R->DurationH;
+	const int32 Mech = MxMechanicsAt(W, A.AirlineId, A.Location);
+	if (Mech == 0) Labour = 3.0;
+	else if (Mech < R->Mechanics) H *= double(R->Mechanics) / Mech;
+	if (Mech > 0) H *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);
+	if (R->bHangar)
+	{
+		int32 Busy = 0; for (const FADPAircraft& X : W.Aircraft) if (X.Location == A.Location && X.Status == TEXT("maintenance") && X.CheckKind != TEXT("A")) ++Busy;
+		if (Busy >= HangarBays(A.Location)) { Why = TEXT("no free hangar bay"); return false; }
+	}
+	const FADPAirline* Al = W.Airlines.FindByPredicate([&](const FADPAirline& X) { return X.Id == A.AirlineId; });
+	const double Short = FMath::Max(0.0, R->PartsUsd - (Al ? Al->PartsStock : 0.0));
+	Usd = (Short > 1.0 ? Short * W.PartsIndex * 1.3 : 0.0) + R->DurationH * R->Mechanics * 85.0 * (Labour - 1.0 + 0.25);
+	const FString Key = Ft ? FString(Ft->Key) : Kind == TEXT("A") ? FString(TEXT("acheck")) : Kind == TEXT("C") ? FString(TEXT("ccheck")) : FString(TEXT("dcheck"));
+	Hours = CheckHours(Key, H, MaintTime());
+	if (!Al || Al->Balance < Usd) { Why = TEXT("not enough money"); return false; }
+	return true;
+}
+
 void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTime& To, bool bCatchUp)
 {
 	FADPWorld& W = Sim.World;

@@ -197,6 +197,8 @@ for (const n of ['__uePhoneQuad', '__uePhonePtr', '__uePhoneClick', '__uePhoneSc
 (window as any).__ueDeviceClose = () => { if (gameEval(`typeof ueDeviceOn === 'function' && ueDeviceOn()`)) gameEval('ueDeviceClose()'); else (window as any).__ueDeviceDone(''); };
 // the Vehicles app on a device's desktop: Unreal's native Vehicles owned page over the device's screen (to-do 318)
 (window as any).__ueVehicles = (kind: string) => { const u = ue(); if (u && u.vehicles) u.vehicles(String(kind || '')); };
+// the Maintenance app likewise: Unreal's native Maintenance page (to-do 311)
+(window as any).__ueMaint = (kind: string) => { const u = ue(); if (u && u.maintenance) u.maintenance(String(kind || '')); };
 (window as any).__ueDeviceDone = (kind: string) => { document.documentElement.classList.remove('ue-dev', 'ue-dev-wait'); (window as any).__ueBoardsNow && (window as any).__ueBoardsNow(); const u = ue(); if (u && u.devicedone) u.devicedone(String(kind || '')); };
 // and the airline for Unreal's own interface: the departures and arrivals at your airport, the airline's name and money
 if (UE_PC) {

@@ -248,7 +248,7 @@ function lapDeskApps(): [string, string, string, string][] {
   const ops: [string, string, string, string][] = Lap.ops ? OPS_TABS.filter(t => SCREENS[t[0]]).map(t => ['scr:' + t[0], t[1], t[2], '#2FB4E8'] as [string, string, string, string]) : [];
   const ov: [string, string, string, string][] = Lap.phone ? [] : [['overview', 'Overview', 'ops', '#F5B544'], ['staff', 'Staff', 'pilots', '#7C8CF0']];
   // (to-do 318: Vehicles owned - Unreal's own page, on the tablet, the computers and the phone; only inside Unreal)
-  if (typeof ueDeviceOn === 'function' && ueDeviceOn()) ov.push(['vehicles', 'Vehicles', 'fleet', '#4FC08D']);   // (owner 2026-11-18: the Overview from the tablet and the PCs only)
+  if (typeof ueDeviceOn === 'function' && ueDeviceOn()) { ov.push(['vehicles', 'Vehicles', 'fleet', '#4FC08D']); ov.push(['uemaint', 'Maintenance', 'wrench', '#E8875A']); }   // (owner 2026-11-18: the Overview from the tablet and the PCs only)
   return ov.concat(ops, LAP_APPS, PH_APPS.filter(a => !LAP_APPS.some(b => b[0] === a[0])));
 }
 function lapDeskHtml(): string {
@@ -591,6 +591,7 @@ ACTIONS['lap-app'] = el => {
   // the Overview opens inside this device's own screen, as every app does; its window's close button brings you back
   // to the desktop (owner, 2026-11-26: it used to open full screen and its back led to the title screen)
   if (k === 'overview') { if (Lap.phone) return; return lapOpenScreen('ops'); }
+  if (k === 'uemaint') { try { (window.parent as any).__ueMaint && (window.parent as any).__ueMaint(Lap.phone ? 'phone' : 'computer'); } catch (e) { } Sound.tick(); return; }   // (to-do 311: Unreal's own Maintenance page)
   if (k === 'vehicles') { try { (window.parent as any).__ueVehicles && (window.parent as any).__ueVehicles(Lap.phone ? 'phone' : 'computer'); } catch (e) { } Sound.tick(); return; }
   if (k === Lap.app) return;
   if (Lap.app === 'browser') lapBrowserHide();

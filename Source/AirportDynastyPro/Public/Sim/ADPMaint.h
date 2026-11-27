@@ -26,6 +26,10 @@ namespace ADPMaint
 	FString NextDue(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now, double& Fraction);
 	/** Starts a check now (the Overview, or by itself when due). False: not at a base with mechanics, or no hangar bay. */
 	bool StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, const FDateTime& Now, FString& Why);
+	/** What StartCheck would ask now, nothing changed (the Maintenance page, to-do 311): its price in USD (labour, and parts
+	 *  the stock lacks bought AOG), its length in game hours under the current Realism setting. False: Why it would refuse
+	 *  (in the air, already in a check, no fault to put right, no free hangar bay, not enough money). */
+	bool Quote(const FADPWorld& W, const FADPAircraft& A, const FString& Kind, double& Usd, double& Hours, FString& Why);
 	/** Buys parts for the stock (USD of parts at today's parts market price). */
 	bool BuyParts(FADPWorld& W, const FString& AirlineId, double Usd, const FDateTime& Now);
 	/** Hangar bays at an airport (our site: its hangars; elsewhere 1). */

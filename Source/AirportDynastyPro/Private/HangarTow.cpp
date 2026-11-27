@@ -324,6 +324,20 @@ bool AHangarTow::Busy(UWorld* W, const FString& Reg)
 	return false;
 }
 
+bool AHangarTow::TowOf(UWorld* W, const FString& Reg, FString& Hall, int32& Stage, bool& bBack)
+{
+	if (!W) return false;
+	for (TActorIterator<AHangarTow> It(W); It; ++It) for (const FJob& J : It->Jobs) if (J.Reg == Reg && J.Stage != 9) { Hall = J.Hangar; Stage = J.Stage; bBack = J.bBack; return true; }
+	return false;
+}
+
+bool AHangarTow::HallTaken(UWorld* W, const FString& HallId)
+{
+	if (!W) return false;
+	for (TActorIterator<AHangarTow> It(W); It; ++It) for (const FJob& J : It->Jobs) if (J.Hangar == HallId && J.Stage != 9) return true;
+	return false;
+}
+
 void AHangarTow::Tick(float Dt)
 {
 	Super::Tick(Dt);
@@ -423,7 +437,13 @@ bool AHangarTow::Start(FJob& J, bool bBack)
 	if (!bBack)   // a free hangar: none another tow holds
 	{
 		const FAirfieldData::FHangarSite* Best = nullptr;
-		for (const FAirfieldData::FHangarSite& H : D.Hangars)
+		// (the hall chosen on the Maintenance page, if no other tow holds it; else the nearest free one)
+		if (!A->HangarWant.IsEmpty())
+		{
+			Best = D.Hangars.FindByPredicate([&](const FAirfieldData::FHangarSite& H) { return H.Id == A->HangarWant && !Jobs.ContainsByPredicate([&](const FJob& O) { return O.Hangar == H.Id; }); });
+			if (!Best) ADP_LOG(TEXT("HangarTow: %s - hangar %s chosen but not free: the nearest free one instead"), *J.Reg, *A->HangarWant);
+		}
+		if (!Best) for (const FAirfieldData::FHangarSite& H : D.Hangars)
 			if (!Jobs.ContainsByPredicate([&](const FJob& O) { return O.Hangar == H.Id; }) && (!Best || FMath::Abs(H.X - J.StandX) < FMath::Abs(Best->X - J.StandX))) Best = &H;
 		if (!Best) { ADP_LOG(TEXT("HangarTow: %s waits - no hangar bay free"), *J.Reg); return false; }
 		J.Hangar = Best->Id;
@@ -588,7 +608,7 @@ void AHangarTow::Run(FJob& J, float Dt)
 		}
 		else
 		{
-			J.Stage = 3; ADP_LOG(TEXT("HangarTow: %s in hangar %s, door closing - its check goes on"), *J.Reg, *J.Hangar);
+			J.Stage = 3; if (FADPAircraft* Ai = Plane(GetWorld(), J.Reg)) Ai->HangarWant.Empty(); ADP_LOG(TEXT("HangarTow: %s in hangar %s, door closing - its check goes on"), *J.Reg, *J.Hangar);
 			if (FADPAircraft* Ai = Plane(W, J.Reg)) Ai->HangarIn = J.Hangar;   // (in the hall: saved so, there again after loading - Restore)
 		}
 		return;

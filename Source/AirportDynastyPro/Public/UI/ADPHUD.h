@@ -164,6 +164,11 @@ public:
 	void OpenVehicles(const FString& Kind);
 	void CloseVehicles();
 	bool bVehiclesPage = false; TSharedPtr<class SBox> VehiclesBox;
+	/** Maintenance (to-do 311, UI/MaintPage.cpp): the native page over the device's screen - every aircraft of ours, its check
+	 *  or fault with the time left, where it is and Send to hangar; from the Maintenance app (ue.adp.maintenance). */
+	void OpenMaint(const FString& Kind);
+	void CloseMaint();
+	bool bMaintPage = false; TSharedPtr<class SBox> MaintBox;
 	void OverviewBack();
 	/** G / the pad's Y: no longer the Overview from the 3D world (a note instead); from the menus back into 3D. */
 	void MenusKey();

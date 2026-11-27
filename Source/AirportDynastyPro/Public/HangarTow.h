@@ -24,6 +24,11 @@ public:
 	virtual void Tick(float Dt) override;
 	/** Reg is in or on its way to or from a hangar: it cannot be flown. */
 	static bool Busy(UWorld* W, const FString& Reg);
+	/** Reg's tow now (the Maintenance page): its hall, its stage (0 the tug coming, 1 on the move, 2 unhooked, 3 in the hall)
+	 *  and whether it is the tow back out. False: no tow for it. */
+	static bool TowOf(UWorld* W, const FString& Reg, FString& Hall, int32& Stage, bool& bBack);
+	/** A hall another tow holds now (in it, or on the way in or out): not free for one more. */
+	static bool HallTaken(UWorld* W, const FString& HallId);
 	/** A tow is on the runway strip now (between the holding points): no take-off starts (SimTraffic). */
 	static bool OnRunway(UWorld* W, bool bVans = true);   // (bVans: the maintenance vans crossing count too)
 	/** Where the tows cross the runway (plan m): the holding points on the stands' side and on the hangars' side - the
