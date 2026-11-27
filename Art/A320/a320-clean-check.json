@@ -8,13 +8,21 @@
    "faces_removed": 119372,
    "faces_split": 14484
   },
-  "FlapInner_R_Fairing0": {
-   "faces_removed": 2174,
-   "faces_split": 227
+  "FlapInner_R_CanoeFront1": {
+   "faces_removed": 33126,
+   "faces_split": 59
+  },
+  "FlapInner_R_Canoe1": {
+   "faces_removed": 1819,
+   "faces_split": 344
   },
   "FlapInner_R": {
-   "faces_removed": 149972,
-   "faces_split": 25832
+   "faces_removed": 2000,
+   "faces_split": 176
+  },
+  "FlapInner_R_PylonTail": {
+   "faces_removed": 198,
+   "faces_split": 54
   }
  },
  "refined": {
@@ -22,9 +30,9 @@
    "passes": 15,
    "faces_added": 230383
   },
-  "FlapInner_R": {
+  "FlapInner_R_CanoeFront1": {
    "passes": 15,
-   "faces_added": 555687
+   "faces_added": 74599
   }
  },
  "flap_canoes": [
@@ -220,9 +228,28 @@
    128
   ]
  },
- "flap_boot": [
-  true
+ "flap_canoe": [
+  {
+   "cx": 4.378,
+   "y": [
+    -12.45,
+    -13.1,
+    -14.82
+   ],
+   "lowest_z": 2.589,
+   "hp_z": 2.444,
+   "front_clear_mm": 3.5,
+   "rail_min_y": -12.891
+  }
  ],
+ "flap_slot_end": [
+  -13.017
+ ],
+ "loose_bits_removed": {
+  "FlapInner_R_Canoe1": 204,
+  "FlapInner_R": 997,
+  "FlapInner_R_PylonTail": 0
+ },
  "flap_carriages": [
   [
    4.378,
@@ -236,19 +263,17 @@
   ]
  ],
  "flap_rail_points_outside_canoe": 0,
- "caps": [
-  21,
-  31
+ "flap_cove_lip_dev_mm": [
+  4.1,
+  24.4
  ],
- "kept_loose_removed": {
-  "FlapInner_R_Fairing0": 12
- },
- "loose_bits_removed": {
-  "FlapInner_R": 1032
- },
  "slivers_removed": {
-  "FlapInner_R": 4
+  "FlapInner_R": 6
  },
+ "caps": [
+  55
+ ],
+ "flap_under_bits_removed": 227,
  "wheels": {
   "_L": [
    {
@@ -409,12 +434,51 @@
     3.193,
     0
    ]
+  ],
+  "FlapInner_R_Canoe": [
+   [
+    4.343,
+    -13.1,
+    2.593,
+    64
+   ],
+   [
+    4.343,
+    -13.129,
+    2.595,
+    60
+   ],
+   [
+    4.338,
+    -13.858,
+    3.264,
+    58
+   ],
+   [
+    4.456,
+    -13.858,
+    3.254,
+    55
+   ],
+   [
+    4.343,
+    -13.158,
+    2.597,
+    54
+   ],
+   [
+    4.458,
+    -13.887,
+    3.277,
+    42
+   ]
   ]
  },
  "over_10mm": {
   "FanCowl_Eng1_Out": 0,
   "CargoDoorFwd": 0,
-  "FlapInner_R": 0
+  "FlapInner_R": 0,
+  "FlapInner_R_Canoe": 189
  },
  "closed_check_mm": {
   "FanCowl_Eng1_Out": {
@@ -443,12 +507,27 @@
    "centre_max": 70.06,
    "centre_mean": 0.327,
    "centre_p99": 8.48
+  },
+  "FlapInner_R_Canoe": {
+   "vertices": 2578,
+   "vert_max": 64.37,
+   "vert_mean": 5.921,
+   "face_centres": 2631,
+   "centre_max": 79.22,
+   "centre_mean": 6.51,
+   "centre_p99": 24.54
   }
  },
  "left_out_of_check": {
   "FlapInner_R": {
    "hidden_in_canoe": 571,
-   "over_his_hole_or_bump": 527
+   "over_his_hole_or_bump": 527,
+   "against_flap_underside": 0
+  },
+  "FlapInner_R_Canoe": {
+   "hidden_in_canoe": 0,
+   "over_his_hole_or_bump": 153,
+   "against_flap_underside": 114
   }
  },
  "note": "closed check: distance of each part outer skin (incl. its 4 mm rolled edge) to his ORIGINAL surface, before the cut, in mm"

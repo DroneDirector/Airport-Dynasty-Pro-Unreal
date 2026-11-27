@@ -83,6 +83,7 @@ M_HARN = pmat('A320C_Harness', (0.48, 0.34, 0.18), 0.0, 0.75)
 M_TRACK = pmat('A320C_FlapTrack', (0.56, 0.58, 0.60), 0.6, 0.42)    # flap tracks, carriages, links: bare steel
 M_BOOT = pmat('A320C_TrackBoot', (0.17, 0.17, 0.18), 0.0, 0.8)     # rubber boots, dark grey
 M_COVE = pmat('A320C_Cove', (0.45, 0.47, 0.46), 0.2, 0.6)            # flap cove, ribs
+M_PAINT = pmat('A320C_CanoePaint', (0.80, 0.81, 0.83), 0.0, 0.45)   # canoe bulkheads: his paint
 MATS = {}
 
 # ------------------------------------------------------------------ mesh helpers
@@ -234,7 +235,7 @@ def cut_hole(sdf, band, label, refine=0.0, keep=None, cap=None, islands=None, in
                     for h in v.link_faces:
                         if h not in seen: seen.add(h); stack.append(h); comp.append(h)
                 if len(comp) > 3000: ok = False
-            if ok: drop += comp
+            if ok and not (len(islands) > 2 and islands[2](comp)): drop += comp
         bmesh.ops.delete(bm, geom=drop, context='FACES')
         REPORT.setdefault('loose_bits_removed', {})[label] = len(drop)
     if inside:        # slivers of his left in the part's place (faces partly outside the band): they go
@@ -365,7 +366,7 @@ def measure(ob, label, mat_name):   # closed check: his original surface vs the 
         if not all(f): cs.append(ob.matrix_world @ p.center)
     for i, k in SV.items():
         if k: kinds[k] = kinds.get(k, 0) + 1
-    if kd is not None: REPORT.setdefault('left_out_of_check', {})[label] = dict(hidden_in_canoe=kinds.get(1, 0), over_his_hole_or_bump=kinds.get(2, 0))
+    if kd is not None: REPORT.setdefault('left_out_of_check', {})[label] = dict(hidden_in_canoe=kinds.get(1, 0), over_his_hole_or_bump=kinds.get(2, 0), against_flap_underside=kinds.get(3, 0))
     vl = list(vs); dv = [BVH.find_nearest(ob.matrix_world @ me.vertices[i].co)[3] for i in vl]
     worst = sorted(range(len(dv)), key=lambda i: -dv[i])[:6]
     REPORT.setdefault('worst', {})[label] = [[round(x, 3) for x in (ob.matrix_world @ me.vertices[vl[i]].co)] + [round(dv[i] * 1000)] for i in worst]
@@ -392,7 +393,7 @@ def bake(ob, m, ims):
     dummy = bpy.data.images.get('A320C_dummy') or bpy.data.images.new('A320C_dummy', 16, 16)
     extra = []
     for mm in ob.data.materials:
-        if mm == m: continue
+        if mm == m or mm.get('share'): continue
         t = mm.node_tree.nodes.new('ShaderNodeTexImage'); t.image = dummy; mm.node_tree.nodes.active = t; extra.append((mm, t))
     sm = src.data.materials[0]; N = sm.node_tree.nodes; L = sm.node_tree.links; b = N['Principled BSDF']
     tex = {n.image.name: n for n in N if n.type == 'TEX_IMAGE'}
@@ -401,6 +402,8 @@ def bake(ob, m, ims):
     b.inputs['Emission Strength'].default_value = 1.0
     for k, im in zip(('Color', 'ORM', 'Normal'), ims):
         m.node_tree.nodes.active = m.node_tree.nodes[k]
+        for mm in ob.data.materials:
+            if mm.get('share'): mm.node_tree.nodes.active = mm.node_tree.nodes[k]
         if k != 'Normal':
             ln = L.new(tex['Image_0' if k == 'Color' else 'Image_1'].outputs['Color'], b.inputs['Emission'])
             bpy.ops.object.bake(type='EMIT', use_selected_to_active=True, cage_extrusion=0.02, max_ray_distance=0.05, margin=8)
@@ -415,9 +418,11 @@ def bake(ob, m, ims):
 SKINS = {}
 def finish(M, name, pivot):
     m, ims = skin_mat(name); SKINS[name] = (m, ims)
-    M.m = [m if x == 'SKIN' else x for x in M.m]
+    if 'CANOE' in M.m: m2 = m.copy(); m2.name = 'A320C_%s_CanoeSkin' % name; m2['share'] = 1     # same baked pictures, own check
+    M.m = [m if x == 'SKIN' else m2 if x == 'CANOE' else x for x in M.m]
     ob = M.obj(name)
     me = ob.data; me.transform(Matrix.Translation(-Vector(pivot))); ob.location = pivot
+    bpy.context.view_layer.update()      # matrix_world right away (the check and the open pose read it)
     return ob
 
 PARTS = {}      # name -> (object, open transform about its pivot)
@@ -713,7 +718,18 @@ def build_flap():
             if h[0] is None or abs(h[0].x - q.x) < 0.024: return False
         u = BVH.ray_cast(q, V(0, 0, 1), 0.9)
         return u[0] is not None and u[0].z - q.z > 0.035
-    TR = Mesh(); rail_out = 0; CARS = []
+    TR = Mesh(); FX = Mesh(); rail_out = 0; CARS = []; EX = V(1, 0, 0)
+    def prism(MM, prof, ey, ez, c, x0, x1, mat):      # a 2-D outline [(a, b)] in the plane (ey, ez) at c, solid from x0 to x1 along x
+        r0 = [MM.add(c + EX * x0 + ey * a + ez * b) for a, b in prof]; r1 = [MM.add(c + EX * x1 + ey * a + ez * b) for a, b in prof]
+        n = len(prof)
+        for j in range(n): MM.face([r0[j], r0[(j + 1) % n], r1[(j + 1) % n], r1[j]], mat)
+        MM.face(r0[::-1], mat); MM.face(r1, mat)
+    def rrect(u0, u1, v0, v1, r, n=6): return [(p[0], p[1]) for p in rr(u0, u1, v0, v1, r, 0.0, 1, 1, n)]
+    def arc(cy, cz, r, a0_, a1_, n): return [(cy + r * math.cos(math.radians(a)), cz + r * math.sin(math.radians(a))) for a in np.linspace(a0_, a1_, n)]
+    # I-section rail (flanges 44 x 7 mm, web 10 mm, 60 mm high) in the plane (x, normal of the arc)
+    PI_ = [(-0.022, -0.03), (0.022, -0.03), (0.022, -0.023), (0.005, -0.023), (0.005, 0.023), (0.022, 0.023), (0.022, 0.03),
+           (-0.022, 0.03), (-0.022, 0.023), (-0.005, 0.023), (-0.005, -0.023), (-0.022, -0.023)]
+    Ycut = -13.10           # his canoe is cut here: ahead of it fixed (his, with the gear door), behind it the new modelled rear canoe moves with the flap
     for c0, c1 in CAN:
         cx = (c0 + c1) / 2
         # the carriage's place: the rail is the arc about hp through it; it must lie inside his canoe over the whole travel
@@ -726,39 +742,176 @@ def build_flap():
                     key = (out, -k0 * 0.0 + (k0 != -24.0) * 0.5, zr - cz)
                     if best is None or key < best[0]: best = (key, c_, k0)
         car, k0 = best[1], best[2]; zb0 = refz(cx, car.y); CARS.append((cx, car, k0, best[0][0]))
-        # link: plate from the flap's lower skin down to the carriage; carriage: side plates round the rail, rollers above/below
-        box(M, V(cx, car.y, (zb0 + 0.012 + car.z + 0.045) / 2), (V(1, 0, 0), V(0, 1, 0), V(0, 0, 1)), (0.025, 0.12, zb0 + 0.012 - car.z - 0.045), M_TRACK)
-        for sx in (-0.032, 0.032): box(M, car + V(sx, 0, 0), (V(1, 0, 0), V(0, 1, 0), V(0, 0, 1)), (0.012, 0.16, 0.12), M_TRACK)
-        box(M, car + V(0, 0, 0.051), (V(1, 0, 0), V(0, 1, 0), V(0, 0, 1)), (0.076, 0.16, 0.018), M_TRACK)
-        for dy in (-0.05, 0.05):
-            for dz in (-0.0455, 0.0455): tube(M, [car + V(-0.026, dy, dz), car + V(0.026, dy, dz)], 0.015, M_PIPE, seg=12)
-        # the rail: 40 x 60 mm, an arc about hp through the carriage, from the fixed canoe (bracket on his lower skin) to past full travel
+        tg = (turn(car, 0.5) - turn(car, -0.5)).normalized(); nz = EX.cross(tg).normalized(); up = nz if nz.z > 0 else -nz
+        # carriage (moves with the flap): 2 shaped side plates, 4 rollers on the rail flanges with axles and nuts, top bridge,
+        # clevis lugs and pin; the link (tapered plate with an eye) from the pin up into the flap's lower skin
+        for sx in (-1, 1):
+            prism(M, rrect(-0.085, 0.085, -0.068, 0.068, 0.022), tg, up, car, sx * 0.028, sx * 0.036, M_TRACK)
+            prism(M, [(-0.035, 0.074), (0.035, 0.074)] + arc(0, 0.105, 0.035, 0, 180, 13), tg, up, car, sx * 0.011, sx * 0.021, M_TRACK)
+            tube(M, [car + up * 0.105 + EX * sx * 0.021, car + up * 0.105 + EX * sx * 0.026], 0.013, M_SILL, seg=14)
+        prism(M, rrect(-0.085, 0.085, 0.0675, 0.077, 0.004), tg, up, car, -0.036, 0.036, M_TRACK)
+        tube(M, [car + up * 0.105 - EX * 0.027, car + up * 0.105 + EX * 0.027], 0.009, M_SILL, seg=14)
+        for dt in (-0.05, 0.05):
+            for sn in (-1, 1):
+                pc = car + tg * dt + up * sn * (0.03 + 0.0145)
+                tube(M, [pc - EX * 0.018, pc + EX * 0.018], 0.014, M_TRACK, seg=20)
+                tube(M, [pc - EX * 0.040, pc + EX * 0.040], 0.005, M_SILL, seg=10)
+                for sx in (-1, 1): tube(M, [pc + EX * sx * 0.036, pc + EX * sx * 0.043], 0.008, M_SILL, seg=6)
+        pin = car + up * 0.105; ztop_l = zb0 + 0.006 - pin.z
+        prism(M, arc(0, 0, 0.028, 180, 360, 13) + [(0.055, ztop_l), (-0.055, ztop_l)], V(0, 1, 0), V(0, 0, 1), pin, -0.009, 0.009, M_TRACK)
+        # the rail: I-section, an arc about hp through the carriage, from the fixed canoe (bracket on his lower skin) to past full travel
         ang = np.linspace(k0, OPEN + 6.0, 48); rows = []
         for a_ in ang:
-            q = turn(car, a_); tg = (turn(car, a_ + 0.5) - turn(car, a_ - 0.5)).normalized(); nz = V(1, 0, 0).cross(tg).normalized()
-            rows.append([TR.add(q + V(sx, 0, 0) + nz * sz) for sx, sz in ((-0.02, -0.03), (0.02, -0.03), (0.02, 0.03), (-0.02, 0.03))])
+            q = turn(car, a_); tg_ = (turn(car, a_ + 0.5) - turn(car, a_ - 0.5)).normalized(); n_ = EX.cross(tg_).normalized()
+            n_ = n_ if n_.dot(up) > 0 else -n_
+            rows.append([TR.add(q + EX * a + n_ * b) for a, b in PI_])
             if not in_canoe(q): rail_out += 1
         TR.grid(rows, M_TRACK, closed=True); TR.face(rows[0][::-1], M_TRACK); TR.face(rows[-1], M_TRACK)
         st = turn(car, k0); top_ = shoot(st, V(0, 0, 1), hi=0.6)
         zt = top_.z if top_ else zb0
-        box(TR, V(cx, st.y, (st.z + zt) / 2 + 0.005), (V(1, 0, 0), V(0, 1, 0), V(0, 0, 1)), (0.10, 0.12, zt - st.z + 0.01), M_TRACK)   # track bracket
-        # rubber boots where the rail goes through the canoe's bulkhead at yF: one on the fixed side, one on the fairing's side
-        ys_ = [turn(car, a_).y for a_ in ang]; kk = next((j for j in range(len(ang) - 1) if (ys_[j] - yF) * (ys_[j + 1] - yF) <= 0), None)
-        if kk is not None:
-            t_ = (ys_[kk] - yF) / (ys_[kk] - ys_[kk + 1]); a_ = ang[kk] + (ang[kk + 1] - ang[kk]) * t_; q = turn(car, a_)
-            tg = (turn(car, a_ + 0.5) - turn(car, a_ - 0.5)).normalized(); hz = 0.03 / max(abs(tg.y), 0.3) + 0.009; hx = 0.029
-            for MM, dy in ((TR, 0.008), (M, -0.008)):
-                ring_ = [V(cx + hx * math.cos(t) / max(abs(math.cos(t)), abs(math.sin(t))) , yF + dy, q.z + hz * math.sin(t) / max(abs(math.cos(t)), abs(math.sin(t)))) for t in np.linspace(0, 2 * math.pi, 33)[:-1]]
-                tube(MM, ring_ + ring_[:1], 0.008, M_BOOT, seg=8, cap=False)
-        REPORT.setdefault('flap_boot', []).append(kk is not None)
+        prism(TR, [(-0.06, st.z - 0.03 - st.z), (0.06, st.z - 0.03 - st.z), (0.04, zt + 0.006 - st.z), (-0.04, zt + 0.006 - st.z)], V(0, 1, 0), V(0, 0, 1),
+              V(cx, st.y, st.z), -0.03, 0.03, M_TRACK)       # forward bracket up to his lower skin
+        en = turn(car, ang[-1])
+        # ---- the canoe, modelled anew over its whole length under the flap (his scanned canoe is torn where it would be cut):
+        # his canoe shot all round from outside, smoothed, lofted as one clean body, split at Ycut: the front half is fixed
+        # (on the wing, holds the rail), the rear half hangs on the flap and turns with it. Both ends closed, a 3.5 mm gap.
+        def hit_ok(q, cx=cx, zmax=3.45): return abs(q.x - cx) < 0.2 and q.z < zmax
+        ytip = Ycut
+        for y in np.arange(-14.3, -15.3, -0.004):
+            if any(shoot(V(cx + dx, y, 1.6), V(0, 0, 1), hi=1.85, test=hit_ok) is not None for dx in (-0.04, 0.0, 0.04)): ytip = y
+            else: break
+        TEy = float(stn(cx)[1][-1]); NA = 48; yA = yF + 0.15
+        def lowskin(y):          # his wing's lower skin beside the canoe (ahead of the flap)
+            zs = [h.z for h in (shoot(V(cx + dx, y, 1.6), V(0, 0, 1), hi=2.0, test=lambda q: q.z > 2.5) for dx in (-0.26, 0.26)) if h is not None]
+            return float(np.mean(zs)) if zs else refz(cx, yF - 0.01)
+        YS = np.r_[np.linspace(yA, yF + 0.002, 8), np.linspace(yF - 0.004, Ycut + 0.0035, 22), np.linspace(Ycut, ytip, 60)]
+        NS = len(YS); NF = 30                  # stations 0..NF-1 fixed, NF.. moving
+        ZT = []; ZB = []; ZTOP = []; ZB2 = []
+        for y in YS:
+            if y > yF: ls = lowskin(y); t_ = ls - 0.004; tt = ls + 0.02     # ahead of the flap: the walls go on up into his wing
+            elif y > TEy + 0.004: t_ = refz(cx, y) - 0.003; tt = t_      # under the flap: a flat top 3 mm under its lower skin
+            else:
+                h = shoot(V(cx, y, 3.8), V(0, 0, -1), hi=1.6, test=hit_ok); t_ = h.z if h else np.nan; tt = t_
+            h = shoot(V(cx, y, 1.6), V(0, 0, 1), hi=1.85, test=hit_ok); ZT.append(t_); ZB.append(h.z if h else np.nan); ZTOP.append(tt)
+            h = shoot(V(cx + 0.10, y, 1.6), V(0, 0, 1), hi=1.85, test=hit_ok); ZB2.append(h.z if h else np.nan)
+        # his gear-leg door (a thin plate, x cx-0.11..cx+0.06) hangs from the canoe's front half down to z 1.9: the bottom line there
+        # comes from the clean side (cx+0.10) plus the offset measured behind the plate
+        ZB = np.array(ZB, float); ZB2 = np.array(ZB2, float); YP = Ycut - 0.12
+        aft = (YS < YP - 0.03) & (YS > YP - 0.40) & np.isfinite(ZB) & np.isfinite(ZB2)
+        d0 = float(np.median(ZB[aft] - ZB2[aft])) if aft.any() else 0.0
+        fr = YS > YP; ZB[fr] = ZB2[fr] + d0
+        def fillsm(a, k=5):
+            a = np.array(a, float); ok_ = np.isfinite(a); a = np.interp(np.arange(len(a)), np.nonzero(ok_)[0], a[ok_])
+            p_ = np.pad(a, k // 2, mode='edge'); return np.convolve(p_, np.ones(k) / k, mode='valid')
+        ZB = fillsm(ZB); ZT = np.array(ZT, float)
+        ZT[NF + 1:] = fillsm(ZT[NF + 1:])
+        ZTOP = np.array(ZTOP, float); ZTOP = np.where(np.isfinite(ZTOP), ZTOP, ZT); ZC = (ZT + ZB) / 2
+        R = np.full((NS, NA), np.nan); TH = 2 * np.pi * np.arange(NA) / NA
+        for i, y in enumerate(YS):
+            c = V(cx, y, ZC[i])
+            for j, th in enumerate(TH):
+                d = V(math.cos(th), 0, math.sin(th))
+                h = shoot(c + d * 0.45, -d, hi=0.45, test=lambda q, zz=ZT[i], zb=ZB[i], c=c, d=d: hit_ok(q) and q.z < zz + 0.002 and q.z > zb - 0.012 and (q - c).dot(d) > 0)
+                if h is None: continue
+                r = (h - c).length
+                if d.z > 1e-3: r = min(r, (ZT[i] - ZC[i]) / d.z)
+                R[i, j] = r
+        for i in range(NS):
+            ok_ = np.isfinite(R[i])
+            if ok_.sum() >= NA // 3: R[i] = np.interp(TH, np.r_[TH[ok_] - 2 * np.pi, TH[ok_], TH[ok_] + 2 * np.pi], np.r_[R[i, ok_], R[i, ok_], R[i, ok_]])
+            else: R[i] = R[i - 1] * 0.7 if i else 0.05
+        R0 = R[0].copy()
+        R = np.array([np.median(np.pad(R, ((2, 2), (0, 0)), mode='edge')[i:i + 5], axis=0) for i in range(NS)])
+        for _ in range(3):
+            R = (np.roll(R, 1, 1) + R + np.roll(R, -1, 1)) / 3
+            Rp = np.pad(R, ((1, 1), (0, 0)), mode='edge'); R = (Rp[:-2] + Rp[1:-1] + Rp[2:]) / 3
+        R = R + 0.003; R[0] = np.maximum(R[0], R0 + 0.002)       # 3 mm over his canoe (it stays inside); his cut ring at yA under the new front
+        R[-1] = np.minimum(R[-1], 0.003)
+        PTS = []; RF = np.zeros_like(R); TOPF = []
+        for i, y in enumerate(YS):
+            row = []; tf = []
+            for j, th in enumerate(TH):
+                z = ZC[i] + R[i, j] * math.sin(th); top = z >= ZT[i] - 0.0005
+                p = V(cx + R[i, j] * math.cos(th), y, ZTOP[i] if top else z); row.append(p); tf.append(top)
+                RF[i, j] = math.hypot(p.x - cx, min(z, ZT[i]) - ZC[i])
+            PTS.append(row); TOPF.append(tf)
+            if NF <= i and y > TEy + 0.004:     # its top against the flap's lower skin (3 mm under it): no surface of his there to match
+                SKIPS.setdefault(name + '_Canoe', []).extend((p.copy(), 3) for p, t in zip(row, tf) if t)
+                SKIPS[name + '_Canoe'].extend((p.copy(), 2) for p, t in zip(row, tf) if not t and p.z > ZC[i] + 0.02 and BVH.find_nearest(p)[3] > 0.01)
+        # the moving rear canoe (his texture baked on it)
+        crow = [[M.add(p) for p in row] for row in PTS[NF:]]
+        for i in range(len(crow) - 1):
+            for j in range(NA):
+                j2 = (j + 1) % NA; u0_, u1_ = 0.015 + 0.97 * i / (len(crow) - 1), 0.015 + 0.97 * (i + 1) / (len(crow) - 1); v0_, v1_ = 0.765 + 0.22 * j / NA, 0.765 + 0.22 * (j + 1) / NA
+                M.face([crow[i][j], crow[i][j2], crow[i + 1][j2], crow[i + 1][j]], 'CANOE', [(u0_, v0_), (u0_, v1_), (u1_, v1_), (u1_, v0_)])
+        def endcap(MM, row, flip, mat):          # a flat closed end: a ring 6 mm in, then a fan (smooth outline, no spikes)
+            cen = sum((MM.v[k] for k in row), Vector()) / len(row)
+            inner = [MM.add(MM.v[k] + (cen - MM.v[k]).normalized() * min(0.006, (cen - MM.v[k]).length * 0.3)) for k in row]
+            MM.grid([row, inner], mat, closed=True, flip=not flip); cc = MM.add(cen)
+            for j in range(len(row)): MM.face([inner[j], inner[(j + 1) % len(row)], cc][::-1 if flip else 1], mat)
+        endcap(M, crow[0], False, M_PAINT); endcap(M, crow[-1], True, M_PAINT)
+        lowest = min(p.z for row in PTS for p in row)
+        zfl = float(np.interp(-en.y, -YS, [min(p.z for p in row) for row in PTS]))   # aft support post from the rail's end down onto the new canoe's floor
+        prism(TR, [(-0.04, zfl + 0.001 - en.z), (0.04, zfl + 0.001 - en.z), (0.025, -0.02), (-0.025, -0.02)], V(0, 1, 0), V(0, 0, 1), en, -0.015, 0.015, M_TRACK)
+        REPORT.setdefault('flap_canoe', []).append(dict(cx=round(cx, 3), y=[round(yA, 3), round(Ycut, 3), round(ytip, 3)], lowest_z=round(lowest, 3), hp_z=round(hp.z, 3),
+            front_clear_mm=round(min((Ycut + 0.0035 - turn(p, a_).y) * 1000 if turn(p, a_).z > ZB[NF] - 0.01 else 99 for p in PTS[NF] for a_ in np.linspace(0, OPEN, 31)), 1),
+            rail_min_y=round(min(turn(car, a_).y for a_ in np.linspace(k0, OPEN + 6.0, 25)) - 0.09, 3)))
+        # the fixed front canoe: open top under the flap (a deck with the link's slot closes it), closed aft end
+        frow = [[FX.add(p) for p in row] for row in PTS[:NF]]
+        for i in range(NF - 1):
+            under = YS[i + 1] < yF and YS[i] < yF
+            for j in range(NA):
+                j2 = (j + 1) % NA
+                if under and TOPF[i][j] and TOPF[i][j2] and TOPF[i + 1][j] and TOPF[i + 1][j2]: continue
+                FX.face([frow[i][j], frow[i][j2], frow[i + 1][j2], frow[i + 1][j]], M_PAINT)
+        endcap(FX, frow[-1], True, M_PAINT)
+        def topw(i, sgn):         # the half-width of the open top at station i (its outermost top point on that side)
+            xs = [PTS[i][j].x - cx for j in range(NA) if TOPF[i][j] and (PTS[i][j].x - cx) * sgn >= 0]
+            return max(abs(v) for v in xs) if xs else 0.03
+        IU = [i for i in range(NF) if YS[i] < yF]; YD = YS[IU]; ZD = ZT[IU]
+        WL = [topw(i, -1) for i in IU]; WR = [topw(i, 1) for i in IU]
+        y_se = min(turn(V(cx, car.y + sg * 0.07, refz(cx, car.y) - 0.01), OPEN).y for sg in (-1, 1)) - 0.03
+        y_se = max(y_se, YD[-1] + 0.03); REPORT.setdefault('flap_slot_end', []).append(round(y_se, 3))
+        def strip(xa, xb, ya, yb):      # deck plate 6 mm, its top flush with the canoe's top edge
+            ys_ = sorted(set([ya, yb] + [y for y in YD if ya - 1e-6 <= y <= yb + 1e-6]), reverse=True); rows_ = []
+            for y in ys_:
+                z = float(np.interp(-y, -YD, ZD)); a_, b_ = xa(y), xb(y)
+                rows_.append([FX.add(V(a_, y, z)), FX.add(V(b_, y, z)), FX.add(V(b_, y, z - 0.006)), FX.add(V(a_, y, z - 0.006))])
+            FX.grid(rows_, M_PAINT, closed=True); FX.face(rows_[0][::-1], M_PAINT); FX.face(rows_[-1], M_PAINT)
+        wl = lambda y: cx - float(np.interp(-y, -YD, WL)); wr = lambda y: cx + float(np.interp(-y, -YD, WR))
+        strip(wl, lambda y: cx - 0.03, YD[-1], YD[0]); strip(lambda y: cx + 0.03, wr, YD[-1], YD[0])
+        strip(lambda y: cx - 0.03, lambda y: cx + 0.03, YD[-1], y_se)
+        # his canoe goes from yA to its tip (the new one takes its place): all of it inside the new body, never his wing above
+        def csdf(P, cx=cx, YS=YS, ZC=ZC, ZT=ZT, RF=RF):
+            y = P[:, 1]; t = np.interp(-y, -YS, np.arange(NS)); i = np.clip(np.floor(t).astype(int), 0, NS - 2); w = np.clip(t - i, 0, 1)
+            zc_ = ZC[i] * (1 - w) + ZC[i + 1] * w; dx = P[:, 0] - cx; dz = P[:, 2] - zc_
+            a = np.mod(np.arctan2(dz, dx), 2 * np.pi) / (2 * np.pi) * NA; j = np.floor(a).astype(int) % NA; v = a - np.floor(a); j2 = (j + 1) % NA
+            rf = (RF[i, j] * (1 - v) + RF[i, j2] * v) * (1 - w) + (RF[i + 1, j] * (1 - v) + RF[i + 1, j2] * v) * w
+            zt_ = ZT[i] * (1 - w) + ZT[i + 1] * w; zb_ = zc_ - (RF[i, 3 * NA // 4] * (1 - w) + RF[i + 1, 3 * NA // 4] * w)
+            hw = np.max(RF, axis=1); hw_ = hw[i] * (1 - w) + hw[i + 1] * w
+            col = np.maximum(np.abs(dx) - (hw_ + 0.01), (zb_ - 0.015) - P[:, 2])
+            cap = np.where(y > TEy + 0.004, P[:, 2] - zt_ - 0.001, -1.0)
+            plate = (dx > -0.13) & (dx < 0.08) & (y > YP - 0.12) & (dz < 0)       # his gear-leg door: cut right on the new canoe's skin, it joins there
+            col = np.where(plate, np.maximum(np.abs(dx) - (hw_ + 0.01), zb_ - P[:, 2]), col)
+            return np.maximum.reduce([np.minimum(np.hypot(dx, dz) - (rf + np.where(plate, 0.002, 0.012)), col), cap, y - yA, (YS[-1] - 0.03) - y])
+        def cband(P, cx=cx, y1=YS[-1]):
+            return (np.abs(P[:, 0] - cx) < 0.35) & (P[:, 1] < yA + 0.05) & (P[:, 1] > y1 - 0.1) & (P[:, 2] > 1.9) & (P[:, 2] < 3.6)
+        cut_hole(csdf, lambda P: cband(P) & (P[:, 1] > yA - 0.06) & (np.abs(P[:, 0] - cx) < 0.25), name + '_CanoeFront%d' % len(CARS), refine=0.012)
+        cut_hole(csdf, cband, name + '_Canoe%d' % len(CARS), islands=((cx - 0.3, YS[-1] - 0.1, 1.9), (cx + 0.3, yA - 0.002, 3.45)))
     REPORT['flap_carriages'] = [[round(cx, 3), [round(c, 3) for c in car], k0, o_] for cx, car, k0, o_ in CARS]
     REPORT['flap_rail_points_outside_canoe'] = rail_out
     ob = finish(M, name, hp)
     PARTS[name] = (ob, ('rot', hp, V(1, 0, 0), OPEN))
-    # the cove: shroud lip under the top skin, ceiling, front wall, floor, end ribs; lips under his bottom skin
+    # the cove: shroud lip under the top skin, ceiling, front wall, floor, end ribs; lips under his bottom skin. His skins at the
+    # front line are noisy: the lip follows a smooth line along the span (moved under / over his skin so it never pokes through)
     F = Mesh(); crow = []
-    for x, top, bot in [min(secs, key=lambda q, x=x: abs(q[0] - x)) for x in np.linspace(a0 - 0.008, a1 + 0.008, 60)]:
-        zt, zb = top[0][1], bot[0][1]; h = (zt - zb) / 2; b = min(0.10, 0.6 * h); yW = yF + b + 0.03
+    CS = [min(secs, key=lambda q, x=x: abs(q[0] - x)) for x in np.linspace(a0 - 0.008, a1 + 0.008, 60)]
+    XC = np.array([q[0] for q in CS]); ZTr = np.array([q[1][0][1] for q in CS]); ZBr = np.array([q[2][0][1] for q in CS])
+    ft = np.polyval(np.polyfit(XC, ZTr, 2), XC); fb = np.polyval(np.polyfit(XC, ZBr, 2), XC)
+    ZTs = np.minimum(ft - min(max((ft - ZTr).max(), 0.0), 0.008), ZTr); ZBs = np.maximum(fb + min(max((ZBr - fb).max(), 0.0), 0.008), ZBr)
+    REPORT['flap_cove_lip_dev_mm'] = [round(float(np.abs(ZTs - ft).max()) * 1000, 1), round(float(np.abs(ZBs - fb).max()) * 1000, 1)]
+    for (x, top, bot), zt, zb in zip(CS, ZTs, ZBs):
+        h = (zt - zb) / 2; b = min(0.10, 0.6 * h); yW = yF + b + 0.03
         prof = [(yF + 0.004 + 0.02, zt - 0.004), (yF + 0.004, zt - 0.004), (yF + 0.004, zt - 0.03), (yW, zt - 0.03), (yW, zb + 0.03), (yF + 0.004, zb + 0.03),
                 (yF + 0.004, zb + 0.004), (yF + 0.004 + 0.02, zb + 0.004)]
         crow.append([F.add(V(x, y, z)) for y, z in prof])
@@ -775,34 +928,36 @@ def build_flap():
             q = [it[j], it[j + 1], ib[j + 1], ib[j]]; F.face(q if fl_ else q[::-1], M_COVE)
         q = [it[0], row[1], row[2], row[5], row[6], ib[0]]; F.face(q[::-1] if fl_ else q, M_COVE)   # joined to the cove's end row
     STATIC.append(F.obj('FlapInner_R_Cove'))
-    # the aft canoes (behind the flap's front line) go down with the flap, cut cleanly at yF and closed with a bulkhead each side
-    for i, (c0, c1) in enumerate(CAN):
-        cx = (c0 + c1) / 2; zb0 = float(stn(cx)[3][0])
-        def fband(P, c0=c0, c1=c1):
-            return (P[:, 0] > c0 - 0.08) & (P[:, 0] < c1 + 0.08) & (P[:, 2] > 1.9) & (P[:, 2] < 3.6) & (P[:, 1] < yF + 0.3) & (P[:, 1] > -15.5)
-        def fsdf(P):      # <0: his canoe aft of yF, more than 4 mm under his lower skin
-            rz = np.array([refz(p[0], p[1]) for p in P]) if len(P) else np.zeros(0)
-            return np.maximum(P[:, 1] - yF, P[:, 2] - (rz - 0.004))
-        fo = cut_hole(fsdf, fband, name + '_Fairing%d' % i, keep=name + '_Fairing%d' % i,
-                      cap=(V(cx, yF, zb0 - 0.06), V(0, -1, 0)))
-        if fo is not None:
-            PARTS[fo.name] = (fo, ('rot', hp, V(1, 0, 0), OPEN))
     STATIC.append(TR.obj('FlapInner_R_Tracks'))
-    # his wing in the flap: everything between his top and lower skin of the flap's stations, from yF to the trailing edge
-    def sdf(P):
-        qx = np.abs(P[:, 0] - (a0 + a1) / 2) - (a1 - a0) / 2; qy = P[:, 1] - yF
-        return np.maximum(qx, qy) - 0.002
-    def band(P):
-        ok = (P[:, 0] > a0 - 0.3) & (P[:, 0] < a1 + 0.3) & (P[:, 1] < yF + 0.3) & (P[:, 1] > -14.5)
-        J = np.nonzero(ok)[0]; Q = P[J]; idx = np.clip(np.searchsorted(SX, Q[:, 0]), 0, len(SX) - 1); r_ = np.zeros(len(J), bool)
+    STATIC.append(FX.obj('FlapInner_R_CanoeFixed'))
+    CANX = [((c0 + c1) / 2 - 0.2, (c0 + c1) / 2 + 0.2) for c0, c1 in CAN]
+    def skins(Q):             # his top and lower skin (lower filled over canoes) at the points Q, by the flap's stations
+        idx = np.clip(np.searchsorted(SX, Q[:, 0]), 0, len(SX) - 1); t = np.zeros(len(Q)); b = np.zeros(len(Q)); y0_ = np.zeros(len(Q)); y1_ = np.zeros(len(Q))
         order = np.argsort(idx, kind='stable'); ks, starts = np.unique(idx[order], return_index=True); ends = list(starts[1:]) + [len(order)]
         for k, a_, b_ in zip(ks, starts, ends):
             m = order[a_:b_]; _, ty_, tz_, bz_ = STN[k]; y = Q[m, 1]
-            t = np.interp(-y, -ty_, tz_); b = np.interp(-y, -ty_, bz_)
-            fw = np.maximum(y - ty_[0], 0.0) * 0.35        # ahead of the front line his skins keep rising / falling
-            r_[m] = (Q[m, 2] < t + 0.03 + fw) & (Q[m, 2] > b - 0.03 - fw) & (y > ty_[-1] - 0.015)
-        ok[J] = r_
+            t[m] = np.interp(-y, -ty_, tz_); b[m] = np.interp(-y, -ty_, bz_); y0_[m] = ty_[0]; y1_[m] = ty_[-1]
+        return t, b, y0_, y1_
+    def in_canx(Q):
+        r_ = np.zeros(len(Q), bool)
+        for lo_, hi_ in CANX: r_ |= (Q[:, 0] > lo_) & (Q[:, 0] < hi_) & (Q[:, 1] > Ycut - 0.01)
+        return r_
+    # his wing in the flap: everything between his top and lower skin of the flap's stations, from yF to the trailing edge
+    def sdf(P):               # the flap's place; over the fixed canoe his walls stay up to 4 mm under his lower skin (a clean level cut)
+        qx = np.abs(P[:, 0] - (a0 + a1) / 2) - (a1 - a0) / 2; qy = P[:, 1] - yF
+        r_ = np.maximum(qx, qy) - 0.002; m = in_canx(P)
+        if m.any(): r_[m] = np.maximum(r_[m], (skins(P[m])[1] - 0.004) - P[m, 2])
+        return r_
+    def band(P):
+        ok = (P[:, 0] > a0 - 0.3) & (P[:, 0] < a1 + 0.3) & (P[:, 1] < yF + 0.9) & (P[:, 1] > -14.5)
+        J = np.nonzero(ok)[0]; Q = P[J]; t, b, y0_, y1_ = skins(Q); y = Q[:, 1]
+        fw = np.maximum(y - y0_, 0.0) * 0.35        # ahead of the front line his skins keep rising / falling
+        dn = np.where(in_canx(Q), 0.08, 0.03)
+        ok[J] = (Q[:, 2] < t + 0.03 + fw) & (Q[:, 2] > b - dn - fw) & (y > y1_ - 0.015)
         return ok
+    def spare(comp):          # his fixed canoe's pieces (under his lower skin, ahead of the cut) stay
+        c = comp[0].calc_center_median(); Q = np.array([c[:]])
+        return bool(in_canx(Q)[0]) and c.z < skins(Q)[1][0] - 0.004
     def inside(P):            # in the flap's place: between his skins (lower one filled over canoes / holes), aft of the front line
         r_ = np.zeros(len(P), bool)
         for i_, q in enumerate(P):
@@ -811,9 +966,27 @@ def build_flap():
             if q[1] < ty_[-1] - 0.01: continue
             r_[i_] = float(np.interp(-q[1], -ty_, bz_)) + 0.003 < q[2] < float(np.interp(-q[1], -ty_, tz_)) + 0.03
         return r_
-    cut_hole(sdf, band, name, refine=0.025, islands=((a0 - 0.02, -15.0, 2.3), (a1 + 0.02, yF + 0.01, 4.2)),   # only bits in the hole: a wider box took his own skin patches ahead of it (notches)
+    cut_hole(sdf, band, name, islands=((a0 - 0.02, -15.0, 2.3), (a1 + 0.02, yF + 0.01, 4.2), spare),   # only bits in the hole: a wider box took his own skin patches ahead of it (notches)
             
              inside=((a0 - 0.05, -15.0, 2.3), (a1 + 0.05, yF + 0.05, 4.2), inside))
+    # his pylon tail fairing reaches under the flap's front (the flap would swing through it): it ends square at the flap's
+    # front line, closed with a flat cap
+    PYX = (4.75, 6.45)
+    psdf = lambda P: P[:, 1] - (yF - 0.003)
+    pband = lambda P: (P[:, 0] > PYX[0]) & (P[:, 0] < PYX[1]) & (P[:, 1] > -13.3) & (P[:, 1] < yF + 0.4) & (P[:, 2] > 2.3) & (P[:, 2] < 3.6)
+    cut_hole(psdf, pband, name + '_PylonTail', cap=((5.6, yF - 0.003, 3.0), V(0, 1, 0)),
+             islands=((PYX[0], -13.4, 2.3), (PYX[1], yF - 0.002, 3.6)))
+    # his stray bits hanging under the flap's lower skin (seen once it opens): out of the fixed canoe and the fairing they go
+    bm = bmesh.new(); bm.from_mesh(o.data); bm.transform(MW); und = []
+    for f_ in bm.faces:
+        q = f_.calc_center_median()
+        if not (a0 + 0.3 < q.x < PYX[0] and q.y < yF - 0.004) or any(abs(q.x - c_[0]) < 0.2 for c_ in CARS): continue
+        _, ty_, tz_, bz_ = stn(q.x)
+        if q.y < ty_[-1] - 0.01: continue
+        zb_ = float(np.interp(-q.y, -ty_, bz_))
+        if zb_ - 0.3 < q.z < zb_ + 0.003: und.append(f_)
+    bmesh.ops.delete(bm, geom=und, context='FACES'); REPORT['flap_under_bits_removed'] = len(und)
+    bm.transform(MW.inverted()); bm.to_mesh(o.data); bm.free()
     return ob
 
 # ================================================================== main wheels: clean tyres and rims in his place and size
@@ -965,15 +1138,19 @@ built = {}
 for nm, fn in (('cowl', build_cowl), ('door', build_door), ('flap', build_flap)):
     if ONLY and nm not in ONLY.split(','): continue
     import time; _t = time.time(); built[nm] = fn(); print('BUILT', nm, round(time.time() - _t), REPORT.get('refined'), flush=True)
-for sd in ('_L', '_R'): build_wheels(sd)
+if os.environ.get('ADP_NOWHEELS') != '1':
+    for sd in ('_L', '_R'): build_wheels(sd)
 for nm, ob in built.items():
     measure(ob, ob.name, 'A320C_%s_Skin' % ob.name)
+    if 'A320C_%s_CanoeSkin' % ob.name in ob.data.materials: measure(ob, ob.name + '_Canoe', 'A320C_%s_CanoeSkin' % ob.name)
     if os.environ.get('ADP_NOBAKE') != '1': bake(ob, *SKINS[ob.name]); print('BAKED', nm, flush=True)
 REPORT['note'] = 'closed check: distance of each part outer skin (incl. its 4 mm rolled edge) to his ORIGINAL surface, before the cut, in mm'
 json.dump(REPORT, open(os.path.join(HERE, 'a320-clean-check.json'), 'w'), indent=1)
 bpy.data.objects.remove(src)
 for ob in bpy.data.objects:
     if ob.get('open_only'): ob.hide_render = True
+if os.environ.get('ADP_POST'):      # a look at the result (own renders to a scratch folder), nothing saved
+    exec(open(os.environ['ADP_POST']).read()); raise SystemExit
 if os.environ.get('ADP_NOSAVE') != '1': bpy.ops.wm.save_as_mainfile(filepath=os.path.join(HERE, 'A320-clean.blend'))
 if os.environ.get('ADP_GLB'):
     bpy.ops.object.select_all(action='DESELECT')
