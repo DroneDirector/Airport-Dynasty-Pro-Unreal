@@ -410,6 +410,7 @@ void PaxNav::Start(UWorld* W, const FTerminalPlan& Plan, const FBox& Landside)
 	Land(17.f, -150.f, 133.f, -14.f);
 	Land(133.f, -14.f, 344.f, 1.f);      // (along the east side's front)
 	Land(344.f, -14.f, 555.f, 1.f);
+	Land(2020.f, -1820.f, 2340.f, -1510.f);   // (the town coach hub, to-do 373: shelter, bays and the hub's way out - roads TOWN-HUB, -SPUR, -STREET)
 	(void)Landside;   // (PaxFlow's own landside box: the two above cover it, smaller)
 	// ready-made for exactly this terminal: loaded in a moment, nothing generated
 	GKey = MakeKey(NS, Boxes);
