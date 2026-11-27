@@ -96,11 +96,19 @@ void AGSE::WalkOutlines(TArray<FOutline>& Out) const
 bool AGSE::MechSpots(const FString& Reg, const FHallStair& H, int32 Want, TArray<FMechSpot>& Spots, TArray<FOutline>& Keep) const
 {
 	Spots.Reset(); Keep.Reset();
-	const AActor* Pl = H.Plane.Get(); const UADPSim* Sim = UADPSim::Get(GetWorld());
-	if (!Pl || !Sim) { ADP_WARN(TEXT("GSE: %s in hangar %s - no aircraft model to work at, the mechanics stand by the nose"), *Reg, *H.Hall); return false; }
+	const UADPSim* Sim = UADPSim::Get(GetWorld());
+	if (!H.Plane.IsValid() || !Sim) { ADP_WARN(TEXT("GSE: %s in hangar %s - no aircraft model to work at, the mechanics stand by the nose"), *Reg, *H.Hall); return false; }
 	const FADPAircraft* Ac = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Reg; });
-	const ADPMaint::FFault* Ft = Ac ? ADPMaint::Fault(Ac->CheckFault) : nullptr;
-	if (!Ac || !Ft) { ADP_WARN(TEXT("GSE: %s's check has no known fault (%s) - the mechanics stand by the nose"), *Reg, Ac ? *Ac->CheckFault : TEXT("?")); return false; }
+	return MechSpotsAt(Reg, H.Plane.Get(), Ac ? Ac->CheckFault : FString(), Want, Spots, Keep);
+}
+
+bool AGSE::MechSpotsAt(const FString& Reg, const AActor* Pl, const FString& FaultKey, int32 Want, TArray<FMechSpot>& Spots, TArray<FOutline>& Keep) const
+{
+	Spots.Reset(); Keep.Reset();
+	const UADPSim* Sim = UADPSim::Get(GetWorld()); if (!Pl || !Sim) return false;
+	const FADPAircraft* Ac = Sim->World.Aircraft.FindByPredicate([&](const FADPAircraft& X) { return X.Reg == Reg; });
+	const ADPMaint::FFault* Ft = ADPMaint::Fault(FaultKey);
+	if (!Ac || !Ft) { ADP_WARN(TEXT("GSE: %s's job has no known fault (%s) - nobody works at its parts"), *Reg, *FaultKey); return false; }
 	// the type's entry; else the model it is drawn with; else the A320's to the model's real size (logged once each)
 	static TSet<FString> Told;
 	const TMap<FString, FMwType>& All = MwTypes();
@@ -141,7 +149,7 @@ bool AGSE::MechSpots(const FString& Reg, const FHallStair& H, int32 Want, TArray
 	}
 	// the fault's areas; a single fault one side of them (the same side for the same aircraft), a routine check all
 	TArray<FString> Areas; FString(Ft->Areas).ParseIntoArray(Areas, TEXT(","));
-	const bool bRoutine = Ac->CheckFault == TEXT("acheck") || Ac->CheckFault == TEXT("ccheck") || Ac->CheckFault == TEXT("dcheck");
+	const bool bRoutine = FaultKey == TEXT("acheck") || FaultKey == TEXT("ccheck") || FaultKey == TEXT("dcheck");
 	TArray<TArray<const FMwPoint*>> Groups;
 	for (const FString& Ar : Areas)
 	{
@@ -162,6 +170,7 @@ bool AGSE::MechSpots(const FString& Reg, const FHallStair& H, int32 Want, TArray
 	auto Free = [&](const FVector& P)
 	{
 		for (const FMechSpot& S : Spots) if (FVector::Dist2D(S.At, P) < MwApart) return false;
+		if (MechMe.Reg == Reg && FVector::Dist2D(MechMe.S.At, P) < MwApart) return false;   // (your place: GSEMechYou.cpp)
 		for (const FOutline& O : Veh)
 		{
 			const FVector D = P - O.C;
@@ -188,39 +197,47 @@ bool AGSE::MechSpots(const FString& Reg, const FHallStair& H, int32 Want, TArray
 	return Spots.Num() > 0;
 }
 
-void AGSE::MechWork(int32 Ci, const FString& Reg, const FMechSpot& S)
+void AGSE::MechHands(const FVector& Me, const FVector& Face, float Hands, bool bHold, float T, FVector& L, FVector& R)
+{
+	const float Hh = FMath::Clamp(Hands, 45.f, 195.f);
+	const FVector Lf = ADPPose::LeftOf(Face), Base = Me + Face * (Hh > 150.f ? 30.f : 45.f) + FVector(0, 0, Hh);
+	if (bHold)
+	{
+		const float Sway = FMath::Sin(T * 0.7f) * 1.5f;   // (steady: a part held in place)
+		L = Base + Lf * (18.f + Sway); R = Base - Lf * (18.f - Sway);
+	}
+	else
+	{
+		const float A = T * 2.f * PI * 1.2f;   // (a tool turned: the right hand round in small circles, the left on the part)
+		L = Base + Lf * 20.f; R = Base - Lf * 6.f + (Lf * FMath::Cos(A) + FVector(0, 0, 1) * FMath::Sin(A)) * 5.f;
+	}
+}
+
+void AGSE::MechWork(int32 Ci, const FString& Reg, TSharedRef<FMechSpot> S)
 {
 	// at the place: turned to the part, then the work loop until the check is over (a simple pose on hooks - the full
 	// animation of each job can come later)
 	ATugs* G = Tg(); if (!G || !G->Crew.IsValidIndex(Ci)) return;
-	TSharedRef<FVector> Me = MakeShared<FVector>(S.At);
+	TSharedRef<FVector> Me = MakeShared<FVector>(S->At);
 	const FString Who = G->Crew[Ci].Name;
 	Do(Ci, [this, Ci, Reg, S, Me, Who]
 	{
 		ATugs* Gt = Tg(); const AActor* A = Gt && Gt->Crew.IsValidIndex(Ci) ? Gt->Crew[Ci].A.Get() : nullptr; if (!A) return;
-		const float Off = FVector::Dist2D(A->GetActorLocation(), S.At);
-		*Me = FVector(A->GetActorLocation().X, A->GetActorLocation().Y, S.At.Z);   // (where they stopped: no jump into the place)
-		if (Off > 100.f) ADP_WARN(TEXT("GSE: %s stopped %.1f m short of the %s on %s - works from there (stuck?)"), *Who, Off / 100.f, *S.What, *Reg);
-		else ADP_LOG(TEXT("GSE: %s at the %s on %s (%s)"), *Who, *S.What, *Reg, S.bHold ? TEXT("holds") : TEXT("fastens"));
+		S->bThere = true;   // (from now on the place is theirs: you cannot take it - GSEMechYou.cpp)
+		const float Off = FVector::Dist2D(A->GetActorLocation(), S->At);
+		*Me = FVector(A->GetActorLocation().X, A->GetActorLocation().Y, S->At.Z);   // (where they stopped: no jump into the place)
+		if (!S->bWork) ADP_LOG(TEXT("GSE: %s stands by %s - no free place at its job"), *Who, *Reg);
+		else if (Off > 100.f) ADP_WARN(TEXT("GSE: %s stopped %.1f m short of the %s on %s - works from there (stuck?)"), *Who, Off / 100.f, *S->What, *Reg);
+		else ADP_LOG(TEXT("GSE: %s at the %s on %s (%s)"), *Who, *S->What, *Reg, S->bHold ? TEXT("holds") : TEXT("fastens"));
 	});
-	const FVector Face = S.Face; const float Hh = FMath::Clamp(S.Hands, 45.f, 195.f); const bool bHold = S.bHold;
 	UWorld* Wd = GetWorld();
-	auto Work = [Me, Face, Hh, bHold, Wd](float E, float PH, FDriverPose& P)
+	auto Work = [Me, S, Wd](float E, float PH, FDriverPose& P)
 	{
-		const FVector L = ADPPose::LeftOf(Face), Base = *Me + Face * (Hh > 150.f ? 30.f : 45.f) + FVector(0, 0, Hh);
-		const float T = Wd ? float(Wd->GetTimeSeconds()) : 0.f;
-		if (bHold)
-		{
-			const float Sway = FMath::Sin(T * 0.7f) * 1.5f;   // (steady: a part held in place)
-			P = ADPPose::Both(*Me, Face, Base + L * (18.f + Sway), Base - L * (18.f - Sway), 0.9f, PH, E, 8.f);
-		}
-		else
-		{
-			const float A = T * 2.f * PI * 1.2f;   // (a tool turned: the right hand round in small circles, the left on the part)
-			const FVector Turn = (L * FMath::Cos(A) + FVector(0, 0, 1) * FMath::Sin(A)) * 5.f;
-			P = ADPPose::Both(*Me, Face, Base + L * 20.f, Base - L * 6.f + Turn, 0.85f, PH, E, 10.f);
-			P.LookHand = 1; P.LookW = 0.7f * E;
-		}
+		// (the place read now: it may have been changed for them before they got there - you took theirs)
+		const float T = Wd ? float(Wd->GetTimeSeconds()) : 0.f, Ew = S->bWork ? E : 0.f;   // (standing by: no work pose)
+		FVector L, R; MechHands(*Me, S->Face, S->Hands, S->bHold, T, L, R);
+		P = ADPPose::Both(*Me, S->Face, L, R, S->bHold ? 0.9f : 0.85f, PH, Ew, S->bHold ? 8.f : 10.f);
+		if (!S->bHold) { P.LookHand = 1; P.LookW = 0.7f * Ew; }
 	};
 	PoseAct(Ci, [Work](float K, float PH, FDriverPose& P) { Work(FMath::SmoothStep(0.f, 1.f, K), PH, P); }, 0.8f);
 	Hold(Ci, [Work](float, float PH, FDriverPose& P) { Work(1.f, PH, P); });

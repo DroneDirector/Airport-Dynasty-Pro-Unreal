@@ -653,6 +653,13 @@ void AADPHUD::BeginPlay()
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Center)[UnstuckPanel.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Left).VAlign(VAlign_Bottom).Padding(FMargin(24, 0, 0, 84))[DeviceLegend.ToSharedRef()]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 36))[PanelHint.ToSharedRef()]   // (above a computer's taskbar)
+		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 170))
+		[
+			// at a work place of a job on an aircraft (GSEMechYou.cpp, hangar step 5): what E / X does there
+			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.05f, 0.09f, 0.78f)).Padding(FMargin(14, 7))
+			.Visibility_Lambda([this]() { return !AGSE::MechPrompt().IsEmpty() && !bGame && HintLeft <= 0.f ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			[SNew(STextBlock).Font(FCoreStyle::GetDefaultFontStyle("Regular", 12)).ColorAndOpacity(FLinearColor(0.9f, 0.96f, 1.f)).Text_Lambda([]() { return FText::FromString(AGSE::MechPrompt()); })]
+		]
 		+ SOverlay::Slot().HAlign(HAlign_Center).VAlign(VAlign_Bottom).Padding(FMargin(0, 0, 0, 120))
 		[
 			SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush")).BorderBackgroundColor(FLinearColor(0.02f, 0.05f, 0.09f, 0.82f)).Padding(FMargin(16, 9))
@@ -2058,6 +2065,8 @@ void AADPHUD::Interact()
 	if (ASeats::IsSitting()) { ASeats::Interact(GetOwningPawn()); return; }
 	// the wash hose in your hand: the left mouse button sprays (WashHose.h), E / X hangs it back up
 	if (AWashHose::Held()) { if (!PC->IsInputKeyDown(EKeys::LeftMouseButton)) AWashHose::Interact(GetOwningPawn(), nullptr); return; }
+	// at a work place of a job on one of your aircraft: E / X takes it beside the mechanics, or leaves yours (GSEMechYou.cpp)
+	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && !AGSE::MechPrompt().IsEmpty()) if (AGSE* Gm = AGSE::Find(GetWorld())) { FString Say; if (Gm->MechUse(GetOwningPawn(), Say)) { if (!Say.IsEmpty()) Hint(Say); return; } }
 	FVector Eye; FRotator Look;
 	PC->GetPlayerViewPoint(Eye, Look);
 	FHitResult Hit;

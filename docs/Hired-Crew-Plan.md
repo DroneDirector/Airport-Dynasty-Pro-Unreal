@@ -1105,6 +1105,14 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Work: simple pose loop on hooks (holder: both hands steady at the part; fastener: one hand turning a tool, looks at it). Full job animations, work stands for flaps/tail (hands now capped at 1.95 m) and tools/jacks: later.
 - Not verified: everything in a run (places vs the real model and hall walls, walk round the gear, poses).
 
+### You at the fault (hangar step 5, 2026-11-27, compiled, NOT run)
+- GSEMechYou.cpp: within 1.5 m of a free work place (a check running in a hall, or a fault/check of yours still waiting for crew where the aircraft stands, model tagged SIM/<reg>) the prompt "E / X  Work here (place, hold/fasten)" shows (native Slate, ADPHUD); E / X takes it.
+- ADPMaint::YouJoin/YouLeave/YouMay: you are one pair of hands like a hired mechanic, up to the job's CrewMax ("full crew" otherwise). Running check: time left x hands/(hands+1); leaving: back. Waiting job: StartCheck tried at once with you counted (starts if you were the missing hand), else it waits with you there. CheckCrew stays hired-only; your hands are not saved.
+- A mechanic still walking to your place gets another free place of the job (shared FMechSpot per man) or stands by in the row; a place a mechanic stands at is never yours.
+- At work: your arms run the mechanics' own loop (AGSE::MechHands, SetArm/SetArmL); E / X again, walking > 1.5 m away, the aircraft moved (tow to the hall) or the job ending leaves. Every take/leave/start logged ("GSE: you ...", "Maintenance: ... you ...").
+- Not done: outline glow on a work place (no part mesh there yet), body lean / full work pose for you (arms only), a stood-by mechanic going back when you leave, a pause if you leave a check nobody hired is on (it goes on at one pair's pace, logged).
+- Not verified: everything in a run.
+
 ### Hangar clear path (owner 2026-11-27)
 Nothing stands in the aircraft's way when it is towed in or out of a hall. Before a tow the mechanics move every stand, jack, cart, ladder, tool chest and the hangar stair out of the swept path (wingtips, tail, nose plus a margin) to wall spots, and people step clear. The doors open and the tug moves only once the path is checked clear; otherwise the tow waits and says why. After parking, chocks and doors closed, the equipment is moved into place at the fault, and all moved away again before the tow out. The player uses the same rule.
 

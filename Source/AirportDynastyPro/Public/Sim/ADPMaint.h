@@ -61,6 +61,14 @@ namespace ADPMaint
 	/** A check's length in game hours for that mode: Real = RealH (crew and beginners already in it); Fast times Hands
 	 *  (HandsFor's factor: more hands, shorter); Quick 30 minutes whatever the crew. */
 	double CheckHours(const FString& FaultKey, double RealH, int32 Mode, double Hands = 1.0);
+	/** You at work on a job (hangar step 5, GSEMechYou.cpp): one pair of hands like a hired mechanic, up to the job's most.
+	 *  YouMay: may you count on it now (Why: not now / full crew). YouJoin: your hands on it - a running check shorter for
+	 *  them, a waiting one started at once if you were the hand it lacked (Said: what happened). YouLeave: off it again (the
+	 *  check goes on with its hired crew, longer again). YouOn: you are on that aircraft's job. Only one job at a time. */
+	bool YouMay(const FADPWorld& W, const FADPAircraft& A, const FDateTime& Now, FString& Why);
+	bool YouJoin(FADPWorld& W, FADPAircraft& A, const FDateTime& Now, FString& Said);
+	void YouLeave(FADPWorld& W, FADPAircraft& A, const FDateTime& Now);
+	bool YouOn(const FString& Reg);
 	/** A fault found in flight (FaultDue): its kind for the flights module's failures (engine, tailstrike, hydraulic, minor). */
 	FString RollFault(const TCHAR* What, double Roll01);
 }

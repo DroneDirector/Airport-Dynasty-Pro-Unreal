@@ -54,7 +54,7 @@ void AGSE::MechStart(const FString& Reg, const FHallStair& H)
 	if (!Sp->AskTeam(Key, EStaffTask::Maint, Sim->Now(), Gate, What, Team)) { Say(FString::Printf(TEXT("no mechanic comes yet: %s"), *Sp->WaitsFor(Key))); return; }
 	while (Team.Num() && Team.Num() < Want) { UStaffPeople::FTaken X; if (!Sp->AskExtra(EStaffDuty::Mechanic, Gate, What, X)) break; Team.Add(X); }
 	FMechCrew C; C.Hall = H.Hall;
-	TArray<FMechSpot> Spots; MechSpots(Reg, H, FMath::Min(Want, Team.Num()), Spots, C.Keep);   // (their places at the fault; the gear and engines to walk round)
+	MechSpots(Reg, H, 64, C.All, C.Keep);   // (every place at the fault in order - theirs first, the rest free for you; the gear and engines to walk round)
 	for (const UStaffPeople::FTaken& X : Team)
 	{
 		const int32 Ci = G->Enlist(X.A.Get(), X.Id, UStaffPeople::DutyName(X.Duty));
@@ -62,18 +62,22 @@ void AGSE::MechStart(const FString& Reg, const FHallStair& H)
 		G->Crew[Ci].bGse = true; C.Men.Add(Ci);
 	}
 	if (!C.Men.Num()) { Say(TEXT("no place for its mechanics")); return; }
+	const float Xs = FMath::Min(MkAcross, Hf - MkWall);
+	for (int32 m = 0; m < C.Men.Num(); ++m)
+	{
+		// (each one's place, shared with their walk and work: changed for them if you take it first - GSEMechYou.cpp)
+		FMechSpot P; if (C.All.IsValidIndex(m)) P = C.All[m]; else { P.At = HallP(H, Sd * Xs, MkStep * m - 1.f); P.bWork = false; P.What = TEXT("stand-by row"); }
+		C.Places.Add(MakeShared<FMechSpot>(P));
+	}
 	MechWhy.Remove(Reg);
 	MechCrews.Add(Reg, C);
 	bWorked = true;
 	ADP_LOG(TEXT("GSE: %s's check - %d of its mechanics go to hangar %s (wanted %d)"), *Reg, C.Men.Num(), *H.Hall, Want);
 	const FString Hall = H.Hall;
-	const float Xs = FMath::Min(MkAcross, Hf - MkWall);
 	for (int32 m = 0; m < C.Men.Num(); ++m)
 	{
 		const int32 Ci = C.Men[m];
-		const bool bAt = Spots.IsValidIndex(m);
-		const FMechSpot Ws = bAt ? Spots[m] : FMechSpot();
-		const FVector Spot = bAt ? Ws.At : HallP(H, Sd * Xs, MkStep * m - 1.f);   // (at the fault; else beside the nose, the row along the aircraft)
+		const TSharedRef<FMechSpot> Pm = C.Places[m];   // (at the fault; else beside the nose, the row along the aircraft)
 		auto Out = [this, Reg, Hall, Ci, Gate, In]
 		{
 			// the check over: out through the door (opened if it is shut), then home by van
@@ -93,13 +97,14 @@ void AGSE::MechStart(const FString& Reg, const FHallStair& H)
 				Later([this, Ci, Gone] { if (!VanRide(Ci, VanDropSouth(INDEX_NONE, 0.f), TEXT("mechanic"), Gone)) Gone(); });
 			});
 		};
-		auto Rest = [this, Reg, Hall, Ci, Gate, In, Spot, Out, bAt, Ws]
+		auto Rest = [this, Reg, Hall, Ci, Gate, In, Pm, Out]
 		{
 			WalkTo(Ci, [Gate] { return Gate; }, 60.f);
 			WaitFor(Ci, [this, Reg, Hall](float) { const FHallStair* X = HallNamed(Hall); if (!X) return true; MechDoor(*X, Reg + TEXT("'s mechanics")); return HallOpen(*X) > 0.6f; });   // (never through a shut door)
 			WalkTo(Ci, [In] { return In; }, 40.f);
-			WalkTo(Ci, [Spot] { return Spot; }, 30.f);
-			if (bAt) MechWork(Ci, Reg, Ws);
+			WalkTo(Ci, [Pm] { return Pm->At; }, 30.f);
+			if (Pm->bWork) MechWork(Ci, Reg, Pm);
+			else Do(Ci, [Pm] { Pm->bThere = true; });
 			Do(Ci, [this, Reg]
 			{
 				FMechCrew* K = MechCrews.Find(Reg);

@@ -810,11 +810,31 @@ private:
 	TArray<FHallStair> HallStairs;
 	TMap<int32, float> MaintHallX;   // (a rider's job: down in that hall, the hall stair's key)
 	// ---- a check's hired mechanics in the hall (GSEMechanics.cpp, to-do 311): by van to the hall, they stand by the aircraft, back by van
-	struct FMechCrew { FString Hall; TArray<int32> Men; uint8 Phase = 1; int32 There = 0, Out = 0, Home = 0; double OutAt = 0.0; TArray<FOutline> Keep; };   // (Phase 1 going in, 2 by the aircraft, 3 walking out, 4 out of the hall; Keep: its aircraft's gear and engines)
+	struct FMechSpot { FVector At = FVector::ZeroVector, Face = FVector(1, 0, 0); float Hands = 100.f; bool bHold = true; FString What; bool bWork = true, bThere = false; };   // (bWork false: standing by; bThere: arrived)
+	struct FMechCrew { FString Hall; TArray<TSharedRef<FMechSpot>> Places; TArray<FMechSpot> All; TArray<int32> Men; uint8 Phase = 1; int32 There = 0, Out = 0, Home = 0; double OutAt = 0.0; TArray<FOutline> Keep; };   // (Phase 1 going in, 2 by the aircraft, 3 walking out, 4 out of the hall; Keep: its aircraft's gear and engines)
 	// ---- where they work on it (GSEMechWork.cpp, hangar step 4): the fault's own place from Data/aircraft-workpoints.json
-	struct FMechSpot { FVector At = FVector::ZeroVector, Face = FVector(1, 0, 0); float Hands = 100.f; bool bHold = true; FString What; };
 	bool MechSpots(const FString& Reg, const FHallStair& H, int32 Want, TArray<FMechSpot>& Spots, TArray<FOutline>& Keep) const;
-	void MechWork(int32 Ci, const FString& Reg, const FMechSpot& S);
+	/** The same for any aircraft model Pl and job FaultKey (ADPMaint's fault table key): a job still waiting for its crew too. */
+	bool MechSpotsAt(const FString& Reg, const AActor* Pl, const FString& FaultKey, int32 Want, TArray<FMechSpot>& Spots, TArray<FOutline>& Keep) const;
+	void MechWork(int32 Ci, const FString& Reg, TSharedRef<FMechSpot> S);
+	/** The work pose's hands at a place (the same loop for the hired mechanics and for you): holder both on the part, fastener
+	 *  the left on the part and the right turning a tool beside it. */
+	static void MechHands(const FVector& Me, const FVector& Face, float Hands, bool bHold, float T, FVector& L, FVector& R);
+	// ---- you at work beside them (GSEMechYou.cpp, hangar step 5): E / X at a free work place of a job
+	struct FMechYou { FString Reg; FMechSpot S; TWeakObjectPtr<AActor> Plane; FVector PlaneAt = FVector::ZeroVector; };
+	FMechYou MechMe;                       // (Reg empty: not at work)
+	static FString MechTip;                // (the prompt now, read by the HUD each frame: empty when there is nothing to take or leave)
+	FMechSpot MechNear; FString MechNearReg; TWeakObjectPtr<AActor> MechNearPlane; bool bMechNearOk = false;
+	float MechLookT = 0.f, MechFindT = 0.f;
+	TMap<FString, TWeakObjectPtr<AActor>> MechWaiting;   // (your aircraft whose job waits for crew, by registration: their models here)
+	TMap<FString, TArray<FMechSpot>> MechWaitSpots;      // (and their work places, found with them every 2 s)
+	void MechYouTick(float Dt);
+	void MechYouLeave(const TCHAR* Why);
+public:
+	/** E / X by a work place: take it, or leave yours. Say: a short line to show. */
+	bool MechUse(APawn* Me, FString& Say);
+	static const FString& MechPrompt() { return MechTip; }
+private:
 	TMap<FString, FMechCrew> MechCrews;   // (by registration)
 	TMap<FString, double> MechTry;        // (by registration: when a team was last asked for - every 5 s)
 	TMap<FString, FString> MechWhy;       // (why it has none: logged once each)
