@@ -433,7 +433,7 @@ def xz_to_xt(pts, side):
     out = []
     for (xx, zz) in pts:
         xx = min(max(xx, X_NOSE * .4), L - .02)
-        zz = min(max(zz, ZBOT(xx) + .06), ZTOP(xx) - .028)
+        zz = min(max(zz, ZBOT(xx) + .06), ZTOP(xx) - .090)
         out.append((xx, t_of_z(xx, zz, side)))
     return out
 
@@ -447,9 +447,27 @@ def cut_loop(name, loop_xt, dep, pad=.085, kind='cockpit', liploop=None):
                      dep=dep))
     return CUTS[-1]
 
+# The published cockpit band (x 1.13-2.65, z 4.16-4.95) does not fit the published nose
+# profile: at x 1.13 the crown is only z 4.25, so that band would run over the top of the
+# nose. The published z values and the window shapes are kept; the three windows are moved
+# aft together by the smallest amount that keeps the frames CK_CLR below the crown.
+CK_CLR = .135
+def _ck_shift():
+    pts = [q for _, poly, _ in CKWIN for q in poly]
+    d = 0.0
+    while d < 4.0:
+        if all(zz <= ZTOP(xx + d) - CK_CLR for (xx, zz) in pts): return round(d, 3)
+        d += .005
+    return d
+CK_DX = _ck_shift()
+print('A320NEO-STEP1 cockpit windows moved aft by %.3f m to clear the crown' % CK_DX)
+CKWIN = [(nm, [(xx + CK_DX, zz) for (xx, zz) in poly], rr_) for nm, poly, rr_ in CKWIN]
+
 CKCUTS = []
 for nm, poly, rr_ in CKWIN:
-    base = round_poly(poly, rr_)
+    # keep the outline (and the 40 mm frame round it) clear of the crown, so the frame follows
+    # the nose and no two offset loops collapse onto the same clamped line
+    base = [(xx, min(zz, ZTOP(xx) - .135)) for (xx, zz) in round_poly(poly, rr_)]
     for sd, sg in (('L', -1), ('R', 1)):         # the same (x, z) outline on both sides:
         hole = xz_to_xt(base, sg)                             # t_of_z(+1) and t_of_z(-1) are
         lip = xz_to_xt(off_poly(base, -.008), sg)             # exact mirrors of each other
@@ -625,21 +643,19 @@ def build_cockpit_windows(holes):
         a2 = loop_mesh(V, F, P(CKFRAME - .008), CKPROUD)  # bevelled outer edge of the lip
         a3 = loop_mesh(V, F, P(.010), CKPROUD)            # flat top of the lip
         a4 = loop_mesh(V, F, P(-.006), CKPROUD - .014)    # bevel down to the glass
-        a5 = loop_mesh(V, F, P(-.006), -.005)             # inner wall, through the hole
-        a6 = loop_mesh(V, F, P(.016), -.005)              # the shelf the pane beds on
-        a7 = loop_mesh(V, F, P(.016), -.030)
-        a8 = loop_mesh(V, F, P(CKFRAME), -.030)           # flange behind the skin
+        a5 = loop_mesh(V, F, P(-.006), -.036)             # inner wall, down past the pane
+        a6 = loop_mesh(V, F, P(.016), -.036)              # the shelf the pane beds on
+        a7 = loop_mesh(V, F, P(.016), -.056)
+        a8 = loop_mesh(V, F, P(CKFRAME), -.056)           # flange behind the skin
         F += (bridge(a1, a2) + bridge(a2, a3) + bridge(a3, a4) + bridge(a4, a5)
               + bridge(a5, a6) + bridge(a6, a7) + bridge(a7, a8) + bridge(a8, a1))
         port.append(add('A320N_Cockpit_WindowFrame_%s_L' % nm, V, F, MT['grey'], bevel=.003))
         V, F = [], []                               # the pane: 22 mm thick, under the frame shelf
-        pane = P(.006)
-        o = loop_mesh(V, F, pane, -.006)
-        i = loop_mesh(V, F, pane, -.026)
-        cb = len(V); xs = [p[0] for p in pane]; ts = [p[1] for p in pane]
-        V.append(soff(sum(xs) / len(xs), sum(ts) / len(ts), -.006)); F += fan(o, cb)
-        cb = len(V)
-        V.append(soff(sum(xs) / len(xs), sum(ts) / len(ts), -.026)); F += fan(i, cb, True)
+        pane = P(.004)                          # rim bites through the frame shelf
+        xs = [q[0] for q in pane]; ts = [q[1] for q in pane]
+        pxc = sum(xs) / len(xs); ptc = sum(ts) / len(ts)
+        o = disc_on_surface(V, F, pane, pxc, ptc, -.020)   # follows the nose contour, so the
+        i = disc_on_surface(V, F, pane, pxc, ptc, -.042, flip=True)   # glass never breaks the skin
         F += bridge(o, i, flip=True)
         port.append(add('A320N_Cockpit_WindowPane_%s_L' % nm, V, F, MT['glass']))
     # DV window: the sliding window's upper and lower rails and its handle (port, then mirrored)
@@ -651,7 +667,7 @@ def build_cockpit_windows(holes):
         box_in_xz(V, F, xa - .02, xb + .03, z0, z0 + .016, -1, .006, -.012, 10, 2)
         port.append(add('A320N_Cockpit_DVRail_%s_L' % tag, V, F, MT['steel'], bevel=.002))
     V, F = [], []
-    box_in_xz(V, F, xb - .12, xb - .04, zl + .03, zl + .09, -1, .018, -.008, 4, 3)
+    box_in_xz(V, F, xb - .12, xb - .04, zl - .036, zl - .004, -1, .040, -.012, 4, 3)
     port.append(add('A320N_Cockpit_DVHandle_L', V, F, MT['steel'], bevel=.004))
     for ob in port:
         mirror_y(ob, ob.name[:-1] + 'R')
@@ -718,11 +734,14 @@ def build_doors(holes):
 
         # rubber seal round the back edge of the leaf
         V, F = [], []
-        s1 = loop_mesh(V, F, shrink(leaf_xt, c['xc'], c['tc'], .984), -th + .002)
-        s2 = loop_mesh(V, F, shrink(leaf_xt, c['xc'], c['tc'], .999), -th + .002)
-        s3 = loop_mesh(V, F, shrink(leaf_xt, c['xc'], c['tc'], .999), -th + .034)
-        s4 = loop_mesh(V, F, shrink(leaf_xt, c['xc'], c['tc'], .984), -th + .034)
-        F += bridge(s1, s2) + bridge(s2, s3) + bridge(s3, s4) + bridge(s4, s1)
+        sect = []
+        for k in range(8):
+            a = k / 8.0 * math.tau
+            sect.append(loop_mesh(V, F, shrink(leaf_xt, c['xc'], c['tc'],
+                                               .990 + .012 * math.cos(a)),
+                                  -th - .004 + .014 * math.sin(a)))
+        for k in range(8):
+            F += bridge(sect[k], sect[(k + 1) % 8])
         seal = add('A320N_Door_%s_Seal' % did, V, F, MT['rubber'])
 
         # handle on the outer face: recessed grip with a lever in it
@@ -764,8 +783,8 @@ def build_doors(holes):
             F += bridge(o1, o2)
             swing.append(add('A320N_Door_%s_WindowFrame' % did, V, F, MT['grey'], bevel=.003))
             V, F = [], []
-            p = loop_mesh(V, F, rr_points(wx, wt, ww, wh, .04, S, 120), -.030)
-            cb = len(V); V.append(soff(wx, wt, -.030)); F += fan(p, cb)
+            p = loop_mesh(V, F, rr_points(wx, wt, ww + .010, wh + .010 / S, .04, S, 120), -.026)
+            cb = len(V); V.append(soff(wx, wt, -.026)); F += fan(p, cb)
             swing.append(add('A320N_Door_%s_WindowPane' % did, V, F, MT['glass']))
 
         # hinge: a bracket standing off the skin, a pin, and a gooseneck arm onto the leaf.
