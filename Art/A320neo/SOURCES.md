@@ -30,31 +30,41 @@ frame-station arithmetic is the same as in `Tools/make_a320neo_wireframe.py`.
 * `wire-iso.png` (sheet 12) - isometric structural wireframe; used to check that the barrel, the nose
   taper and the tail cone follow the real frame rings and stringer lines
 
-## Cockpit windows - how the six panes were derived (no photograph was available)
+## Cockpit windows - rebuilt 2026-11-27 from two licensed photographs
 
-Six panes, three a side, built from ONE table (`CKPT` in `make_a320neo.py`) and mirrored in y, so the
-port and starboard sets are identical by construction, not placed twice by hand.
+| Source | Licence | Used for |
+|--------|---------|----------|
+| Wikimedia Commons, "EZY nose close up.jpg" | CC BY 3.0 | head-on cockpit window reference |
+| Wikimedia Commons, "Lufthansa A320-211, D-AIPT, named Cottbus (5650386693).jpg" | CC BY 2.0 | side cockpit window spacing reference |
 
-Anchors, all from `Art/A320/blueprint/a320neo-data.json` (read only):
+Both photographs were opened and measured (the side one scaled against the 0.81 m width of door 1);
+nothing was copied from them. Attribution is required by both licences and is carried here.
 
-* `doors.cockpit_windows.CP1_ground_MRW_fwd_measured = 4.17` m - the measured ground clearance of
-  point CP1 at maximum ramp weight, forward CG. CP1 is the lower aft corner of the No. 1 windscreen;
-  the model puts that corner at 4.17 m.
-* `cockpit.windows.x_range = [1.13, 2.65]` m aft of the nose tip and `z_ground_range = [4.16, 4.95]` m -
-  the band the whole glazing has to live inside. The model's glazing runs x 1.18-2.66, z 4.04-4.88.
-* `cockpit.pilot_eye = (x 2.41, y 0.53, z 4.56)` with a 20 deg over-the-nose look-down - used to check
-  that the windscreen lower edge really is below the eye line.
+Six panes, three a side, still built from ONE table (`CKWINS` in `make_a320neo.py`) and mirrored in y.
+Each outline is now given as real side-view (x, z) corners and solved onto the skin by Newton
+iteration, so the published metres land on the surface instead of being drawn in board coordinates.
 
-Shape: each pane is a rounded rectangle on the fuselage surface whose UPPER edge follows a constant
-ring angle (so it lies along the cockpit roof line) while the LOWER edge rakes with x. That makes the
-windscreens trapezoids that wrap round the nose instead of flat rectangles on the side, which is what
-`ext-front.png` shows. The rake is applied inside `rr_points` through the `SHEAR` table.
+What the photographs show, and what the script now builds:
 
-Deviations I cannot prove: the forward lower corner of the windscreen comes out at 4.04 m, 0.12 m below
-the published 4.16 m minimum, because the pane wraps over the nose where the skin falls away; and the
-highest glazing point is 4.88 m against a published 4.95 m. Both need a square-on photograph measured
-against a known length (door height, or the 0.533 m cabin window pitch) to settle, and I have no web
-access in this environment, so no photograph was fetched, viewed or measured.
+* the three windows a side are ONE band under ONE straight, level top line - no staircase;
+* 0.05 m of bare skin between the panes' frames (0.166 m glass to glass), not 0.09-0.18 m;
+* the sill rises steadily aft, 0.23 m over the 1.52 m band;
+* panes 0.664 / 0.578 / 0.507 m tall; the old ones were 0.34 m and read as cabin windows;
+* a narrow 0.058 m frame standing 0.012 m proud, 0.040 m corner radius, rivet row along the top edge
+  and down both posts - not the earlier 0.026 m rounded-square bezel;
+* one wiper per windscreen, parked horizontal along the lower sill, pivot on a boss at the inboard
+  bottom corner.
+
+**The published number that could not be met.** `doors.cockpit_windows.x_range = [1.13, 2.65]` cannot
+carry this band on this fuselage: at x 1.13 the crown of the nose is z 4.235, so the measured 4.95 m
+top line would be 0.72 m above the skin, and only 0.07 m of skin exists between the crown and the
+measured 4.17 m sill. A level line at z 4.95 first touches the skin at x 2.095. The band is therefore
+set 1.02 m further aft - glazing x 2.011-3.602, z 4.233-4.892 - keeping every measured height, pane
+size, post width and sill slope. Two consequences I cannot remove without changing the nose
+cross-section itself: the windscreen's inboard top corner lands at |y| 0.28 instead of the measured
+0.06 (a level line only reaches the centreline at the crown cusp), so the centre post is wider than
+the real 0.12 m, and head-on the windscreen reads as a wedge rather than a trapezoid with a vertical
+inboard edge. Settling that needs the nose section re-measured from a square-on photograph.
 
 ## Correction made during the build
 

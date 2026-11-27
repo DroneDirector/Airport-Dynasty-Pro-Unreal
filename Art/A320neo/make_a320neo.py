@@ -390,8 +390,8 @@ for sd, sg in (('L', -1), ('R', 1)):
 CKW = CKWIN = DR['cockpit_windows']
 CKZ0, CKZ1 = CKW['z_ground_range']
 CKX0, CKX1 = CKW['x_range']
-CKFRAME = .040        # width of the raised frame round each pane, metres
-CKPROUD = .026        # the frame lip stands this far proud of the skin
+CKFRAME = .058        # width of the raised frame round each pane, metres
+CKPROUD = .012        # the frame lip stands this far proud of the skin
 
 def _ccw(pts):
     a = sum((pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1])
@@ -532,32 +532,105 @@ def _apply_order(loop, order):
     l2 = loop[::-1] if rev else loop
     return l2[k:] + l2[:k]
 
-# Window 1 is the pair of forward-facing windscreens, raked 32 deg back from vertical, each side
-# of the centre post at |y| ~ 0.08; windows 2 (sliding DV/escape) and 3 (fixed) sit on the SIDE
-# of the nose at its local half width, so both show from straight abeam.  quad = the four corners
-# of the frame outline on the board, in metres (u aft/outboard, v up).
-RK1 = math.radians(32)
+# ---- the three windows are drawn in the SIDE VIEW, as real metres (x, z) -----------------------
+# Measured off two licensed photographs (SOURCES.md P1, P2): the three windows are ONE band under
+# ONE straight, level top line; the posts between them are hairlines, ~0.05 m of skin; the sill
+# rises steadily aft; the panes are 0.66 / 0.58 / 0.51 m tall.  Each corner below is a point the
+# glass edge really has to pass through, and ck_solve() finds the ray through the drawing board
+# that lands exactly there on the nose skin, so the band is right whatever the skin does under it.
+#
+# WHERE THE BAND SITS.  The published band (doors.cockpit_windows, x 1.13-2.65, z 4.16-4.95) will
+# not fit this fuselage: at x 1.13 the crown of the nose is z 4.235, so a 4.95 top line is 0.72 m
+# above the skin and nothing taller than 0.07 m fits between the crown and the measured sill.  A
+# level top line at z 4.95 first touches the skin at x 2.095 (the crown), so the whole band is set
+# 1.02 m further aft, keeping every measured height, pane size, post width and sill slope.  Noted
+# in SOURCES.md; the x_range in the data file is the one number that is not met.
+CKTOP = 4.892                     # top edge of the GLASS; the frame outer edge lands on z 4.95
+CKX0, CKZ0 = 2.208, 4.228         # forward bottom corner of the forward pane
+CKSLOPE = .15132                  # sill rise per metre aft (z 4.17 -> 4.40 over the 1.52 m band)
+def cksill(x):
+    return CKZ0 + CKSLOPE * (x - CKX0)
+
+def ck_x_at(z, yabs):
+    """the station x at which the port skin at height z stands |y| out from the centreline -
+    used for the windscreen's inboard edge, which runs just beside the crown of the nose"""
+    def yy(x):
+        cz, hh, hw = ring(x)
+        s = abs((z - cz) / hh)
+        return hw * max(0.0, 1.0 - s ** SE) ** (1.0 / SE) if s < 1.0 else 0.0
+    lo, hi = .5, 12.0
+    for _ in range(60):
+        m = (lo + hi) * .5
+        if yy(m) < yabs: lo = m
+        else: hi = m
+    return (lo + hi) * .5
+
 CKWINS = [
-    dict(nm='W1', C=(1.90, 0.0, 4.00), n=(-math.cos(RK1), 0.0, math.sin(RK1)), R=.650,
-         hint=(0, -1, 0), rr=.050, pad=.055,
-         quad=[(.100, -.185), (.930, -.245), (.870, .115), (.240, .205)]),
-    dict(nm='W2', C=(1.95, 0.0, 4.30), n=(0.0, -1.0, .12), R=1.065, hint=(1, 0, 0), rr=.045,
-         pad=.062, quad=[(-.175, -.175), (.175, -.145), (.175, .165), (-.175, .195)]),
-    dict(nm='W3', C=(2.50, 0.0, 4.38), n=(0.0, -1.0, .12), R=1.290, hint=(1, 0, 0), rr=.045,
-         pad=.062, quad=[(-.150, -.150), (.150, -.130), (.150, .150), (-.150, .170)]),
+    # W1 windscreen: inboard edge beside the crown (|y| 0.11 at the top line), outboard edge
+    # vertical on the post, sill rising aft - the tallest of the three at 0.664 m.
+    dict(nm='W1', C=(2.35, 0.0, 4.00), n=(0.0, -.62, .78), R=1.00, hint=(1, 0, 0), rr=.040,
+         pad=.030, wiper=True,
+         quad=[(CKX0, CKZ0), (2.562, cksill(2.562)), (2.562, CKTOP), (None, CKTOP)]),
+    # W2 sliding (DV / escape) window: near-rectangular, its forward edge raked.
+    dict(nm='W2', C=(2.90, 0.0, 4.30), n=(0.0, -.94, .34), R=1.10, hint=(1, 0, 0), rr=.040,
+         pad=.046,
+         quad=[(2.778, cksill(2.778)), (3.082, cksill(3.082)), (3.082, CKTOP), (2.728, CKTOP)]),
+    # W3 fixed rear window: a trapezoid, its aft edge sloping forward so it is narrower at the foot.
+    dict(nm='W3', C=(3.40, 0.0, 4.30), n=(0.0, -.95, .31), R=1.20, hint=(1, 0, 0), rr=.040,
+         pad=.046,
+         quad=[(3.248, cksill(3.248)), (3.482, cksill(3.482)), (3.612, CKTOP), (3.248, CKTOP)]),
 ]
+
+def ck_meas(w, u, v):
+    """(x, z) of the skin point the board point (u, v) projects to, port side"""
+    P0, eu, ev = w['board']; C = w['C']
+    P = [P0[i] + eu[i] * u + ev[i] * v for i in range(3)]
+    q = skin_hit(C, [P[i] - C[i] for i in range(3)])
+    return (q[0], q[2])
+
+def ck_solve(w, tgt, guess):
+    """Newton on the board coordinates until the projected point sits on the wanted (x, z)"""
+    u, v = guess
+    for _ in range(60):
+        f = ck_meas(w, u, v); r = (f[0] - tgt[0], f[1] - tgt[1])
+        if abs(r[0]) < 1e-5 and abs(r[1]) < 1e-5: break
+        h = 5e-4
+        fu = ck_meas(w, u + h, v); fv = ck_meas(w, u, v + h)
+        J = ((fu[0] - f[0]) / h, (fv[0] - f[0]) / h, (fu[1] - f[1]) / h, (fv[1] - f[1]) / h)
+        det = J[0] * J[3] - J[1] * J[2]
+        if abs(det) < 1e-9: break
+        du = (-r[0] * J[3] + r[1] * J[1]) / det
+        dv = (-r[1] * J[0] + r[0] * J[2]) / det
+        u += max(-.25, min(.25, du)); v += max(-.25, min(.25, dv))
+    return (u, v)
 
 CKCUTS = []
 for w in CKWINS:
     w['board'] = board(w['C'], w['n'], w['R'], w['hint'])
-    w['base'] = densify(_ccw(round_poly(w['quad'], w['rr'])))
+    q = list(w['quad'])
+    for i, p in enumerate(q):
+        if p[0] is None: q[i] = (ck_x_at(p[1], .110), p[1])     # inboard edge, beside the crown
+    w['tgt'] = even_n(densify(_ccw(round_poly(q, w['rr'])), .010), 72)
+    w['base'] = []; g = (0.0, 0.0); err = 0.0
+    for p in w['tgt']:
+        g = ck_solve(w, p, g); w['base'].append(g)
+        got = ck_meas(w, *g); err = max(err, abs(got[0] - p[0]), abs(got[1] - p[1]))
+    if err > .003:
+        raise SystemExit('cockpit %s: drawn outline misses the skin by %.1f mm' % (w['nm'], err * 1e3))
+    # how many metres on the skin one metre on the drawing board is worth, so the frame band and
+    # every lip offset below can be given in real metres and come out the same width all round
+    P3 = [surf(*p) for p in wrap_loop(w, w['base'], -1)]
+    pw = sum((P3[i] - P3[i - 1]).length for i in range(len(P3)))
+    pu = sum(math.hypot(w['base'][i][0] - w['base'][i - 1][0], w['base'][i][1] - w['base'][i - 1][1])
+             for i in range(len(w['base'])))
+    w['scale'] = pw / max(pu, 1e-9)
     w['order'] = {}
     for sd, sg in (('L', -1), ('R', 1)):
         raw = wrap_loop(w, w['base'], sg)
         S = ring(sum(p[0] for p in raw) / len(raw))[1]
         w['order'][sg] = o = _loop_order(raw, S)
         hole = _apply_order(raw, o)
-        lip = _apply_order(wrap_loop(w, off_poly(w['base'], -.008), sg), o)
+        lip = _apply_order(wrap_loop(w, off_poly(w['base'], -.008 / w['scale']), sg), o)
         c = cut_loop('Ck%s%s' % (w['nm'], sd), hole, .005, pad=w['pad'], liploop=lip)
         if sd == 'L':
             CKCUTS.append((c, w))
@@ -727,22 +800,75 @@ def box_in_xz(V, F, xa, xb, zlo, zhi, side, dout, din, nx=8, nz=4):
         F.append([m0 + nx * (nz + 1) + q, m0 + nx * (nz + 1) + q + 1,
                   m1 + nx * (nz + 1) + q + 1, m1 + nx * (nz + 1) + q])
 
+def ck_ring(x, t, r, d, n=12):
+    """n points of a circle of radius r round (x, t) on the skin, d proud of it"""
+    S = ring(x)[1]
+    return [soff(x + r * math.cos(TAU * k / n), t + r * math.sin(TAU * k / n) / S, d)
+            for k in range(n)]
+
+def ck_rivets(V, F, w, loop):
+    """a rivet row along the top edge and down both posts (never along the lower sill)"""
+    for i in range(0, len(loop), 2):
+        x_, t_ = loop[i]
+        if surf(x_, t_).z < cksill(x_) + .055: continue
+        b = len(V)
+        V += ck_ring(x_, t_, .0052, .0008, 10)
+        V += ck_ring(x_, t_, .0030, .0030, 10)
+        V.append(soff(x_, t_, .0036))
+        a = list(range(b, b + 10)); c2 = list(range(b + 10, b + 20))
+        F += bridge(a, c2) + fan(c2, b + 20)
+
+CKWIPER_LEN = .460           # parked arm, pivot to blade tip, along the lower sill
+def ck_wiper_path(w, n=11):
+    """the parked wiper path: horizontal along the sill, from the inboard bottom corner aft"""
+    x0 = w['quad'][0][0] + .030
+    out = []
+    for k in range(n):
+        x_ = x0 + CKWIPER_LEN * k / (n - 1)
+        out.append((x_, t_of_z(x_, cksill(x_) - CKFRAME - .042, -1)))
+    return out
+
+def ck_sweep(V, F, path, hw0, hw1, d0, d1a, d1b):
+    """a swept square section along a (x, t) path: half width hw0 -> hw1, from d0 up to d1"""
+    rings = []
+    for k, (x_, t_) in enumerate(path):
+        f = k / (len(path) - 1.0); S = ring(x_)[1]
+        hw = (hw0 + (hw1 - hw0) * f) / S; d1 = d1a + (d1b - d1a) * f
+        b = len(V)
+        V += [soff(x_, t_ - hw, d0), soff(x_, t_ + hw, d0),
+              soff(x_, t_ + hw, d1), soff(x_, t_ - hw, d1)]
+        rings.append([b, b + 1, b + 2, b + 3])
+    for a, b in zip(rings, rings[1:]): F += bridge(a, b)
+    F.append(rings[0][::-1]); F.append(list(rings[-1]))
+
+def ck_wiper_boss(V, F, w):
+    """the wiper pivot boss, built into the window frame so nothing stands loose on the skin"""
+    x_, t_ = ck_wiper_path(w)[0]
+    b = len(V)
+    V += ck_ring(x_, t_, .030, .000, 14)
+    V += ck_ring(x_, t_, .026, .020, 14)
+    V.append(soff(x_, t_, .020))
+    a = list(range(b, b + 14)); c2 = list(range(b + 14, b + 28))
+    F += bridge(a, c2) + fan(c2, b + 28)
+
 def build_cockpit_windows(holes):
     """PORT side only, then mirrored across y = 0 - the two sides are identical by construction.
-    Each window: a raised frame lip ~26 mm proud of the skin with a bevelled edge, the pane
-    seated 29 mm below the top of the lip (3 mm inside the skin, so no pane stands out)."""
+    Each window: a narrow 58 mm frame band standing 12 mm proud of the skin, corners rounded on
+    0.04 m, a rivet row along the top edge and down both posts, and the pane seated under the
+    frame shelf (3 mm inside the skin, so no glass stands out).  Window 1 also carries a wiper."""
     port = []
     for c, w in CKCUTS:
         S = c['S']; nm = w['nm']
         def P(d, w=w):
-            """the window outline offset by d on its drawing board, shrunk onto the skin"""
-            return _apply_order(wrap_loop(w, off_poly(w['base'], d), -1), w['order'][-1])
+            """the window outline offset by d REAL metres on the skin, as a closed (x, t) loop"""
+            return _apply_order(wrap_loop(w, off_poly(w['base'], d / w['scale']), -1),
+                                w['order'][-1])
         V, F = [], []
         a1 = loop_mesh(V, F, P(CKFRAME), .000)            # sits flat on the skin
-        a2 = loop_mesh(V, F, P(CKFRAME - .008), CKPROUD)  # bevelled outer edge of the lip
-        a3 = loop_mesh(V, F, P(.010), CKPROUD)            # flat top of the lip
-        a4 = loop_mesh(V, F, P(-.006), CKPROUD - .014)    # bevel down to the glass
-        a5 = loop_mesh(V, F, P(-.006), -.036)             # inner wall, down past the pane
+        a2 = loop_mesh(V, F, P(CKFRAME - .006), CKPROUD)  # bevelled outer edge of the lip
+        a3 = loop_mesh(V, F, P(.012), CKPROUD)            # flat top of the lip
+        a4 = loop_mesh(V, F, P(-.005), CKPROUD - .007)    # bevel down to the glass
+        a5 = loop_mesh(V, F, P(-.005), -.036)             # inner wall, down past the pane
         a6 = loop_mesh(V, F, P(.016), -.036)              # the shelf the pane beds on
         a7 = loop_mesh(V, F, P(.016), -.056)
         a8 = loop_mesh(V, F, P(CKFRAME), -.056)           # flange behind the skin
@@ -751,19 +877,23 @@ def build_cockpit_windows(holes):
         if nm == 'W2':
             # the sliding window's handle: one solid with the frame (its base sits inside the
             # lip, so nothing floats and no two faces lie on each other)
-            uc = w['quad'][1][0] - .080; vc = w['quad'][1][1] - .025 - CKFRAME * .5
+            uc, vc = ck_solve(w, (3.000, cksill(3.000) + .085), w['base'][0])
+            hu, hv = .038 / w['scale'], .019 / w['scale']
             rings = []
-            for sc, hgt in ((1.00, CKPROUD - .010), (1.00, CKPROUD + .020), (.78, CKPROUD + .032)):
-                hq = _ccw(round_poly([(uc - .038 * sc, vc - .019 * sc), (uc + .038 * sc, vc - .019 * sc),
-                                      (uc + .038 * sc, vc + .019 * sc), (uc - .038 * sc, vc + .019 * sc)],
-                                     .009))
+            for sc, hgt in ((1.00, CKPROUD - .006), (1.00, CKPROUD + .020), (.78, CKPROUD + .032)):
+                hq = _ccw(round_poly([(uc - hu * sc, vc - hv * sc), (uc + hu * sc, vc - hv * sc),
+                                      (uc + hu * sc, vc + hv * sc), (uc - hu * sc, vc + hv * sc)],
+                                     .009 / w['scale']))
                 rings.append(loop_mesh(V, F, wrap_loop(w, even_n(hq, 56), -1), hgt))
             F += bridge(rings[0], rings[1]) + bridge(rings[1], rings[2])
             for r, flip in ((rings[0], False), (rings[2], True)):
                 cb = len(V)
                 V.append(sum((V[i] for i in r), Vector((0, 0, 0))) / len(r))
                 F += fan(r, cb, flip)
-        port.append(add('A320N_Cockpit_WindowFrame_%s_L' % nm, V, F, MT['grey'], bevel=.003))
+        ck_rivets(V, F, w, P(CKFRAME + .019))
+        if w.get('wiper'):
+            ck_wiper_boss(V, F, w)
+        port.append(add('A320N_Cockpit_WindowFrame_%s_L' % nm, V, F, MT['grey'], bevel=.0025))
         V, F = [], []                               # the pane: 22 mm thick, under the frame shelf
         pane = P(.006)                      # the rim beds under the frame shelf
         xs = [q[0] for q in pane]; ts = [q[1] for q in pane]
@@ -772,6 +902,14 @@ def build_cockpit_windows(holes):
         i = disc_on_surface(V, F, pane, pxc, ptc, -.042, flip=True)   # glass never breaks the skin
         F += bridge(o, i, flip=True)
         port.append(add('A320N_Cockpit_WindowPane_%s_L' % nm, V, F, MT['glass']))
+        if w.get('wiper'):
+            # one wiper per windscreen, parked horizontal along the sill.  Its root sits 4 mm
+            # down inside the pivot boss (part of the frame), so the arm is really carried.
+            pth = ck_wiper_path(w)
+            V, F = [], []
+            ck_sweep(V, F, pth, .016, .009, .016, .044, .030)          # the arm
+            ck_sweep(V, F, pth[4:], .007, .007, .003, .018, .018)      # the blade under it
+            port.append(add('A320N_Cockpit_WiperArm_%s_L' % nm, V, F, MT['grey'], bevel=.002))
     # the sliding window's rails and handle are part of its own frame solid (above), so
     # nothing stands loose on the skin and no two faces lie on each other.
     for ob in port:
