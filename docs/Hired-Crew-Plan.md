@@ -1088,3 +1088,11 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
   when it is in the hall. AHangarTow::HallTaken = a hall a tow holds.
 - Only a game run can prove: the icon shows (web bundle rebuilt at release), page layout on the phone's small screen,
   the chosen hall really used, the bars and times following game speed.
+
+## Mechanics as built (to-do 311, 2026-11-27, compiled, NOT run)
+- Job table: `mech` (Mechanic) now comes in 3D on shifts, like the other ramp staff (same faces, same hi-vis), offered by the hiring pool. Pay 1450 USD/week before the region factor (CH x1.12, about CHF 6,200 a month).
+- New game: 2 early, 2 late, 1 night (Data/beginners.json). ADPCrew::Need("mech") = per base, the biggest A-check crew of the types there.
+- Sim (ADPMaint): a check starts only with enough FREE hired mechanics at that place (on duty there, less the crews of checks already running: FADPAircraft.CheckCrew). Too few: it waits, FADPAircraft.MaintWait says why, one note per change, and the Maintenance page shows it. No outside team any more.
+- 3D: duty Mechanic, task Maint. The maintenance van's brake rider is a mechanic. GSEMechanics.cpp: once the aircraft is in the hall, up to 4 more of its crew ride a van across (or walk the hired way on the hall's side), wait for the open door, walk in on the side away from the hall's stair and stand in a row 7 m right of the centre line beside the nose. The door stays open while they walk (HallBusy). When the check is over they walk out (door opened if shut) before the tow back starts (MaintBack holds, at most 20 min), then ride home by van.
+- Talk / Call to my office: the pool's own IdOf / CallIn, nothing new.
+- Next: they work at the fault (place, poses); check the far-side row is clear of walls/objects in each hall size.

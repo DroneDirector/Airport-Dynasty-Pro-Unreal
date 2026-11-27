@@ -806,6 +806,15 @@ private:
 	struct FHallStair { FString Hall; int32 Ti = INDEX_NONE; float Key = 0.f, Hx = 0.f, Yn = 0.f, Front = 0.f, Half = 23.f, Side = 1.f; FVector2f Park = FVector2f::ZeroVector; TWeakObjectPtr<AActor> Plane; mutable TWeakObjectPtr<AActor> Door; };
 	TArray<FHallStair> HallStairs;
 	TMap<int32, float> MaintHallX;   // (a rider's job: down in that hall, the hall stair's key)
+	// ---- a check's hired mechanics in the hall (GSEMechanics.cpp, to-do 311): by van to the hall, they stand by the aircraft, back by van
+	struct FMechCrew { FString Hall; TArray<int32> Men; uint8 Phase = 1; int32 There = 0, Out = 0, Home = 0; double OutAt = 0.0; };   // (Phase 1 going in, 2 by the aircraft, 3 walking out, 4 out of the hall)
+	TMap<FString, FMechCrew> MechCrews;   // (by registration)
+	TMap<FString, double> MechTry;        // (by registration: when a team was last asked for - every 5 s)
+	TMap<FString, FString> MechWhy;       // (why it has none: logged once each)
+	void MechStart(const FString& Reg, const FHallStair& H);
+	bool MechCheckOn(const FString& Reg) const;
+	bool MechHolds(const FString& Reg, FString& Why);
+	void MechDoor(const FHallStair& H, const FString& Who) const;
 	const FHallStair* HallOf(float StandX) const;
 	FHallStair* HallNamed(const FString& Hall);
 	bool HallTi(int32 Ti) const;

@@ -77,6 +77,7 @@ bool AGSE::HallBusy(const FString& Hall) const
 		if (FMath::Abs(P.Value.StandX - H->Key) < 1.f && P.Value.Phase < 9) return true;
 		const float* K = MaintHallX.Find(P.Key); if (K && FMath::Abs(*K - H->Key) < 1.f && P.Value.Stage < 8) return true;
 	}
+	for (const TPair<FString, FMechCrew>& M : MechCrews) if (M.Value.Hall == Hall && (M.Value.Phase == 1 || M.Value.Phase == 3)) return true;   // (its mechanics walking in or out)
 	return false;
 }
 
@@ -225,6 +226,7 @@ void AGSE::MaintHall(const FString& Reg, const FString& Hall, AActor* Plane, boo
 		return;
 	}
 	if (Plane) H->Plane = Plane;
+	MechStart(Reg, *H);   // (the check's other mechanics, GSEMechanics.cpp)
 	if (J.Men[0].bIn && J.Stage == 5 && !MaintHallX.Contains(P->Key))
 	{
 		MaintHallX.Add(P->Key, H->Key);
@@ -240,6 +242,7 @@ int32 AGSE::MaintBack(const FString& Reg, const FString& Hall, AActor* Plane, FS
 	if (!P || !H || !P->Value.Men.Num() || P->Value.Men[0].bGone) { Why = TEXT("no brake rider in the hall"); return 3; }
 	const int32 Job = P->Key; FSvcJob& J = P->Value;
 	if (Plane) H->Plane = Plane;
+	if (J.Stage == 8 && MechHolds(Reg, Why)) return 1;   // (the check's mechanics out of the hall before the tow comes in)
 	if (J.Stage == 8)
 	{
 		J.Stage = 10; const float Key = H->Key;

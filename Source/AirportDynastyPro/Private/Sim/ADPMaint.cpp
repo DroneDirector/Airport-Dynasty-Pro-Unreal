@@ -22,6 +22,19 @@ namespace
 		for (const FADPPerson& P : W.People) if (P.AirlineId == AirlineId && P.Role == TEXT("mech") && P.Base == Icao && P.Status == TEXT("on")) ++N;
 		return N;
 	}
+	// hired mechanics free at a place for a new check: those on duty there, less the crews of the checks already running there
+	int32 MxFreeMechanics(const FADPWorld& W, const FADPAircraft& A)
+	{
+		int32 Busy = 0;
+		for (const FADPAircraft& X : W.Aircraft)
+			if (&X != &A && X.AirlineId == A.AirlineId && X.Location == A.Location && X.Status == TEXT("maintenance")) Busy += FMath::Max(0, X.CheckCrew);
+		return FMath::Max(0, MxMechanicsAt(W, A.AirlineId, A.Location) - Busy);
+	}
+	FString MxWaitWhy(int32 Need, int32 Free)
+	{
+		return Free <= 0 ? FString::Printf(TEXT("waits for %d mechanics: none free here - hire mechanics in Staff"), Need)
+			: FString::Printf(TEXT("waits for %d mechanics: only %d free here - hire more in Staff"), Need, Free);
+	}
 }
 
 TArray<ADPMaint::FCheckRule> ADPMaint::Rules(const FString& TypeId)
@@ -156,10 +169,20 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 	double Labour = 1.0, Hours = R->DurationH;
 	if (bMine)
 	{
-		const int32 Mech = MxMechanicsAt(W, A.AirlineId, A.Location);
-		if (Mech == 0) { Labour = 3.0; }   // (an outside team flown in)
-		else if (Mech < R->Mechanics) Hours *= double(R->Mechanics) / Mech;
-		if (Mech > 0 && A.AirlineId == UADPSim::Me()) Hours *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);   // (beginners: to-do 301)
+		// the check needs its hired mechanics (to-do 311): too few free here, it waits and says why
+		const int32 Free = MxFreeMechanics(W, A);
+		if (Free < R->Mechanics)
+		{
+			Why = MxWaitWhy(R->Mechanics, Free);
+			if (A.MaintWait != Why)
+			{
+				A.MaintWait = Why;
+				ADP_LOG(TEXT("Maintenance: %s's %s check %s"), *A.Reg, R->Kind, *Why);
+				MxNote(W, Now, 1, FString::Printf(TEXT("%s: check waits for mechanics"), *A.Reg), FString::Printf(TEXT("%s's %s-check at %s %s."), *A.Reg, R->Kind, *A.Location, *Why));
+			}
+			return false;
+		}
+		Hours *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);   // (beginners: to-do 301)
 		if (R->bHangar)
 		{
 			int32 Busy = 0; for (const FADPAircraft& X : W.Aircraft) if (X.Location == A.Location && X.Status == TEXT("maintenance") && X.CheckKind != TEXT("A")) ++Busy;
@@ -183,6 +206,7 @@ bool ADPMaint::StartCheck(FADPWorld& W, FADPAircraft& A, const FString& Kind, co
 	if (Ft) A.FaultDue.Empty();
 	A.CheckLenH = CheckHours(A.CheckFault, Hours, Mode); A.CheckStart = Now;
 	A.Status = TEXT("maintenance"); A.CheckKind = R->Kind; A.CheckUntil = Now + FTimespan::FromHours(A.CheckLenH);
+	A.MaintWait.Empty(); A.CheckCrew = bMine ? R->Mechanics : 0;
 	const FFault* Fn = Fault(A.CheckFault);
 	ADP_LOG(TEXT("Maintenance: %s - %s (%s check) at %s, %.2f h (%s)"), *A.Reg, Fn ? Fn->Name : TEXT("?"), R->Kind, *A.Location, A.CheckLenH, Mode == 0 ? TEXT("Quick") : Mode == 2 ? TEXT("Real") : TEXT("Fast"));
 	if (bMine)
@@ -209,10 +233,9 @@ bool ADPMaint::Quote(const FADPWorld& W, const FADPAircraft& A, const FString& K
 	if (A.Status == TEXT("flying")) { Why = TEXT("in the air"); return false; }
 	if (A.Status == TEXT("maintenance")) { Why = TEXT("already in a check"); return false; }
 	double Labour = 1.0, H = R->DurationH;
-	const int32 Mech = MxMechanicsAt(W, A.AirlineId, A.Location);
-	if (Mech == 0) Labour = 3.0;
-	else if (Mech < R->Mechanics) H *= double(R->Mechanics) / Mech;
-	if (Mech > 0) H *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);
+	const int32 Free = MxFreeMechanics(W, A);
+	if (Free < R->Mechanics) { Why = MxWaitWhy(R->Mechanics, Free); return false; }
+	H *= ADPCrew::SlowTeam(W, TEXT("mech"), A.Location, R->Mechanics);
 	if (R->bHangar)
 	{
 		int32 Busy = 0; for (const FADPAircraft& X : W.Aircraft) if (X.Location == A.Location && X.Status == TEXT("maintenance") && X.CheckKind != TEXT("A")) ++Busy;
@@ -239,7 +262,7 @@ void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 			const ADPMaint::FFault* Fd = ADPMaint::Fault(A.CheckFault);
 			A.Condition = FMath::Min(100.0, A.Condition + 2.0); A.Status = TEXT("parked"); A.ReadyAt = FMath::Max(A.ReadyAt, To);
 			if (A.AirlineId == UADPSim::Me()) MxNote(W, To, 0, FString::Printf(TEXT("%s back in service"), *A.Reg), FString::Printf(TEXT("%s: %s put right."), *A.Reg, Fd ? Fd->Name : TEXT("its fault")));
-			A.CheckKind.Empty(); A.CheckFault.Empty(); ++Checks;
+			A.CheckKind.Empty(); A.CheckFault.Empty(); A.CheckCrew = 0; ++Checks;
 			continue;
 		}
 		if (A.Status == TEXT("maintenance") && A.CheckUntil <= To)
@@ -253,7 +276,7 @@ void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 			A.Condition = A.CheckKind == TEXT("D") ? 100.0 : A.CheckKind == TEXT("C") ? FMath::Max(A.Condition, 96.0) : FMath::Min(100.0, A.Condition + 8.0);
 			A.Status = TEXT("parked"); A.ReadyAt = FMath::Max(A.ReadyAt, To);
 			if (A.AirlineId == UADPSim::Me()) MxNote(W, To, 0, FString::Printf(TEXT("%s back in service"), *A.Reg), FString::Printf(TEXT("%s finished its %s-check - condition %.0f%%."), *A.Reg, *A.CheckKind, A.Condition));
-			A.CheckKind.Empty(); A.CheckFault.Empty(); ++Checks;
+			A.CheckKind.Empty(); A.CheckFault.Empty(); A.CheckCrew = 0; ++Checks;
 			continue;
 		}
 		if (A.Status == TEXT("flying") || A.Status == TEXT("maintenance")) continue;
@@ -265,7 +288,7 @@ void FADPMaintModule::Advance(UADPSim& Sim, const FDateTime& From, const FDateTi
 			continue;
 		}
 		double F = 0.0; const FString Due = ADPMaint::NextDue(W, A, To, F);
-		if (Due.IsEmpty()) continue;
+		if (Due.IsEmpty()) { A.MaintWait.Empty(); continue; }
 		// due (95% of the interval) at its base: the check starts; 10% overdue anywhere: grounded until checked there
 		const bool bAtBase = A.Location == A.Base;
 		if ((F >= 0.95 && bAtBase) || F >= 1.10)

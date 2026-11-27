@@ -1,5 +1,6 @@
 // The jobs and areas - see Sim/ADPCrew.h.
 #include "Sim/ADPCrew.h"
+#include "Sim/ADPMaint.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPGround.h"
 #include "Sim/ADPStaff.h"
@@ -50,7 +51,7 @@ const TArray<ADPCrew::FRole>& ADPCrew::Roles()
 		{TEXT("captain"), TEXT("Captain"), TEXT("pilots"), false, true, false, false, TEXT("fly your aircraft")},
 		{TEXT("fo"), TEXT("First officer"), TEXT("pilots"), false, true, false, false, TEXT("fly your aircraft")},
 		{TEXT("fa"), TEXT("Flight attendant"), TEXT("cabin"), false, true, false, false, TEXT("the cabin of your flights")},
-		{TEXT("mech"), TEXT("Mechanic"), TEXT("mech"), false, true, false, false, TEXT("the checks of your aircraft; mend vehicles here sooner")},
+		{TEXT("mech"), TEXT("Mechanic"), TEXT("mech"), true, true, true, false, TEXT("the checks and faults of your aircraft in the hangar, the hangar tow's brake rider; mend vehicles here sooner")},
 		{TEXT("ground"), TEXT("Ground crew member"), TEXT("ground"), true, true, true, true, TEXT("the bags, the tugs, power, chocks, stairs, ambulift, bus charging")},
 		{TEXT("fuel"), TEXT("Fuel truck driver"), TEXT("fuel"), true, true, true, true, TEXT("drive the fuel trucks")},
 		{TEXT("catering"), TEXT("Catering loader"), TEXT("catering"), true, true, true, true, TEXT("the catering trucks")},
@@ -134,7 +135,17 @@ int32 ADPCrew::Need(const FADPWorld& W, const FString& Id)
 		}
 	if (Id == TEXT("captain") || Id == TEXT("fo")) return Craft;
 	if (Id == TEXT("fa")) return Fa;
-	if (Id == TEXT("mech")) return Bases.Num();
+	if (Id == TEXT("mech"))
+	{
+		// (per base: the biggest A check's mechanics among the types based there - a check waits without them)
+		TMap<FString, int32> Per;
+		for (const FADPAircraft& C : W.Aircraft)
+			if (C.AirlineId == UADPSim::Me())
+				for (const ADPMaint::FCheckRule& R : ADPMaint::Rules(C.TypeId))
+					if (FCString::Strcmp(R.Kind, TEXT("A")) == 0) { int32& M = Per.FindOrAdd(C.Base); M = FMath::Max(M, R.Mechanics); }
+		int32 Sum = 0; for (const TPair<FString, int32>& Kv : Per) Sum += Kv.Value;
+		return Sum;
+	}
 	if (!Craft) return 0;
 	if (Id == TEXT("fire")) return ADPTown::FireCrewNeeded(W);
 	TMap<FString, int32> G; ADPGround::TeamNeeds(G);
@@ -191,7 +202,7 @@ namespace
 			auto Put = [&](const TCHAR* Id, int32 E, int32 L, int32 N, int32 Craft, int32 Add, int32 Most) { FCrBegin X; X.N[0] = E; X.N[1] = L; X.N[2] = N; X.Craft = Craft; X.Add = Add; X.Most = Most; B.Jobs.Add(Id, X); };
 			Put(TEXT("ground"), 4, 4, 2, 2, 2, 8); Put(TEXT("fuel"), 1, 1, 1, 3, 1, 2); Put(TEXT("catering"), 2, 2, 2, 4, 2, 4); Put(TEXT("cleaning"), 3, 3, 2, 3, 2, 5);
 			Put(TEXT("water"), 1, 1, 1, 4, 1, 2); Put(TEXT("deice"), 2, 2, 2, 0, 0, 2); Put(TEXT("bus"), 1, 1, 1, 4, 1, 2); Put(TEXT("taxi"), 1, 1, 1, 0, 0, 1);
-			Put(TEXT("checkin"), 2, 2, 1, 2, 1, 4); Put(TEXT("security"), 2, 2, 1, 2, 1, 4); Put(TEXT("gate"), 1, 1, 1, 2, 1, 3); Put(TEXT("mech"), 1, 0, 0, 0, 0, 1);
+			Put(TEXT("checkin"), 2, 2, 1, 2, 1, 4); Put(TEXT("security"), 2, 2, 1, 2, 1, 4); Put(TEXT("gate"), 1, 1, 1, 2, 1, 3); Put(TEXT("mech"), 2, 2, 1, 0, 0, 6);
 			return B;
 		}
 		O->TryGetNumberField(TEXT("ratingMin"), B.RMin); O->TryGetNumberField(TEXT("ratingMax"), B.RMax); O->TryGetNumberField(TEXT("pay"), B.Pay);

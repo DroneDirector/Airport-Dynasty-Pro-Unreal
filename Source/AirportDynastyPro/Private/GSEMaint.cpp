@@ -1,11 +1,11 @@
-// The hangar tow's brake rider (to-do 311 step B, docs/Hired-Crew-Plan.md "Hangar tow"). One hired man of the ground crew
+// The hangar tow's brake rider (to-do 311 step B, docs/Hired-Crew-Plan.md "Hangar tow"). One hired mechanic (role mech)
 // drives the maintenance van (GSEService.cpp table line "maint") from the hangar apron to the stand through the service
 // job's own drive (SvcStart / SvcApron), parks it on the aircraft's right 1.5 m beyond the wingtip, walks round behind the
 // tail to its left side and goes in at the front left door: up the jetway's service stair (SvcUp; the jetway docked for him
 // first) or, where no jetway is, up the passenger stairs (called to the door if none is there; sent away once he is in).
 // In the cockpit he is hidden and carried by the aircraft (no interiors yet); the tow waits for him (HangarTow.cpp). On the
 // tow back he gets off at its stand the same ways and walks the hired people's way (HiredWay) to the van and drives it home.
-// In the hangar hall he gets off and on by the hall's own stair (GSEHangarStair.cpp). Not yet: a mechanic role (ground crew).
+// In the hangar hall he gets off and on by the hall's own stair (GSEHangarStair.cpp). The check crew: GSEMechanics.cpp.
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"

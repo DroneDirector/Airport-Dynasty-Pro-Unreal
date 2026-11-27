@@ -157,6 +157,8 @@ USTRUCT() struct FADPAircraft
 	UPROPERTY() double CheckLenH = 0.0;    // its length, fixed when it began from Settings > Realism (a running check keeps it)
 	UPROPERTY() FString FaultDue;          // a fault found in flight, to be put right on the ground (a fault check)
 	UPROPERTY() FString HangarIn;          // the hangar it stands in at our airport (HangarTow; kept in the save, so it is there after loading)
+	UPROPERTY() FString MaintWait;         // why its check waits (not enough free hired mechanics); empty: it does not wait
+	UPROPERTY() int32 CheckCrew = 0;       // the hired mechanics on its running check (0: the rule's number)
 	UPROPERTY() FString HangarWant;        // the hall chosen on the Maintenance page (empty: the first free one); the tow takes it there if it is free
 	UPROPERTY() FString Stand;             // its stand at our airport (to-do 183; empty: none / a remote stand)
 	UPROPERTY() FDateTime StandUntil;

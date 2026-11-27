@@ -200,7 +200,7 @@ const TArray<FServiceSpec>& ADPService::All()
 			// north edge between hangars 1 and 2 (plan -355, 1225; door line y 1231), clear of both doors, facing east.
 			// Crew and player use it through the same functions as the cleaning van (drive, ride, its doors and lamps).
 			FServiceSpec Mv;
-			Mv.Task = TEXT("maint"); Mv.Model = TEXT("MaintenanceVan"); Mv.Points = TEXT("maintenancevan"); Mv.Label = TEXT("maintenance van"); Mv.Role = TEXT("ground"); Mv.Team = EStaffTask::PushHelp; Mv.MaxPeople = 1; Mv.bMaint = true;   // (no mechanic role yet: ground crew)
+			Mv.Task = TEXT("maint"); Mv.Model = TEXT("MaintenanceVan"); Mv.Points = TEXT("maintenancevan"); Mv.Label = TEXT("maintenance van"); Mv.Role = TEXT("mech"); Mv.Team = EStaffTask::Maint; Mv.MaxPeople = 1; Mv.bMaint = true;   // (a hired mechanic, to-do 311)
 			Mv.Lat = -19.5f; Mv.Aft = 8.f;   // (the brake rider's: on the right, 1.5 m beyond the wingtip - outside the tow's way)
 			Mv.HomeX = -355.f; Mv.HomeY = 1225.f; Mv.HomeHx = 1.f; Mv.HomeHy = 0.f;
 			Mv.HalfL = 300.f; Mv.HalfW = 103.f; Mv.TurnR = 620.f; Mv.MaxSteer = 36.f; Mv.DoorDeg = 68.f; Mv.PlayerSpeed = 830.f;

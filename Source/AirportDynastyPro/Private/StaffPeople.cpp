@@ -110,7 +110,7 @@ void UStaffPeople::Deinitialize() { ADPSchedule::Waiting3D = nullptr; Asks.Reset
 
 // ------------------------------------------------------------------ the pool
 
-const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : D == EStaffDuty::WaterDriver ? TEXT("water") : D == EStaffDuty::TaxiDriver ? TEXT("taxi") : D == EStaffDuty::BusDriver ? TEXT("bus") : D == EStaffDuty::DeicerDriver || D == EStaffDuty::DeicerOperator ? TEXT("deice") : TEXT("ground"); }   // (one ramp role does all that has no role of its own)
+const TCHAR* UStaffPeople::RoleOf(EStaffDuty D) { return D == EStaffDuty::Mechanic ? TEXT("mech") : D == EStaffDuty::CleanDriver || D == EStaffDuty::Cleaner ? TEXT("cleaning") : D == EStaffDuty::FuelDriver ? TEXT("fuel") : D == EStaffDuty::CaterDriver || D == EStaffDuty::CaterLoader ? TEXT("catering") : D == EStaffDuty::WaterDriver ? TEXT("water") : D == EStaffDuty::TaxiDriver ? TEXT("taxi") : D == EStaffDuty::BusDriver ? TEXT("bus") : D == EStaffDuty::DeicerDriver || D == EStaffDuty::DeicerOperator ? TEXT("deice") : TEXT("ground"); }   // (one ramp role does all that has no role of its own)
 const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 {
 	switch (D)
@@ -127,6 +127,7 @@ const TCHAR* UStaffPeople::DutyName(EStaffDuty D)
 	case EStaffDuty::AmbuHelper: return TEXT("ambulift helper");
 	case EStaffDuty::TaxiDriver: return TEXT("taxi bus driver");
 	case EStaffDuty::BusDriver: return TEXT("apron bus driver");
+	case EStaffDuty::Mechanic: return TEXT("aircraft mechanic");
 	case EStaffDuty::DeicerDriver: return TEXT("de-icing truck driver");
 	case EStaffDuty::DeicerOperator: return TEXT("de-icing operator");
 	case EStaffDuty::TugDriver: return TEXT("tug driver");
@@ -151,6 +152,7 @@ const TCHAR* UStaffPeople::TaskName(EStaffTask T)
 	case EStaffTask::Taxi: return TEXT("the taxi bus");
 	case EStaffTask::ApronBus: return TEXT("an apron bus");
 	case EStaffTask::BusCharge: return TEXT("a bus charger");
+	case EStaffTask::Maint: return TEXT("maintenance");
 	case EStaffTask::PushHelp: case EStaffTask::PushDriver: return TEXT("the pushback");
 	case EStaffTask::Deice: case EStaffTask::DeiceRelief: return TEXT("de-icing");
 	case EStaffTask::Catering: case EStaffTask::CaterRelief: return TEXT("catering");
@@ -185,6 +187,7 @@ void UStaffPeople::Needs(EStaffTask T, TArray<FNeed>& Out)
 	case EStaffTask::Catering: Add(EStaffDuty::CaterDriver, 1, 1); Add(EStaffDuty::CaterLoader, 1, 1); break;
 	case EStaffTask::CaterRelief: Add(EStaffDuty::CaterLoader, 1, 1); break;
 	case EStaffTask::DeiceRelief: Add(EStaffDuty::DeicerOperator, 1, 1); break;
+	case EStaffTask::Maint: Add(EStaffDuty::Mechanic, 1, 1); break;
 	case EStaffTask::CleanRelief: Add(EStaffDuty::Cleaner, 1, 1); break;
 	case EStaffTask::Relief: Add(EStaffDuty::BaggageHandler, 1, 1); break;
 	case EStaffTask::PushHelp: Add(EStaffDuty::PushbackHandler, 1, 1); break;   // (a push of your own: its handler; its driver when you leave it)
@@ -312,7 +315,7 @@ int32 UStaffPeople::LeastOf(const FString& Role)
 EStaffTask UStaffPeople::ReliefOf(const FString& Role)
 {
 	return Role == TEXT("water") ? EStaffTask::Water : Role == TEXT("catering") ? EStaffTask::CaterRelief : Role == TEXT("fuel") ? EStaffTask::Fuel : Role == TEXT("cleaning") ? EStaffTask::CleanRelief
-		: Role == TEXT("deice") ? EStaffTask::DeiceRelief : Role == TEXT("bus") ? EStaffTask::ApronBus : Role == TEXT("taxi") ? EStaffTask::Taxi : EStaffTask::Relief;
+		: Role == TEXT("deice") ? EStaffTask::DeiceRelief : Role == TEXT("bus") ? EStaffTask::ApronBus : Role == TEXT("taxi") ? EStaffTask::Taxi : Role == TEXT("mech") ? EStaffTask::Maint : EStaffTask::Relief;
 }
 
 // Once, at the start (to-do 300; Tools/check_crew_roles.py does the same on the source): every duty's role is there and comes in

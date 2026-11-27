@@ -141,7 +141,8 @@ private:
 		if (bHere && !A.HangarIn.IsEmpty()) { Where = FString::Printf(TEXT("%s, hangar %s"), *A.Location, *A.HangarIn); return FString::Printf(TEXT("in hangar %s"), *A.HangarIn); }
 		if (bHere && !A.Stand.IsEmpty()) Where = FString::Printf(TEXT("%s, stand %s"), *A.Location, *A.Stand);
 		if (A.Status == TEXT("maintenance")) return bHere ? FString(TEXT("waiting for the tow")) : FString(TEXT("in its check there"));
-		if (A.Status == TEXT("grounded")) return TEXT("grounded");
+		if (A.Status == TEXT("grounded")) return A.MaintWait.IsEmpty() ? FString(TEXT("grounded")) : FString::Printf(TEXT("grounded - its check %s"), *A.MaintWait);
+		if (!A.MaintWait.IsEmpty()) return FString::Printf(TEXT("its check %s"), *A.MaintWait);   // (to-do 311: not enough free hired mechanics)
 		if (A.Status == TEXT("leased")) return TEXT("leased out");
 		return bHere ? (A.Stand.IsEmpty() ? FString(TEXT("parked")) : FString(TEXT("at stand"))) : FString(TEXT("on the ground"));
 	}

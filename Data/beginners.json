@@ -13,6 +13,6 @@
   "checkin":  {"early": 2, "late": 2, "night": 1, "craft": 2, "add": 1, "most": 4},
   "security": {"early": 2, "late": 2, "night": 1, "craft": 2, "add": 1, "most": 4},
   "gate":     {"early": 1, "late": 1, "night": 1, "craft": 2, "add": 1, "most": 3},
-  "mech":     {"early": 1, "late": 0, "night": 0, "craft": 0, "add": 0, "most": 1}
+  "mech":     {"early": 2, "late": 2, "night": 1, "craft": 0, "add": 0, "most": 6}
  }
 }

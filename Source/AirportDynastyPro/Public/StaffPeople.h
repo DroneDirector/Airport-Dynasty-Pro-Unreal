@@ -17,9 +17,9 @@ struct FADPWorld;
 class ATugs;
 
 /** What a ground crew member can do. The simulation has one ramp role, "ground", for all of it. */
-enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver, StairsDriver, StairsHelper, DeicerDriver, DeicerOperator, AmbuDriver, AmbuHelper, TaxiDriver, BusDriver };
+enum class EStaffDuty : uint8 { TugDriver, PushbackHandler, WingWalker, GpuHandler, TractorDriver, BaggageHandler, LoaderOperator, CleanDriver, Cleaner, FuelDriver, CaterDriver, CaterLoader, WaterDriver, StairsDriver, StairsHelper, DeicerDriver, DeicerOperator, AmbuDriver, AmbuHelper, TaxiDriver, BusDriver, Mechanic };
 /** The jobs of a turn-round that need ground crew. */
-enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice, Ambulift, PushHelp, PushDriver, Taxi, ApronBus, BusCharge, DeiceRelief };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
+enum class EStaffTask : uint8 { Gpu, BagsOut, BagsIn, Loader, Pushback, Bags, Relief, Chocks, Cleaning, CleanRelief, Fuel, Catering, CaterRelief, Water, Toilet, Stairs, Deice, Ambulift, PushHelp, PushDriver, Taxi, ApronBus, BusCharge, DeiceRelief, Maint };   // (Bags: a train and its belt loader together; Relief: one for somebody who vanished at work)
 
 UCLASS()
 class AIRPORTDYNASTYPRO_API UStaffPeople : public UTickableWorldSubsystem
@@ -35,8 +35,8 @@ public:
 	/** You employ the smallest team of a role here (2; the taxi bus: its 1 driver). */
 	bool HiresRole(const TCHAR* Role) const;
 	int32 OnDuty(const FString& Role) const;
-	static constexpr int32 NumDuties = int32(EStaffDuty::BusDriver) + 1;
-	static constexpr int32 NumTasks = int32(EStaffTask::DeiceRelief) + 1;
+	static constexpr int32 NumDuties = int32(EStaffDuty::Mechanic) + 1;
+	static constexpr int32 NumTasks = int32(EStaffTask::Maint) + 1;
 	/** How many of a role can do every job of it: 1 for a bus, the taxi bus, fuel, water; 2 for the others. */
 	static int32 LeastOf(const FString& Role);
 	/** The built people of a sex the hired ones can look like (to-do 301). */
