@@ -22,22 +22,34 @@ DRN_D = 0.32            # channel depth
 DRN_SLOT = 0.025        # the slot left open between the two top plates
 
 # ---- the vault's arches
-SPAN = 22.0             # column to column
-HALF = SPAN / 2         # columns at y = -11 and +11
-CROWN = 11.70           # to the crown, above ground (11.52 m over the deck)
+# The vault is NOT centred on the platform: it leans towards the terminal and shelters the walk to the doors.
+# Platform y -4 .. +4 (world y -18.35 .. -10.35). Column lines: south y -3.0 (1 m in from the bus-side kerb,
+# clear of the bay apron), north y +13.0 (on the pavement, 1.35 m clear of the terminal wall).
+SPAN = 16.0             # column to column
+COL_S_Y = -3.0
+COL_N_Y = 13.0
+COL_Y = {-1: COL_S_Y, 1: COL_N_Y}
+CANT_S = 3.5            # the roof cantilevers this far past the south columns, over the bay noses
+CANT_N = 1.0            # and this far past the north columns
+EAVE_S_Y = COL_S_Y - CANT_S                          # -6.5
+EAVE_N_Y = COL_N_Y + CANT_N                          # 14.0
+YC = (EAVE_S_Y + EAVE_N_Y) / 2                       # the arc's centre line, y 3.75
+EAVE_HALF = (EAVE_N_Y - EAVE_S_Y) / 2                # 10.25
+HALF = SPAN / 2         # kept for the sheets: half the column spacing
+CROWN = 10.70           # to the crown, above ground (10.52 m over the deck)
 PED_Z = 0.45            # concrete pedestal top above ground
 PLATE_T = 0.045         # steel base plate on it
 FOOT_Z = PED_Z + PLATE_T                             # the column stands on the base plate, z 0.495
-# the vault is lifted on columns so coaches can pull in under it on both sides
-COL_Z = 5.20            # column head: the arch springs from here
+EAVE_Z = 5.68                                        # the glazing stops here: 5.50 m clear over the deck
+RISE = CROWN - EAVE_Z
+R = (RISE * RISE + EAVE_HALF * EAVE_HALF) / (2 * RISE)
+CZ = CROWN - R
+TE = math.acos((EAVE_Z - CZ) / R)                    # t of the eaves, from the crown
+T0 = TE                                              # the arch ends at the eaves (the cantilever tips)
+T_COL = {-1: math.asin((COL_S_Y - YC) / R), 1: math.asin((COL_N_Y - YC) / R)}
 COL_OD = 0.46           # white tubular steel column
 COL_R = COL_OD / 2
-COL_HEAD = 0.56         # square head plate on the column
-SPRING_Z = COL_Z
-RISE = CROWN - SPRING_Z
-R = (RISE * RISE + HALF * HALF) / (2 * RISE)         # arc radius
-CZ = CROWN - R                                       # arc centre z
-T0 = math.acos((SPRING_Z - CZ) / R)                  # t of the springing, from the crown
+COL_HEAD = 0.56         # square head plate under the arch
 BAY = 7.5               # arches every 7.5 m
 N_BAY = int(round(PL_LEN / BAY))                     # 20 bays
 N_ARCH = N_BAY + 1                                   # 21 arches, x = 0 .. 150
@@ -45,9 +57,8 @@ ARCH_OD = 0.42          # white tubular steel arch
 ARCH_R = ARCH_OD / 2
 
 # ---- the eaves (gutter beam) and the purlins between them
-EAVE_Z = 5.68                                        # the glazing stops here: 5.50 m clear over the deck
-TE = math.acos((EAVE_Z - CZ) / R)                    # 1.2798 rad from the crown
-EAVE_Y = R * math.sin(TE)                            # 10.7497 m
+EAVE_Y = EAVE_N_Y                                    # the north eaves, y 14.0
+EAVE_Y_S = {-1: EAVE_S_Y, 1: EAVE_N_Y}
 EAVE_W = 0.30           # eaves beam, square box section
 PUR_OD = 0.14           # purlin tube
 PUR_R = PUR_OD / 2
@@ -90,7 +101,7 @@ RAFT_TOP = -0.02        # just under the ground, never seen
 
 def arch_pt(t, dr=0.0):
     """A point on an arch's axis, t radians from the crown (+t to +y); dr widens the radius."""
-    return (R + dr) * math.sin(t), CZ + (R + dr) * math.cos(t)
+    return YC + (R + dr) * math.sin(t), CZ + (R + dr) * math.cos(t)
 
 
 def row_t(k):

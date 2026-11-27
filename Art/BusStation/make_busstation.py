@@ -246,7 +246,7 @@ ROW_T = [D.row_t(k) for k in range(D.N_ROW + 1)]
 RPO = D.RP - D.R                       # the purlin/glazing radius as an offset from R
 
 # ---------------------------------------------------------------- 1  foundations and the island platform
-bm = bmesh.new(); box(bm, -0.35, -12.6, D.RAFT_TOP - D.RAFT_T, D.PL_LEN + 0.35, 12.6, D.RAFT_TOP)
+bm = bmesh.new(); box(bm, -0.35, -7.7, D.RAFT_TOP - D.RAFT_T, D.PL_LEN + 0.35, 14.3, D.RAFT_TOP)
 obj('BusStn_Found_Raft', bm, M_CONC)
 
 bm = bmesh.new(); box(bm, 0.0, -3.95, -0.10, D.PL_LEN, 3.95, D.DECK_Z - 0.035)
@@ -264,10 +264,23 @@ for s, sn in ((-1, 'South'), (1, 'North')):
     # tactile edge strip: a plate with corduroy ribs, bedded 15 mm into the paving
     y1 = s * (D.PL_HALF - D.KERB_W - D.TACT_OFF)
     y0 = y1 - s * D.TACT_W
-    bm = bmesh.new(); box(bm, 0.4, min(y0, y1), D.DECK_Z - 0.015, D.PL_LEN - 0.4, max(y0, y1), D.DECK_Z + D.TACT_T)
-    for k in range(5):
-        yr = min(y0, y1) + D.TACT_W * (k + 0.5) / 5
-        tube(bm, [(0.4, yr, D.DECK_Z + D.TACT_T), (D.PL_LEN - 0.4, yr, D.DECK_Z + D.TACT_T)], 0.013, 10)
+    # on the south side the column pedestals stand on the platform: the strip runs round them
+    segs = [(0.4, D.PL_LEN - 0.4)]
+    if s < 0:
+        segs = []
+        xa = 0.55
+        for xc in ARCH_X:
+            if xc - 0.55 > xa:
+                segs.append((xa, xc - 0.55))
+            xa = xc + 0.55
+        if D.PL_LEN - 0.55 > xa:
+            segs.append((xa, D.PL_LEN - 0.55))
+    bm = bmesh.new()
+    for xa, xb in segs:
+        box(bm, xa, min(y0, y1), D.DECK_Z - 0.015, xb, max(y0, y1), D.DECK_Z + D.TACT_T)
+        for k in range(5):
+            yr = min(y0, y1) + D.TACT_W * (k + 0.5) / 5
+            tube(bm, [(xa, yr, D.DECK_Z + D.TACT_T), (xb, yr, D.DECK_Z + D.TACT_T)], 0.013, 10)
     obj('BusStn_Platform_Tactile' + sn, bm, M_TACT, 0.0)
 
     # slot drain: channel walls + sole + the two top plates, 25 mm slot between them, frame 5 mm proud
@@ -285,7 +298,7 @@ for s, sn in ((-1, 'South'), (1, 'North')):
 # ---------------------------------------------------------------- 2  the feet: pad, pedestal, shoe
 for i, x in enumerate(ARCH_X):
     for s, sn in ((-1, 'S'), (1, 'N')):
-        yf = s * D.HALF
+        yf = D.COL_Y[s]
         tag = 'A%02d%s' % (i + 1, sn)
         h = D.FOOT_PAD / 2
         bm = bmesh.new(); box(bm, x - h, yf - h, -0.30, x + h, yf + h, D.FOOT_PAD_Z)
@@ -315,31 +328,31 @@ for i, x in enumerate(ARCH_X):
 # ---------------------------------------------------------------- 2b  the columns: 5.50 m clear under the eaves
 for i, x in enumerate(ARCH_X):
     for s, sn in ((-1, 'S'), (1, 'N')):
-        yf = s * D.HALF
+        yf = D.COL_Y[s]
         tag = 'A%02d%s' % (i + 1, sn)
+        tc = D.T_COL[s]
+        zax = P(tc)[1]                                   # the arch's axis over the column
+        zsof = zax - D.ARCH_R / math.cos(tc)             # its soffit on the column's centreline
         bm = bmesh.new()
-        tube(bm, [(x, yf, D.FOOT_Z - 0.06), (x, yf, D.COL_Z)], D.COL_R, 24)
+        tube(bm, [(x, yf, D.FOOT_Z - 0.06), (x, yf, zsof + 0.005)], D.COL_R, 24)
         obj('BusStn_Column_Post' + tag, bm, M_STEEL)
 
-        # head: plate, welded shoe collar round the arch's first length, gussets both ways
+        # head: plate under the arch, welded shoe collar round the arch, gussets down the column
         h = D.COL_HEAD / 2
         bm = bmesh.new()
-        box(bm, x - h, yf - h, D.COL_Z - 0.055, x + h, yf + h, D.COL_Z + 0.010)
-        a_ax = Vector(P3(x, s * (D.T0 - 0.08))) - Vector(P3(x, s * D.T0))
-        a_ax.normalize()
-        top = Vector((x, yf, D.COL_Z - 0.03))
-        tube(bm, [top, top + a_ax * 0.46], D.ARCH_R + 0.055, 18)
+        box(bm, x - h, yf - h, zsof - 0.055, x + h, yf + h, zsof + 0.010)
+        a_ax = (Vector(P3(x, tc + 0.05)) - Vector(P3(x, tc - 0.05))).normalized()
+        ctr = Vector((x, P(tc)[0], zax))
+        tube(bm, [ctr - a_ax * 0.26, ctr + a_ax * 0.26], D.ARCH_R + 0.055, 18)
         for sg in (-1, 1):
-            add_cube(bm, (x + sg * (D.COL_R + 0.030), yf - s * 0.06, D.COL_Z - 0.20),
-                     (0.014, 0, 0), (0, 0.20, 0), (0, 0, 0.17))
+            add_cube(bm, (x + sg * (D.COL_R + 0.030), yf, zsof - 0.25),
+                     (0.014, 0, 0), (0, 0.20, 0), (0, 0, 0.22))
         obj('BusStn_Column_Head' + tag, bm, M_STEEL, 0.006)
 
 # ---------------------------------------------------------------- 3  the arches
 NSEG = 56
 for i, x in enumerate(ARCH_X):
-    pts = [P3(x, -D.T0 + 2 * D.T0 * k / NSEG) for k in range(NSEG + 1)]
-    pts[0] = (x, pts[0][1], pts[0][2] - 0.06)
-    pts[-1] = (x, pts[-1][1], pts[-1][2] - 0.06)
+    pts = [P3(x, -D.TE + 2 * D.TE * k / NSEG) for k in range(NSEG + 1)]
     bm = bmesh.new(); tube(bm, pts, D.ARCH_R, 24)
     obj('BusStn_Vault_ArchA%02d' % (i + 1), bm, M_STEEL)
 
@@ -400,7 +413,7 @@ for b in D.BRACE_BAYS:
     bmc = bmesh.new()
     bml = bmesh.new()
     for s in (-1, 1):
-        ta, tb = s * 0.38, s * 1.06
+        ta, tb = s * 0.30, s * 0.84
         for pa, pb in (((x0, ta), (x1, tb)), ((x0, tb), (x1, ta))):
             A = Vector(P3(pa[0], pa[1], D.CABLE_DR))
             B = Vector(P3(pb[0], pb[1], D.CABLE_DR))
@@ -413,10 +426,9 @@ for b in D.BRACE_BAYS:
     obj('BusStn_Brace_LugB%02d' % (b + 1), bml, M_STEEL, 0.004)
 
 # ---------------------------------------------------------------- 7  gutters, brackets, downpipes
-GZ = P(D.TE, RPO)[1] + D.GUT_DZ
-TB = math.acos((GZ - D.CZ) / D.R)                       # where the bracket meets the arch
+GZ = P(D.TE, RPO)[1] + D.GUT_DZ                         # the gutters hang under the two cantilever tips
 for s, sn in ((-1, 'South'), (1, 'North')):
-    gy = s * (P(D.TE, RPO)[0] + D.GUT_DY)
+    gy = P(s * D.TE, RPO)[0] + s * D.GUT_DY
     hw = D.GUT_W / 2
     bm = bmesh.new()
     box(bm, -0.30, gy - hw + 0.005, GZ, D.PL_LEN + 0.30, gy + hw - 0.005, GZ + 0.014)
@@ -424,23 +436,25 @@ for s, sn in ((-1, 'South'), (1, 'North')):
         box(bm, -0.30, gy + sg * hw - sg * D.GUT_T, GZ, D.PL_LEN + 0.30, gy + sg * hw, GZ + D.GUT_D)
     obj('BusStn_Gutter_Channel' + sn, bm, M_ALU, 0.004)
 
-    ya = s * D.R * math.sin(TB)
+    # bracket plates: off the arch near its tip, down and out to the gutter
+    ay, az = P(s * (D.TE - 0.04))
     bm = bmesh.new()
     for x in ARCH_X:
-        box(bm, x - 0.008, min(ya + s * -0.15, gy + s * hw), GZ - 0.075,
-            x + 0.008, max(ya + s * -0.15, gy + s * hw), GZ + 0.008)
-        box(bm, x - 0.008, min(ya + s * -0.15, ya + s * 0.02), GZ - 0.075,
-            x + 0.008, max(ya + s * -0.15, ya + s * 0.02), GZ + 0.34)
+        y0, y1 = sorted((ay, gy + s * hw))
+        box(bm, x - 0.008, y0, GZ - 0.075, x + 0.008, y1, az + 0.02)
     obj('BusStn_Gutter_Bracket' + sn, bm, M_STEEL, 0.003)
 
+    # downpipe: a sloped collector from the gutter back to the column, then down the column to its footing
+    cy = D.COL_Y[s]
+    py = cy + s * 0.55                                   # clear of the pedestal, on the footing pad
     for i, x in enumerate(ARCH_X):
         if i % D.DOWN_EVERY:
             continue
         bm = bmesh.new()
-        tube(bm, [(x, gy, 0.07), (x, gy, GZ + 0.026)], D.DOWN_OD / 2, 14)              # down the column
-        for zc in (1.10, 2.60, 4.10):
-            tube(bm, [(x, gy, zc), (x, gy, zc + 0.05)], D.DOWN_OD / 2 + 0.018, 14)     # pipe clamps
-            bar(bm, (x, gy, zc + 0.025), (x, s * (D.HALF - 0.04), zc + 0.025), 0.05, 0.05)  # into the column
+        tube(bm, [(x, gy, GZ + 0.026), (x, gy, GZ - 0.28), (x, py, GZ - 1.05), (x, py, 0.07)], D.DOWN_OD / 2, 14)
+        for zc in (1.10, 2.60, 3.90):
+            tube(bm, [(x, py, zc), (x, py, zc + 0.05)], D.DOWN_OD / 2 + 0.018, 14)     # pipe clamps
+            bar(bm, (x, py, zc + 0.025), (x, cy + s * 0.17, zc + 0.025), 0.05, 0.05)   # into the column
         obj('BusStn_Gutter_DownpipeA%02d%s' % (i + 1, 'S' if s < 0 else 'N'), bm, M_ALU, 0.004)
 
 # ---------------------------------------------------------------- UVs, pivots, save, export
