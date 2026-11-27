@@ -22,16 +22,22 @@ DRN_D = 0.32            # channel depth
 DRN_SLOT = 0.025        # the slot left open between the two top plates
 
 # ---- the vault's arches
-SPAN = 22.0             # foot to foot
-HALF = SPAN / 2         # feet at y = -11 and +11
-CROWN = 9.0             # to the crown, above ground
+SPAN = 22.0             # column to column
+HALF = SPAN / 2         # columns at y = -11 and +11
+CROWN = 11.70           # to the crown, above ground (11.52 m over the deck)
 PED_Z = 0.45            # concrete pedestal top above ground
 PLATE_T = 0.045         # steel base plate on it
-FOOT_Z = PED_Z + PLATE_T                             # the arch springs off the base plate, z 0.495
-RISE = CROWN - FOOT_Z
+FOOT_Z = PED_Z + PLATE_T                             # the column stands on the base plate, z 0.495
+# the vault is lifted on columns so coaches can pull in under it on both sides
+COL_Z = 5.20            # column head: the arch springs from here
+COL_OD = 0.46           # white tubular steel column
+COL_R = COL_OD / 2
+COL_HEAD = 0.56         # square head plate on the column
+SPRING_Z = COL_Z
+RISE = CROWN - SPRING_Z
 R = (RISE * RISE + HALF * HALF) / (2 * RISE)         # arc radius
 CZ = CROWN - R                                       # arc centre z
-T0 = math.acos((FOOT_Z - CZ) / R)                    # t of the feet, from the crown
+T0 = math.acos((SPRING_Z - CZ) / R)                  # t of the springing, from the crown
 BAY = 7.5               # arches every 7.5 m
 N_BAY = int(round(PL_LEN / BAY))                     # 20 bays
 N_ARCH = N_BAY + 1                                   # 21 arches, x = 0 .. 150
@@ -39,7 +45,7 @@ ARCH_OD = 0.42          # white tubular steel arch
 ARCH_R = ARCH_OD / 2
 
 # ---- the eaves (gutter beam) and the purlins between them
-EAVE_Z = 1.00                                        # the glazing stops here, above the gutter
+EAVE_Z = 5.68                                        # the glazing stops here: 5.50 m clear over the deck
 TE = math.acos((EAVE_Z - CZ) / R)                    # 1.2798 rad from the crown
 EAVE_Y = R * math.sin(TE)                            # 10.7497 m
 EAVE_W = 0.30           # eaves beam, square box section
@@ -66,7 +72,7 @@ LUG_T = 0.018
 GUT_W = 0.40
 GUT_D = 0.22
 GUT_T = 0.012
-GUT_DY = 0.52           # gutter axis, outboard of the eaves beam
+GUT_DY = 0.59           # gutter axis, outboard of the eaves beam
 GUT_DZ = -0.30          # and below it
 BRK_T = 0.014           # gutter bracket plate
 DOWN_OD = 0.11          # downpipe

@@ -97,7 +97,7 @@ T_GRAN = speckle('T_BusStn_Granite', (0.40, 0.41, 0.43), (0.66, 0.67, 0.70), 5.0
 T_KERB = speckle('T_BusStn_Kerb', (0.46, 0.46, 0.47), (0.63, 0.64, 0.66), 4.0, 0.24)
 T_TACT = ribbed('T_BusStn_Tactile', (0.84, 0.84, 0.82))
 T_DARK = plain('T_BusStn_DarkSteel', (0.20, 0.21, 0.23), 0.08, 2.5)
-T_GLASS = glassy('T_BusStn_Glass', (0.80, 0.87, 0.90))
+T_GLASS = glassy('T_BusStn_Glass', (0.86, 0.95, 0.90))   # faintly green, very light: a glass tint
 
 
 def mat(name, tex, metal, rough, alpha=1.0, trans=0.0):
@@ -117,7 +117,14 @@ def mat(name, tex, metal, rough, alpha=1.0, trans=0.0):
     b.inputs['Alpha'].default_value = alpha
     if alpha < 1.0:
         m.blend_method = 'BLEND'
+        m.shadow_method = 'HASHED'
         m.use_backface_culling = False
+        m.show_transparent_back = False      # one glass surface, not a milky stack
+        m.use_screen_refraction = True
+        m.refraction_depth = 0.024
+        b.inputs['IOR'].default_value = 1.52
+        b.inputs['Specular'].default_value = 0.72
+        nm.inputs['Strength'].default_value = 0.08
     return m
 
 
@@ -129,7 +136,7 @@ M_GRAN = mat('BusStn_Granite', T_GRAN, 0.0, 0.62)
 M_KERB = mat('BusStn_Kerb', T_KERB, 0.0, 0.66)
 M_TACT = mat('BusStn_Tactile', T_TACT, 0.0, 0.70)
 M_DARK = mat('BusStn_DarkSteel', T_DARK, 0.9, 0.46)
-M_GLASS = mat('BusStn_Glass', T_GLASS, 0.0, 0.06, 0.42, 0.90)
+M_GLASS = mat('BusStn_Glass', T_GLASS, 0.0, 0.025, 0.13, 0.95)
 
 # ---------------------------------------------------------------- geometry helpers
 ALL = []
@@ -296,14 +303,36 @@ for i, x in enumerate(ARCH_X):
             for dy in (-0.22, 0.22):
                 tube(bm, [(x + dx, yf + dy, D.PED_Z - 0.12), (x + dx, yf + dy, D.FOOT_Z + 0.030)], D.BOLT_OD / 2, 10)
                 tube(bm, [(x + dx, yf + dy, D.FOOT_Z - 0.002), (x + dx, yf + dy, D.FOOT_Z + 0.028)], 0.036, 6)
-        t_ax = Vector(P3(x, s * (D.T0 - 0.06))) - Vector(P3(x, s * D.T0))
-        t_ax.normalize()
         base = Vector((x, yf, D.FOOT_Z - 0.01))
-        tube(bm, [base - t_ax * 0.02, base + t_ax * 0.30], D.ARCH_R + 0.055, 16)      # welded shoe collar
+        tube(bm, [base, base + Vector((0, 0, 0.32))], D.COL_R + 0.055, 18)            # welded shoe collar
         for sg in (-1, 1):
-            add_cube(bm, (x + sg * (D.ARCH_R + 0.085), yf, D.FOOT_Z + 0.20),
-                     (0.012, 0, 0), (0, 0.17, 0), (0, 0, 0.21))                       # gussets
+            add_cube(bm, (x + sg * (D.COL_R + 0.030), yf, D.FOOT_Z + 0.22),
+                     (0.012, 0, 0), (0, 0.18, 0), (0, 0, 0.22))                       # gussets
+            add_cube(bm, (x, yf + sg * (D.COL_R + 0.030), D.FOOT_Z + 0.22),
+                     (0.18, 0, 0), (0, 0.012, 0), (0, 0, 0.22))
         obj('BusStn_Foot_Shoe' + tag, bm, M_STEEL, 0.006)
+
+# ---------------------------------------------------------------- 2b  the columns: 5.50 m clear under the eaves
+for i, x in enumerate(ARCH_X):
+    for s, sn in ((-1, 'S'), (1, 'N')):
+        yf = s * D.HALF
+        tag = 'A%02d%s' % (i + 1, sn)
+        bm = bmesh.new()
+        tube(bm, [(x, yf, D.FOOT_Z - 0.06), (x, yf, D.COL_Z)], D.COL_R, 24)
+        obj('BusStn_Column_Post' + tag, bm, M_STEEL)
+
+        # head: plate, welded shoe collar round the arch's first length, gussets both ways
+        h = D.COL_HEAD / 2
+        bm = bmesh.new()
+        box(bm, x - h, yf - h, D.COL_Z - 0.055, x + h, yf + h, D.COL_Z + 0.010)
+        a_ax = Vector(P3(x, s * (D.T0 - 0.08))) - Vector(P3(x, s * D.T0))
+        a_ax.normalize()
+        top = Vector((x, yf, D.COL_Z - 0.03))
+        tube(bm, [top, top + a_ax * 0.46], D.ARCH_R + 0.055, 18)
+        for sg in (-1, 1):
+            add_cube(bm, (x + sg * (D.COL_R + 0.030), yf - s * 0.06, D.COL_Z - 0.20),
+                     (0.014, 0, 0), (0, 0.20, 0), (0, 0, 0.17))
+        obj('BusStn_Column_Head' + tag, bm, M_STEEL, 0.006)
 
 # ---------------------------------------------------------------- 3  the arches
 NSEG = 56
@@ -407,13 +436,11 @@ for s, sn in ((-1, 'South'), (1, 'North')):
     for i, x in enumerate(ARCH_X):
         if i % D.DOWN_EVERY:
             continue
-        xp = x + 0.52          # clear of the pedestal, still on the footing pad
         bm = bmesh.new()
-        tube(bm, [(xp, gy, 0.07), (xp, gy, GZ + 0.026)], D.DOWN_OD / 2, 14)
-        for zc in (0.26, 0.52):
-            tube(bm, [(xp, gy, zc), (xp, gy, zc + 0.05)], D.DOWN_OD / 2 + 0.018, 14)   # pipe clamps
-            # stay from the clamp into the concrete pedestal (bolted bracket), clear of the pedestal's faces
-            bar(bm, (xp, gy, zc + 0.025), (x + 0.38, gy, zc + 0.025), 0.05, 0.05)
+        tube(bm, [(x, gy, 0.07), (x, gy, GZ + 0.026)], D.DOWN_OD / 2, 14)              # down the column
+        for zc in (1.10, 2.60, 4.10):
+            tube(bm, [(x, gy, zc), (x, gy, zc + 0.05)], D.DOWN_OD / 2 + 0.018, 14)     # pipe clamps
+            bar(bm, (x, gy, zc + 0.025), (x, s * (D.HALF - 0.04), zc + 0.025), 0.05, 0.05)  # into the column
         obj('BusStn_Gutter_DownpipeA%02d%s' % (i + 1, 'S' if s < 0 else 'N'), bm, M_ALU, 0.004)
 
 # ---------------------------------------------------------------- UVs, pivots, save, export

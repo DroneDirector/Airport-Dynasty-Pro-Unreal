@@ -90,7 +90,7 @@ save(fig, 'plan.png', 'Plan. Island platform %.0f x %.0f m; the vault covers all
 
 # ------------------------------------------------------------------ 2  cross section
 fig, a = sheet('cross section (looking east)', 15, 12)
-a.set_xlim(-14.5, 14.5); a.set_ylim(-1.6, 11.6)
+a.set_xlim(-14.5, 14.5); a.set_ylim(-1.8, 14.4)
 
 
 def arc_poly(dr0, dr1, t0, t1, n=120, **kw):
@@ -99,7 +99,7 @@ def arc_poly(dr0, dr1, t0, t1, n=120, **kw):
     return Polygon(pts, closed=True, **kw)
 
 
-T0 = math.acos((0 - D.CZ) / D.R)
+T0 = D.T0          # the arch springs off the column heads, not off the ground
 # ground
 tick(a, -14.5, 14.5, 0, 0, DIM, 1.0)
 a.text(-14.2, -0.45, 'ground z 0', color=DIM, fontsize=9)
@@ -125,7 +125,14 @@ for s in (-1, 1):
     a.add_patch(Rectangle((fy - D.FOOT_PAD / 2, 0), D.FOOT_PAD, D.FOOT_PAD_Z, fc='#333a41', ec=INK, lw=1.0))
     a.add_patch(Rectangle((fy - D.PED_W / 2, 0), D.PED_W, D.PED_Z, fc='#3b434b', ec=INK, lw=1.0))
     a.add_patch(Rectangle((fy - D.PLATE_W / 2, D.PED_Z), D.PLATE_W, D.PLATE_T, fc=STL, ec=INK, lw=1.0))
-a.text(0, 9.8, 'glazed barrel vault: white tubular steel arches, glazing diagrid between the purlins', color=INK,
+    # column up to the springing, with its head plate
+    a.add_patch(Rectangle((fy - D.COL_R, D.FOOT_Z), D.COL_OD, D.COL_Z - D.FOOT_Z, fc=STL, ec=INK, lw=1.2))
+    a.add_patch(Rectangle((fy - D.COL_HEAD / 2, D.COL_Z - 0.055), D.COL_HEAD, 0.065, fc=STL, ec=INK, lw=1.0))
+    a.add_patch(Rectangle((fy + s * (D.COL_R + 0.30), 0.07), D.DOWN_OD, D.EAVE_Z + D.GUT_DZ - 0.07,
+                          fc='#9fb6c9', ec=INK, lw=0.6))
+    a.text(s * 13.2, 9.4, 'coaches pull in', color=DIM, fontsize=9, ha='center')
+    a.text(s * 13.2, 8.8, 'under the eaves', color=DIM, fontsize=9, ha='center')
+a.text(0, 12.6, 'glazed barrel vault: white tubular steel arches, glazing diagrid between the purlins', color=INK,
        ha='center', fontsize=12)
 # platform in the section
 a.add_patch(Rectangle((-D.PL_HALF, -0.05), D.PL_WID, D.DECK_Z + 0.05, fc='#15191d', ec=INK, lw=1.6))
@@ -139,26 +146,30 @@ for s in (-1, 1):
 a.add_patch(Rectangle((-12.6, D.RAFT_TOP - D.RAFT_T), 25.2, D.RAFT_T, fc='#20262c', ec=DIM, lw=0.8, ls='--'))
 a.text(0, D.RAFT_TOP - D.RAFT_T / 2, 'foundation raft, under the ground - pads, pedestals and the platform slab all'
                                      ' sit on it', color=DIM, fontsize=9, ha='center', va='center')
-dim(a, (-D.HALF, -1.15), (D.HALF, -1.15), '%.0f span' % D.SPAN, (0, -0.3))
+dim(a, (-D.HALF, -1.35), (D.HALF, -1.35), '%.0f span, column to column' % D.SPAN, (0, -0.3))
 dim(a, (0.0, 0), (0.0, D.CROWN), '%.1f to the crown' % D.CROWN, (1.5, 0))
 dim(a, (-D.PL_HALF, 1.9), (D.PL_HALF, 1.9), '%.1f platform' % D.PL_WID, (0, 0.38))
-dim(a, (D.EAVE_Y, 0), (D.EAVE_Y, D.EAVE_Z), '%.2f eaves' % D.EAVE_Z, (1.35, 0))
+dim(a, (D.EAVE_Y, 0), (D.EAVE_Y, D.EAVE_Z), '%.2f eaves' % D.EAVE_Z, (1.45, 0))
+dim(a, (-D.HALF + 0.9, D.DECK_Z), (-D.HALF + 0.9, D.EAVE_Z), '%.2f clear over the deck' % (D.EAVE_Z - D.DECK_Z),
+    (-1.5, 0))
+dim(a, (-D.HALF - 1.5, 0), (-D.HALF - 1.5, D.COL_Z), '%.2f column head' % D.COL_Z, (-0.45, 0))
 a.text(-D.PL_HALF - 0.1, 0.95, 'kerb %.0f mm, deck top z %.2f' % (D.KERB_H * 1000, D.DECK_Z), color=DIM, fontsize=9,
        ha='right')
-a.text(0.6, 5.6, 'arch tube %.0f OD\npurlin %.0f OD, %d rows\nglass %.0f mm' %
+a.text(0.6, 8.6, 'arch tube %.0f OD\npurlin %.0f OD, %d rows\nglass %.0f mm' %
        (D.ARCH_OD * 1000, D.PUR_OD * 1000, len(D.PUR_K), D.PANE_T * 1000), color=DIM, fontsize=10)
 save(fig, 'section-cross.png', 'Cross section. Arc radius %.3f m, centre z %.3f m.' % (D.R, D.CZ))
 
 # ------------------------------------------------------------------ 3  long section
 fig, a = sheet('long section on the centreline (looking north)', 24, 9)
-a.set_xlim(-10, 162); a.set_ylim(-1.6, 11.4)
+a.set_xlim(-10, 162); a.set_ylim(-1.8, 14.2)
 tick(a, -10, 162, 0, 0, DIM, 1.0)
 for i in range(D.N_ARCH):
     x = i * D.BAY
-    a.add_patch(Rectangle((x - D.ARCH_R, 0), D.ARCH_OD, D.CROWN, fc=STL, ec=INK, lw=0.8))
+    a.add_patch(Rectangle((x - D.ARCH_R, D.COL_Z), D.ARCH_OD, D.CROWN - D.COL_Z, fc=STL, ec=INK, lw=0.8))
+    a.add_patch(Rectangle((x - D.COL_R, 0), D.COL_OD, D.COL_Z, fc=STL, ec=INK, lw=0.9))
     a.add_patch(Rectangle((x - D.PED_W / 2, 0), D.PED_W, D.PED_Z, fc='#3b434b', ec=INK, lw=0.7))
     if i % 2 == 0:
-        a.add_patch(Rectangle((x + 0.3, D.EAVE_Z + D.GUT_DZ - 0.6), D.DOWN_OD, 0.0 - (D.EAVE_Z + D.GUT_DZ - 0.6),
+        a.add_patch(Rectangle((x + D.COL_R + 0.30, 0.07), D.DOWN_OD, D.EAVE_Z + D.GUT_DZ - 0.07,
                               fc='#9fb6c9', ec=INK, lw=0.5))
 for k in list(D.PUR_K) + [0, D.N_ROW]:
     z = D.arch_pt(D.row_t(k), D.RP - D.R)[1]
@@ -178,12 +189,12 @@ dim(a, (D.BAY, D.CROWN + 1.5), (D.BAY * 2, D.CROWN + 1.5), '%.2f' % D.BAY, (0, 0
 a.text(D.BAY * 2.4, D.CROWN + 1.9, '%d arches at %.2f, %d bays' % (D.N_ARCH, D.BAY, D.N_BAY), color=DIM, fontsize=11)
 a.text(60, 3.2, 'purlins run the whole 150 m, arch to arch - the vault is one connected structure, not separate hoops',
        color=DIM, fontsize=11)
-a.text(60, 2.3, 'downpipe at every second arch, clamped to the arch, into the platform drains', color=DIM, fontsize=11)
+a.text(60, 2.3, 'downpipe at every second column, on its clamps, into the footing', color=DIM, fontsize=11)
 save(fig, 'section-long.png', 'Long section. Purlin lines shown at their arc heights on the centreline.')
 
 # ------------------------------------------------------------------ 4  details
 fig, ax = plt.subplots(1, 3, figsize=(22, 9), facecolor=BG)
-for a, t in zip(ax, ('A  arch foot (mm)', 'B  purlin to arch, glazing (mm)', 'C  gutter bracket (mm)')):
+for a, t in zip(ax, ('A  column foot (mm)', 'B  purlin to arch, glazing (mm)', 'C  gutter bracket (mm)')):
     a.set_facecolor(BG); a.set_aspect('equal'); a.axis('off'); a.set_title(t, color=INK, fontsize=15)
 fig.suptitle('Chablais bus station - structure - details: nothing floats', color=INK, fontsize=18)
 
