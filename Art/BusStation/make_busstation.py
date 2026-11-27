@@ -8,7 +8,7 @@
 # modelled brackets off the arches and drain down real downpipes; every joint is a real overlap (plate, collar,
 # flange, burial), never two surfaces grazing.
 #   "C:/Program Files/Blender Foundation/Blender 3.3/blender.exe" -b --python Art/BusStation/make_busstation.py
-#   ... -- --render          one 3840x2160 three-quarter view to docs/Pictures/busstation-vault.png
+#   ... -- --render [--only=hall]   3840x2160 views to docs/Pictures/busstation-*.png
 import bpy, bmesh, math, os, sys
 import numpy as np
 from mathutils import Vector, Matrix
@@ -20,6 +20,7 @@ import busstn_dims as D
 
 RENDER = '--render' in sys.argv
 QUICK = '--quick' in sys.argv
+ONLY = [a[7:] for a in sys.argv if a.startswith('--only=')]   # --only=hall renders just that picture
 bpy.ops.wm.read_factory_settings(use_empty=True)
 rng = np.random.default_rng(11)
 
@@ -140,6 +141,7 @@ M_GLASS = mat('BusStn_Glass', T_GLASS, 0.0, 0.025, 0.13, 0.95)
 
 # ---------------------------------------------------------------- geometry helpers
 ALL = []
+NO_PIVOT = set()        # parts whose origin is set where they are built (the clock hands), not by the generic pass
 
 
 def add_cube(bm, c, ax, ay, az):
@@ -587,11 +589,14 @@ def lit_box(group, part, c, size, m_face, dep_faces=(1, -1), arm_free=None):
                    (cx, cy + s * (hd - 0.028), cz), (0, s, 0), w - 0.07, hz - 0.05, m_face, 0.008)
 
 
-def base_plate(bm, x, y, w, zt=None, bolts=0.0):
-    """A bolted base plate bedded 20 mm into the deck paving, with four nuts."""
-    zt = D.DECK_Z + 0.03 if zt is None else zt
+def base_plate(bm, x, y, w, zt=None, bolts=0.0, fz=None):
+    """A bolted base plate bedded into the floor it stands on: 20 mm into the deck paving, or - on the pavement by
+    the hall, where we lay no paving of our own - 60 mm down into the foundation raft just under it. Four nuts."""
+    fz = D.DECK_Z if fz is None else fz
+    zt = fz + 0.03 if zt is None else zt
+    zb = fz - 0.02 if abs(fz - D.DECK_Z) < 1e-9 else fz - 0.06
     h = w / 2
-    box(bm, x - h, y - h, D.DECK_Z - 0.02, x + h, y + h, zt)
+    box(bm, x - h, y - h, zb, x + h, y + h, zt)
     if bolts:
         for dx in (-bolts, bolts):
             for dy in (-bolts, bolts):
@@ -600,24 +605,35 @@ def base_plate(bm, x, y, w, zt=None, bolts=0.0):
 
 
 # ---------------------------------------------------------------- 8a  the hall: sill, frame, glass, roof
+# The hall stands on the PAVEMENT between the platform and the terminal (busstn_dims: HALL_YS..HALL_YN), which is
+# 0.18 m lower than the island deck, so every height here is measured off HALL_FLOOR_Z, not DECK_Z. The doors face
+# the platform: two sets in the south wall, one in the north wall towards the terminal.
 HX0, HX1 = D.HALL_X0, D.HALL_X1
-HYN, HYS = D.HALL_YN, D.HALL_YS
+HYN, HYS, HYM = D.HALL_YN, D.HALL_YS, D.HALL_YM
+HFZ = D.HALL_FLOOR_Z
 PW, PD = D.HALL_POST
 BW, BD = D.HALL_BEAM
 SZ = D.HALL_SILL_Z
 HEAD = D.HALL_HEAD_Z
 MULL_X = [HX0 + i * D.HALL_BAY for i in range(int(round((HX1 - HX0) / D.HALL_BAY)) + 1)]
-DOORS = ((D.HALL_DOOR_N_X, HYN, 1, 'N'), (D.HALL_DOOR_S_X, HYS, -1, 'S'))
-DOOR_BAY = {('N', round(D.HALL_DOOR_N_X, 3)), ('S', round(D.HALL_DOOR_S_X, 3))}
+# (x on the wall, wall y, outward sign, part tag, wall side)
+DOORS = ((D.HALL_DOOR_S1_X, HYS, -1, 'S1', 'S'), (D.HALL_DOOR_S2_X, HYS, -1, 'S2', 'S'),
+         (D.HALL_DOOR_N_X, HYN, 1, 'N1', 'N'))
+DOOR_BAY = set((dsd, round(dx, 3)) for dx, dy, sg, dt, dsd in DOORS)
 
 
 def is_door_bay(side, xc):
     return (side, round(xc, 3)) in DOOR_BAY
 
 
-# sill: a steel channel bedded into the paving, in segments that leave the two door thresholds free
+def ypair(a, b):
+    """The two y of a box, smallest first."""
+    return (a, b) if a <= b else (b, a)
+
+
+# sill: a steel channel bedded into the paving, in segments that leave the door thresholds free
 for side, yw in (('N', HYN), ('S', HYS)):
-    cuts = [(dx - 1.35, dx + 1.35) for dx, dy, sg, sd in DOORS if sd == side]
+    cuts = sorted((dx - 1.42, dx + 1.42) for dx, dy, sg, dt, dsd in DOORS if dsd == side)
     segs = []
     xa = HX0
     for ca, cb in cuts:
@@ -627,13 +643,13 @@ for side, yw in (('N', HYN), ('S', HYS)):
     bm = bmesh.new()
     for xa, xb in segs:
         if xb - xa > 0.02:
-            box(bm, xa, yw - D.HALL_SILL_W / 2, D.DECK_Z - 0.05, xb, yw + D.HALL_SILL_W / 2, SZ)
-            box(bm, xa, yw - D.HALL_SILL_W / 2 + 0.03, D.DECK_Z - 0.05, xb, yw + D.HALL_SILL_W / 2 - 0.03, SZ - 0.04)
+            box(bm, xa, yw - D.HALL_SILL_W / 2, HFZ - 0.06, xb, yw + D.HALL_SILL_W / 2, SZ)
+            box(bm, xa, yw - D.HALL_SILL_W / 2 + 0.03, HFZ - 0.06, xb, yw + D.HALL_SILL_W / 2 - 0.03, SZ - 0.04)
     obj('BusStn_Hall_Sill' + side, bm, M_STEEL, 0.008)
 
 bm = bmesh.new()
 for xw in (HX0, HX1):
-    box(bm, xw - D.HALL_SILL_W / 2, HYS - 0.08, D.DECK_Z - 0.05, xw + D.HALL_SILL_W / 2, HYN + 0.08, SZ)
+    box(bm, xw - D.HALL_SILL_W / 2, HYS - 0.08, HFZ - 0.06, xw + D.HALL_SILL_W / 2, HYN + 0.08, SZ)
 obj('BusStn_Hall_SillEnds', bm, M_STEEL, 0.008)
 
 # mullions on the bay lines, both long walls, and the end-wall posts
@@ -646,7 +662,7 @@ for i, xm in enumerate(MULL_X):
 
 for xw, xn in ((HX0, 'W'), (HX1, 'E')):
     bm = bmesh.new()
-    box(bm, xw - PD / 2, -0.05, SZ - 0.06, xw + PD / 2, 0.05, HEAD + BD)
+    box(bm, xw - PD / 2, HYM - 0.05, SZ - 0.06, xw + PD / 2, HYM + 0.05, HEAD + BD)
     obj('BusStn_Hall_PostMid' + xn, bm, M_STEEL, 0.006)
 
 # head beams: a closed ring of box section on the mullion heads
@@ -670,7 +686,7 @@ for side, yw in (('N', HYN), ('S', HYS)):
         box(bm, xa + PW / 2 - 0.03, yw - D.PANE_T / 2, SZ - 0.03, xb - PW / 2 + 0.03, yw + D.PANE_T / 2, HEAD + 0.03)
         obj('BusStn_Hall_Glass%s%02d' % (side, i + 1), bm, M_GLASS, 0.0)
 for xw, xn in ((HX0, 'W'), (HX1, 'E')):
-    for k, (ya, yb) in enumerate(((HYS, -0.0), (0.0, HYN))):
+    for k, (ya, yb) in enumerate(((HYS, HYM), (HYM, HYN))):
         bm = bmesh.new()
         box(bm, xw - D.PANE_T / 2, ya + PW / 2 - 0.03, SZ - 0.03, xw + D.PANE_T / 2, yb - PW / 2 + 0.03, HEAD + 0.03)
         obj('BusStn_Hall_Glass%s%d' % (xn, k + 1), bm, M_GLASS, 0.0)
@@ -690,7 +706,7 @@ obj('BusStn_Hall_RoofDeck', bm, M_ALU, 0.008)
 
 bm = bmesh.new()
 for yf in (HYS - 0.30, HYN + 0.30):
-    sg = 1 if yf > 0 else -1
+    sg = 1 if yf > HYM else -1
     box(bm, HX0 - 0.29, yf - sg * 0.022, D.HALL_ROOF_Z - 0.21, HX1 + 0.29, yf + sg * 0.022, D.HALL_ROOF_Z - 0.02)
 for xf in (HX0 - 0.25, HX1 + 0.25):
     sg = 1 if xf > (HX0 + HX1) / 2 else -1
@@ -701,29 +717,42 @@ bm = bmesh.new()
 box(bm, HX0 - 0.03, HYS + 0.05, D.HALL_CEIL_Z, HX1 + 0.03, HYN - 0.05, D.HALL_CEIL_Z + 0.02)
 obj('BusStn_Hall_Ceiling', bm, M_PANEL, 0.004)
 
-# ---------------------------------------------------------------- 8b  the two sliding door sets
-for dx, dy, sg, sd in DOORS:
+# ---------------------------------------------------------------- 8b  the three sliding door sets
+TZ = HFZ + 2.27                                     # track soffit level, as before over the floor
+LB = D.HALL_THRESH_Z + 0.012                        # the leaves' bottom rail, 12 mm over the threshold
+for dx, dy, sg, dt, dsd in DOORS:
     hw = D.HALL_DOOR_CLEAR / 2
-    # threshold plate with the bottom guide groove, bedded into the paving and lapped into the sill ends
+    # a real threshold: a granite slab across the opening, bedded into the paving and lapped under the sill ends,
+    # standing 22 mm proud with a set-back top edge
     bm = bmesh.new()
-    box(bm, dx - 1.38, dy - 0.11, D.DECK_Z - 0.05, dx + 1.38, dy + 0.11, D.DECK_Z + 0.012)
-    box(bm, dx - 1.30, dy + sg * 0.012, D.DECK_Z - 0.03, dx + 1.30, dy + sg * 0.040, D.DECK_Z + 0.004)
-    obj('BusStn_Hall_Threshold' + sd, bm, M_DARK, 0.004)
+    a, b = ypair(dy - 0.21, dy + 0.21)
+    box(bm, dx - 1.42, a, HFZ - 0.09, dx + 1.42, b, HFZ + 0.004)
+    a, b = ypair(dy - 0.175, dy + 0.175)
+    box(bm, dx - 1.40, a, HFZ - 0.01, dx + 1.40, b, D.HALL_THRESH_Z)
+    obj('BusStn_Hall_Threshold' + dt, bm, M_GRAN, 0.006)
+
+    # the stainless guide plate let into the slab, with the bottom guide groove between its two ribs
+    bm = bmesh.new()
+    a, b = ypair(dy + sg * 0.004, dy + sg * 0.086)
+    box(bm, dx - 1.30, a, D.HALL_THRESH_Z - 0.012, dx + 1.30, b, D.HALL_THRESH_Z + 0.004)
+    for off in (0.010, 0.056):
+        a, b = ypair(dy + sg * off, dy + sg * (off + 0.014))
+        box(bm, dx - 1.30, a, D.HALL_THRESH_Z - 0.012, dx + 1.30, b, D.HALL_THRESH_Z + 0.014)
+    obj('BusStn_Hall_ThreshGuide' + dt, bm, M_ALU, 0.004)
 
     # track box across the opening, bolted to both jamb mullions, with the running rail inside
-    tz = 2.45
     bm = bmesh.new()
-    box(bm, dx - hw - 0.14, dy - 0.11, tz, dx + hw + 0.14, dy + 0.11, tz + 0.16)
-    box(bm, dx - hw - 0.02, dy - 0.085, tz - 0.035, dx + hw + 0.02, dy + 0.085, tz + 0.01)
-    obj('BusStn_Hall_DoorTrack' + sd, bm, M_ALU, 0.006)
+    box(bm, dx - hw - 0.14, dy - 0.11, TZ, dx + hw + 0.14, dy + 0.11, TZ + 0.16)
+    box(bm, dx - hw - 0.02, dy - 0.085, TZ - 0.035, dx + hw + 0.02, dy + 0.085, TZ + 0.01)
+    obj('BusStn_Hall_DoorTrack' + dt, bm, M_ALU, 0.006)
 
     # transom bar over the track, then the fanlight pane up to the head beam
     bm = bmesh.new()
-    box(bm, dx - hw - 0.08, dy - 0.075, tz + 0.14, dx + hw + 0.08, dy + 0.075, tz + 0.24)
-    obj('BusStn_Hall_DoorTransom' + sd, bm, M_STEEL, 0.006)
+    box(bm, dx - hw - 0.08, dy - 0.075, TZ + 0.14, dx + hw + 0.08, dy + 0.075, TZ + 0.24)
+    obj('BusStn_Hall_DoorTransom' + dt, bm, M_STEEL, 0.006)
     bm = bmesh.new()
-    box(bm, dx - hw - 0.02, dy - D.PANE_T / 2, tz + 0.21, dx + hw + 0.02, dy + D.PANE_T / 2, HEAD + 0.03)
-    obj('BusStn_Hall_DoorFanlight' + sd, bm, M_GLASS, 0.0)
+    box(bm, dx - hw - 0.02, dy - D.PANE_T / 2, TZ + 0.21, dx + hw + 0.02, dy + D.PANE_T / 2, HEAD + 0.03)
+    obj('BusStn_Hall_DoorFanlight' + dt, bm, M_GLASS, 0.0)
 
     for lf, ln in ((-1, 'A'), (1, 'B')):
         yl = dy + sg * (0.055 if ln == 'A' else -0.005)      # two running planes, the leaves lapping at the middle
@@ -732,39 +761,39 @@ for dx, dy, sg, sd in DOORS:
         # leaf frame: stiles, top and bottom rails, two hanger plates up into the track, a seal on the leading edge
         bm = bmesh.new()
         for xs in (x0, x1):
-            box(bm, xs - 0.03, yl - 0.022, D.DECK_Z + 0.15, xs + 0.03, yl + 0.022, tz - 0.01)
-        box(bm, x0 - 0.03, yl - 0.022, D.DECK_Z + 0.15, x1 + 0.03, yl + 0.022, D.DECK_Z + 0.21)
-        box(bm, x0 - 0.03, yl - 0.022, tz - 0.09, x1 + 0.03, yl + 0.022, tz - 0.01)
+            box(bm, xs - 0.03, yl - 0.022, LB, xs + 0.03, yl + 0.022, TZ - 0.01)
+        box(bm, x0 - 0.03, yl - 0.022, LB, x1 + 0.03, yl + 0.022, LB + 0.06)
+        box(bm, x0 - 0.03, yl - 0.022, TZ - 0.09, x1 + 0.03, yl + 0.022, TZ - 0.01)
         for hx in (x0 + 0.26, x1 - 0.26):
-            box(bm, hx - 0.05, yl - 0.012, tz - 0.05, hx + 0.05, yl + 0.012, tz + 0.02)
-            tube(bm, [(hx, yl - 0.055, tz + 0.005), (hx, yl + 0.055, tz + 0.005)], 0.028, 12)
-        obj('BusStn_Hall_DoorLeaf%s%s_Frame' % (sd, ln), bm, M_ALU, 0.005)
+            box(bm, hx - 0.05, yl - 0.012, TZ - 0.05, hx + 0.05, yl + 0.012, TZ + 0.02)
+            tube(bm, [(hx, yl - 0.055, TZ + 0.005), (hx, yl + 0.055, TZ + 0.005)], 0.028, 12)
+        obj('BusStn_Hall_DoorLeaf%s%s_Frame' % (dt, ln), bm, M_ALU, 0.005)
         bm = bmesh.new()
         xe = x1 if lf < 0 else x0
-        box(bm, xe - 0.018, yl - 0.026, D.DECK_Z + 0.16, xe + 0.018, yl + 0.026, tz - 0.02)
-        obj('BusStn_Hall_DoorLeaf%s%s_Seal' % (sd, ln), bm, M_RUB, 0.004)
+        box(bm, xe - 0.018, yl - 0.026, LB + 0.01, xe + 0.018, yl + 0.026, TZ - 0.02)
+        obj('BusStn_Hall_DoorLeaf%s%s_Seal' % (dt, ln), bm, M_RUB, 0.004)
         bm = bmesh.new()
-        box(bm, x0 + 0.02, yl - D.PANE_T / 2, D.DECK_Z + 0.19, x1 - 0.02, yl + D.PANE_T / 2, tz - 0.07)
-        obj('BusStn_Hall_DoorLeaf%s%s_Glass' % (sd, ln), bm, M_GLASS, 0.0)
+        box(bm, x0 + 0.02, yl - D.PANE_T / 2, LB + 0.04, x1 - 0.02, yl + D.PANE_T / 2, TZ - 0.07)
+        obj('BusStn_Hall_DoorLeaf%s%s_Glass' % (dt, ln), bm, M_GLASS, 0.0)
 
 # ---------------------------------------------------------------- 8c  benches (hall and platform), all sittable
 SITS = []
 
 
-def bench(tag, xc, yc, face, length=2.30):
-    """A bench: welded side frames on bolted base plates, oak seat slats with a flat top at 0.45 m over the deck,
+def bench(tag, xc, yc, face, length=2.30, fz=D.DECK_Z):
+    """A bench: welded side frames on bolted base plates, oak seat slats with a flat top at 0.45 m over the floor it stands on,
     a leaning back and two armrests. face = +1 the sitter looks to +y."""
-    zt = D.SEAT_Z
+    zt = fz + 0.45
     ya = yc                         # the seat's back edge line
     yf = yc + face * 0.46           # its front edge
     fx = [xc - length / 2 + 0.11, xc + length / 2 - 0.11]
     bm = bmesh.new()
     for x in fx:
-        base_plate(bm, x, yc + face * 0.34, 0.26, D.DECK_Z + 0.025, 0.085)
-        base_plate(bm, x, yc - face * 0.02, 0.24, D.DECK_Z + 0.025, 0.075)
+        base_plate(bm, x, yc + face * 0.34, 0.26, fz + 0.025, 0.085, fz=fz)
+        base_plate(bm, x, yc - face * 0.02, 0.24, fz + 0.025, 0.075, fz=fz)
         # two legs and the seat bearer, as one welded blade frame
-        box(bm, x - 0.025, yc + face * 0.30, D.DECK_Z + 0.01, x + 0.025, yc + face * 0.38, zt - 0.045)
-        box(bm, x - 0.025, yc - face * 0.06, D.DECK_Z + 0.01, x + 0.025, yc + face * 0.02, zt - 0.045)
+        box(bm, x - 0.025, yc + face * 0.30, fz + 0.01, x + 0.025, yc + face * 0.38, zt - 0.045)
+        box(bm, x - 0.025, yc - face * 0.06, fz + 0.01, x + 0.025, yc + face * 0.02, zt - 0.045)
         box(bm, x - 0.028, min(ya - face * 0.06, yf), zt - 0.062, x + 0.028, max(ya - face * 0.06, yf), zt - 0.03)
         # back post, leaning back 12 degrees, and the armrest on top of it
         for k in range(7):          # the stack reaches above the top back slat, so no slat ends in the air
@@ -780,7 +809,7 @@ def bench(tag, xc, yc, face, length=2.30):
     box(bm, fx[0], yc - face * 0.05, zt - 0.17, fx[1], yc + face * 0.01, zt - 0.11)
     obj('BusStn_Bench%s_Frame' % tag, bm, M_STEEL, 0.006)
 
-    # seat: five slats, their tops all at 0.45 m over the deck - one flat surface for the sitting IK
+    # seat: five slats, their tops all at 0.45 m over the floor - one flat surface for the sitting IK
     bm = bmesh.new()
     for k in range(5):
         y0 = ya + face * (0.015 + k * 0.090)
@@ -803,109 +832,110 @@ def bench(tag, xc, yc, face, length=2.30):
                      (xc + (i - (n - 1) / 2) * 0.52, yc + face * 0.22, zt)))
 
 
-HALL_BENCHES = [('H1', 62.5, HYN - 0.20, -1), ('H2', 72.5, HYN - 0.20, -1), ('H3', 87.0, HYN - 0.20, -1),
+# the hall benches, backs to the two long walls; the north row keeps clear of the north door bay
+HALL_BENCHES = [('H1', 62.5, HYN - 0.20, -1), ('H2', 70.0, HYN - 0.20, -1), ('H3', 87.0, HYN - 0.20, -1),
                 ('H4', 62.5, HYS + 0.20, 1), ('H5', 72.5, HYS + 0.20, 1), ('H6', 77.5, HYS + 0.20, 1)]
 for tag, xc, yc, face in HALL_BENCHES:
-    bench(tag, xc, yc, face)
+    bench(tag, xc, yc, face, fz=HFZ)
 
 for i, xc in enumerate((25.0, 45.0, 105.0, 125.0)):
     bench('P%dN' % (i + 1), xc, 0.16, 1)
     bench('P%dS' % (i + 1), xc, -0.16, -1)
 
 # ---------------------------------------------------------------- 8d  bins (hall and platform)
-def bin_unit(tag, x, y):
+def bin_unit(tag, x, y, fz=D.DECK_Z):
     bm = bmesh.new()
-    base_plate(bm, x, y, 0.34, D.DECK_Z + 0.028, 0.11)
-    tube(bm, [(x, y, D.DECK_Z + 0.01), (x, y, D.DECK_Z + 0.12)], 0.085, 16)
+    base_plate(bm, x, y, 0.34, fz + 0.028, 0.11, fz=fz)
+    tube(bm, [(x, y, fz + 0.01), (x, y, fz + 0.12)], 0.085, 16)
     obj('BusStn_Bin%s_Base' % tag, bm, M_STEEL, 0.006)
     bm = bmesh.new()
-    tube(bm, [(x, y, D.DECK_Z + 0.09), (x, y, D.DECK_Z + 0.80)], 0.185, 24)
-    tube(bm, [(x, y, D.DECK_Z + 0.30), (x, y, D.DECK_Z + 0.34)], 0.196, 24)
-    tube(bm, [(x, y, D.DECK_Z + 0.68), (x, y, D.DECK_Z + 0.72)], 0.196, 24)
+    tube(bm, [(x, y, fz + 0.09), (x, y, fz + 0.80)], 0.185, 24)
+    tube(bm, [(x, y, fz + 0.30), (x, y, fz + 0.34)], 0.196, 24)
+    tube(bm, [(x, y, fz + 0.68), (x, y, fz + 0.72)], 0.196, 24)
     obj('BusStn_Bin%s_Body' % tag, bm, M_STEEL, 0.006)
     bm = bmesh.new()
-    tube(bm, [(x, y, D.DECK_Z + 0.78), (x, y, D.DECK_Z + 0.88)], 0.192, 24)      # liner mouth inside the body
+    tube(bm, [(x, y, fz + 0.78), (x, y, fz + 0.88)], 0.192, 24)      # liner mouth inside the body
     obj('BusStn_Bin%s_Liner' % tag, bm, M_DARK, 0.004)
     bm = bmesh.new()
-    tube(bm, [(x, y, D.DECK_Z + 0.96), (x, y, D.DECK_Z + 1.04)], 0.205, 24)
+    tube(bm, [(x, y, fz + 0.96), (x, y, fz + 1.04)], 0.205, 24)
     for sgx in (-1, 1):
-        box(bm, x + sgx * 0.14, y - 0.075, D.DECK_Z + 0.76, x + sgx * 0.178, y + 0.075, D.DECK_Z + 1.00)
+        box(bm, x + sgx * 0.14, y - 0.075, fz + 0.76, x + sgx * 0.178, y + 0.075, fz + 1.00)
     obj('BusStn_Bin%s_Hood' % tag, bm, M_ALU, 0.005)
 
 
-bin_unit('H1', 61.1, HYN - 0.45)
-bin_unit('H2', 88.9, HYS + 0.45)
+bin_unit('H1', 61.1, HYN - 0.45, HFZ)
+bin_unit('H2', 88.9, HYS + 0.45, HFZ)
 for i, x in enumerate((30.0, 50.0, 100.0, 120.0)):
     bin_unit('P%d' % (i + 1), x, 1.55)
 
 # ---------------------------------------------------------------- 8e  ticket machine, departure board, heaters
-TM_X, TM_Y = 60.95, -0.95
+TM_X, TM_Y = 60.95, HYS + 0.85       # by the west end wall, facing east into the room
 bm = bmesh.new()
-base_plate(bm, TM_X, TM_Y, 0.66, D.DECK_Z + 0.05, 0.24)
-box(bm, TM_X - 0.30, TM_Y - 0.36, D.DECK_Z + 0.02, TM_X + 0.30, TM_Y + 0.36, D.DECK_Z + 0.12)
+base_plate(bm, TM_X, TM_Y, 0.66, HFZ + 0.05, 0.24, fz=HFZ)
+box(bm, TM_X - 0.30, TM_Y - 0.36, HFZ + 0.02, TM_X + 0.30, TM_Y + 0.36, HFZ + 0.12)
 obj('BusStn_Ticket_Plinth', bm, M_DARK, 0.008)
 bm = bmesh.new()
-box(bm, TM_X - 0.28, TM_Y - 0.34, D.DECK_Z + 0.08, TM_X + 0.28, TM_Y + 0.34, D.DECK_Z + 1.48)
-box(bm, TM_X - 0.31, TM_Y - 0.37, D.DECK_Z + 1.44, TM_X + 0.31, TM_Y + 0.37, D.DECK_Z + 1.56)   # capping
+box(bm, TM_X - 0.28, TM_Y - 0.34, HFZ + 0.08, TM_X + 0.28, TM_Y + 0.34, HFZ + 1.48)
+box(bm, TM_X - 0.31, TM_Y - 0.37, HFZ + 1.44, TM_X + 0.31, TM_Y + 0.37, HFZ + 1.56)   # capping
 obj('BusStn_Ticket_Cabinet', bm, M_STEEL, 0.012)
 bm = bmesh.new()
 for _ry in (-1, 1):                                                                             # screen bezel
-    box(bm, TM_X + 0.24, TM_Y + _ry * 0.23, D.DECK_Z + 0.90, TM_X + 0.34, TM_Y + _ry * 0.30, D.DECK_Z + 1.40)
+    box(bm, TM_X + 0.24, TM_Y + _ry * 0.23, HFZ + 0.90, TM_X + 0.34, TM_Y + _ry * 0.30, HFZ + 1.40)
 for _rz in (0.90, 1.34):
-    box(bm, TM_X + 0.24, TM_Y - 0.30, D.DECK_Z + _rz, TM_X + 0.34, TM_Y + 0.30, D.DECK_Z + _rz + 0.06)
-box(bm, TM_X + 0.24, TM_Y - 0.30, D.DECK_Z + 0.70, TM_X + 0.36, TM_Y + 0.30, D.DECK_Z + 0.88)   # keypad shelf
+    box(bm, TM_X + 0.24, TM_Y - 0.30, HFZ + _rz, TM_X + 0.34, TM_Y + 0.30, HFZ + _rz + 0.06)
+box(bm, TM_X + 0.24, TM_Y - 0.30, HFZ + 0.70, TM_X + 0.36, TM_Y + 0.30, HFZ + 0.88)   # keypad shelf
 for k in range(12):
     bx = TM_Y - 0.24 + (k % 4) * 0.16
-    bz = D.DECK_Z + 0.845 - (k // 4) * 0.055
+    bz = HFZ + 0.845 - (k // 4) * 0.055
     tube(bm, [(TM_X + 0.33, bx, bz), (TM_X + 0.365, bx, bz)], 0.021, 10)                        # buttons
-box(bm, TM_X + 0.24, TM_Y + 0.08, D.DECK_Z + 0.52, TM_X + 0.33, TM_Y + 0.22, D.DECK_Z + 0.64)   # card reader
-box(bm, TM_X + 0.26, TM_Y - 0.22, D.DECK_Z + 0.44, TM_X + 0.31, TM_Y - 0.04, D.DECK_Z + 0.50)   # ticket slot
+box(bm, TM_X + 0.24, TM_Y + 0.08, HFZ + 0.52, TM_X + 0.33, TM_Y + 0.22, HFZ + 0.64)   # card reader
+box(bm, TM_X + 0.26, TM_Y - 0.22, HFZ + 0.44, TM_X + 0.31, TM_Y - 0.04, HFZ + 0.50)   # ticket slot
 obj('BusStn_Ticket_Fascia', bm, M_DARK, 0.005)
 T_TICKET = label_tex('T_BusStn_TicketScreen', ['A1 - A12', '1 - 12'], 512, 512)
 M_TICKET = mat_lit('BusStn_TicketScreen', T_TICKET, 1.8)
-face_plate('BusStn_Ticket_Screen', (TM_X + 0.325, TM_Y, D.DECK_Z + 1.15), (1, 0, 0), 0.52, 0.42, M_TICKET, 0.012)
+face_plate('BusStn_Ticket_Screen', (TM_X + 0.325, TM_Y, HFZ + 1.15), (1, 0, 0), 0.52, 0.42, M_TICKET, 0.012)
 bm = bmesh.new()
-box(bm, TM_X + 0.18, TM_Y - 0.42, D.DECK_Z + 1.50, TM_X + 0.56, TM_Y + 0.42, D.DECK_Z + 1.58)   # weather canopy
+box(bm, TM_X + 0.18, TM_Y - 0.42, HFZ + 1.50, TM_X + 0.56, TM_Y + 0.42, HFZ + 1.58)   # weather canopy
 for sgy in (-1, 1):
-    box(bm, TM_X + 0.20, TM_Y + sgy * 0.38, D.DECK_Z + 1.36, TM_X + 0.46, TM_Y + sgy * 0.42, D.DECK_Z + 1.54)
+    box(bm, TM_X + 0.20, TM_Y + sgy * 0.38, HFZ + 1.36, TM_X + 0.46, TM_Y + sgy * 0.42, HFZ + 1.54)
 obj('BusStn_Ticket_Canopy', bm, M_ALU, 0.006)
 
 # departure board, hung from two brackets bolted to the ceiling
-BRD_X, BRD_Z = 75.0, 2.50
+BRD_X, BRD_Y, BRD_Z = 75.0, HYM, HFZ + 2.32
 bm = bmesh.new()
-box(bm, BRD_X - 0.90, -0.26, D.HALL_CEIL_Z - 0.01, BRD_X + 0.90, 0.26, D.HALL_CEIL_Z + 0.03)
+box(bm, BRD_X - 0.90, BRD_Y - 0.26, D.HALL_CEIL_Z - 0.01, BRD_X + 0.90, BRD_Y + 0.26, D.HALL_CEIL_Z + 0.03)
 for hx in (BRD_X - 0.72, BRD_X + 0.72):
-    for hy in (-0.17, 0.17):
+    for hy in (BRD_Y - 0.17, BRD_Y + 0.17):
         tube(bm, [(hx, hy, BRD_Z + 0.40), (hx, hy, D.HALL_CEIL_Z + 0.01)], 0.022, 12)
-    box(bm, hx - 0.09, -0.21, BRD_Z + 0.34, hx + 0.09, 0.21, BRD_Z + 0.44)
+    box(bm, hx - 0.09, BRD_Y - 0.21, BRD_Z + 0.34, hx + 0.09, BRD_Y + 0.21, BRD_Z + 0.44)
 obj('BusStn_Board_Hanger', bm, M_STEEL, 0.006)
 T_BOARD = label_tex('T_BusStn_Board', ['A1  06:40', 'A4  06:55', 'A7  07:10', 'A9  07:25', 'A12 07:40'], 1024, 512)
 M_BOARD = mat_lit('BusStn_Board', T_BOARD, 2.4)
-lit_box('Board', '', (BRD_X, 0.0, BRD_Z), (1.80, 0.26, 0.82), M_BOARD)
+lit_box('Board', '', (BRD_X, BRD_Y, BRD_Z), (1.80, 0.26, 0.82), M_BOARD)
 
 # radiant overhead heaters under the ceiling, on bolted brackets
 for i, hx in enumerate((63.5, 70.5, 79.5, 86.5)):
     bm = bmesh.new()
     for sgx in (-1, 1):
-        box(bm, hx + sgx * 0.62 - 0.05, -0.10, D.HALL_CEIL_Z - 0.01, hx + sgx * 0.62 + 0.05, 0.10,
+        box(bm, hx + sgx * 0.62 - 0.05, HYM - 0.10, D.HALL_CEIL_Z - 0.01, hx + sgx * 0.62 + 0.05, HYM + 0.10,
             D.HALL_CEIL_Z + 0.03)
-        box(bm, hx + sgx * 0.62 - 0.04, -0.03, D.HALL_CEIL_Z - 0.20, hx + sgx * 0.62 + 0.04, 0.03,
+        box(bm, hx + sgx * 0.62 - 0.04, HYM - 0.03, D.HALL_CEIL_Z - 0.20, hx + sgx * 0.62 + 0.04, HYM + 0.03,
             D.HALL_CEIL_Z + 0.01)
     obj('BusStn_Heater%d_Bracket' % (i + 1), bm, M_STEEL, 0.005)
     bm = bmesh.new()
-    box(bm, hx - 0.78, -0.11, D.HALL_CEIL_Z - 0.26, hx + 0.78, 0.11, D.HALL_CEIL_Z - 0.16)
+    box(bm, hx - 0.78, HYM - 0.11, D.HALL_CEIL_Z - 0.26, hx + 0.78, HYM + 0.11, D.HALL_CEIL_Z - 0.16)
     for sgy in (-1, 1):
-        box(bm, hx - 0.78, sgy * 0.11 - sgy * 0.02, D.HALL_CEIL_Z - 0.30, hx + 0.78, sgy * 0.15,
+        box(bm, hx - 0.78, HYM + sgy * 0.09, D.HALL_CEIL_Z - 0.30, hx + 0.78, HYM + sgy * 0.15,
             D.HALL_CEIL_Z - 0.17)
     obj('BusStn_Heater%d_Reflector' % (i + 1), bm, M_ALU, 0.005)
     bm = bmesh.new()
     for sgx in (-1, 1):                                             # end holders up into the trough
-        box(bm, hx + sgx * 0.70 - 0.03, -0.12, D.HALL_CEIL_Z - 0.36, hx + sgx * 0.70 + 0.03, 0.12,
+        box(bm, hx + sgx * 0.70 - 0.03, HYM - 0.12, D.HALL_CEIL_Z - 0.36, hx + sgx * 0.70 + 0.03, HYM + 0.12,
             D.HALL_CEIL_Z - 0.19)
-    tube(bm, [(hx - 0.72, 0, D.HALL_CEIL_Z - 0.31), (hx + 0.72, 0, D.HALL_CEIL_Z - 0.31)], 0.021, 14)
+    tube(bm, [(hx - 0.72, HYM, D.HALL_CEIL_Z - 0.31), (hx + 0.72, HYM, D.HALL_CEIL_Z - 0.31)], 0.021, 14)
     for k in range(9):
         gx = hx - 0.70 + k * 0.175
-        tube(bm, [(gx, -0.085, D.HALL_CEIL_Z - 0.333), (gx, 0.085, D.HALL_CEIL_Z - 0.333)], 0.008, 8)
+        tube(bm, [(gx, HYM - 0.085, D.HALL_CEIL_Z - 0.333), (gx, HYM + 0.085, D.HALL_CEIL_Z - 0.333)], 0.008, 8)
     obj('BusStn_Heater%d_Element' % (i + 1), bm, M_DARK, 0.003)
 
 # ---------------------------------------------------------------- 8f  bay signs A1 - A12, and one TAXI sign
@@ -1016,16 +1046,23 @@ for sgx, fn in ((-1, 'W'), (1, 'E')):
     o = obj('BusStn_Clock_Dial' + fn, bm, M_DIAL, 0.0)
     FACE_UV.append((o, Vector((CLK_X + sgx * 0.116, CLK_Y, CLK_Z)), Vector((0, sgx, 0)), 0.68,
                     Vector((0, 0, 1)), 0.68))
+    # the centre boss: a cap let 6 mm into the dial, and the spindle both hands are hung on
     bm = bmesh.new()
-    tube(bm, [(CLK_X + sgx * 0.118, CLK_Y, CLK_Z), (CLK_X + sgx * 0.146, CLK_Y, CLK_Z)], 0.034, 16)
+    tube(bm, [(CLK_X + sgx * 0.118, CLK_Y, CLK_Z), (CLK_X + sgx * 0.130, CLK_Y, CLK_Z)], 0.034, 16)
+    tube(bm, [(CLK_X + sgx * 0.118, CLK_Y, CLK_Z), (CLK_X + sgx * 0.160, CLK_Y, CLK_Z)], 0.0085, 12)
     obj('BusStn_Clock_Boss' + fn, bm, M_DARK, 0.003)
-    for ang, ln, nm, zr in ((math.radians(-25), 0.19, 'HandH', 0.131), (math.radians(80), 0.265, 'HandM', 0.1445)):
-        dy = math.sin(ang) * sgx
-        dz = math.cos(ang)
+    # The two hands. Each is modelled pointing at 12 o'clock (straight up, +Z) and its object origin is put on
+    # the centre of this face's boss, on the dial's own axis, so the runtime only has to turn the object about
+    # the x axis (the dials face -x and +x) by the clock angle. They are left out of the generic origin pass
+    # below, which would otherwise pull the origin back to the hand's bounding-box centre.
+    boss_c = Vector((CLK_X + sgx * 0.124, CLK_Y, CLK_Z))
+    for ln, nm, zr in ((0.19, 'HandH', 0.137), (0.265, 'HandM', 0.150)):
         bm = bmesh.new()
-        add_cube(bm, (CLK_X + sgx * zr, CLK_Y + dy * ln / 2 + dy * 0.02, CLK_Z + dz * ln / 2 + dz * 0.02),
-                 (0.006, 0, 0), (0, dy * (ln / 2 + 0.03), dz * (ln / 2 + 0.03)), (0, -dz * 0.016, dy * 0.016))
-        obj('BusStn_Clock_%s%s' % (nm, fn), bm, M_DARK, 0.002)
+        add_cube(bm, (sgx * (zr - 0.124), 0.0, ln / 2 + 0.02),
+                 (0.006, 0, 0), (0, 0.016, 0), (0, 0, ln / 2 + 0.03))
+        o = obj('BusStn_Clock_%s%s' % (nm, fn), bm, M_DARK, 0.002)
+        o.location = boss_c
+        NO_PIVOT.add(o.name)
 
 # the sitting IK points: an empty at every seat surface, as the coach seats have
 for nm, p in SITS:
@@ -1043,6 +1080,10 @@ bpy.ops.object.mode_set(mode='EDIT')
 bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.cube_project(cube_size=1.0, correct_aspect=True, scale_to_bounds=False)
 bpy.ops.object.mode_set(mode='OBJECT')
+for o in ALL:                                # the clock hands keep the origin they were built with
+    if o.name in NO_PIVOT:
+        o.select_set(False)
+assert ALL[0].name not in NO_PIVOT
 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
 for o in ALL:
     o.select_set(False)
@@ -1103,8 +1144,13 @@ if RENDER:
     sc.collection.objects.link(cam)
     sc.camera = cam
     sc.render.resolution_x, sc.render.resolution_y = (1280, 720) if QUICK else (3840, 2160)
-    for fn, loc, at, lens in (('busstation-vault.png', (-52.0, -46.0, 25.0), (58.0, 0.0, 4.0), 38),
-                              ('busstation-platform.png', (44.0, 1.70, 1.85), (94.0, -0.60, 2.70), 28)):
+    SHOTS = (('busstation-vault.png', (-52.0, -46.0, 25.0), (58.0, 0.0, 4.0), 38),
+             ('busstation-platform.png', (44.0, 1.70, 1.85), (94.0, -0.60, 2.70), 28),
+             # the waiting hall seen from the island platform, eye height on the deck
+             ('busstation-hall.png', (56.0, -0.60, 1.80), (74.0, 6.20, 1.95), 24))
+    if ONLY:
+        SHOTS = tuple(sh for sh in SHOTS if any(k in sh[0] for k in ONLY))
+    for fn, loc, at, lens in SHOTS:
         cam_d.lens = lens
         cam.location = loc
         cam.rotation_euler = (Vector(at) - Vector(loc)).to_track_quat('-Z', 'Y').to_euler()

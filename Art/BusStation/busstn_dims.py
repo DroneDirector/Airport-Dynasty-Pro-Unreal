@@ -109,28 +109,38 @@ def row_t(k):
     return -TE + k * (2 * TE / N_ROW)
 
 
-# ---- the waiting hall on the platform (step: hall + platform furniture, 2026-11-27)
-# The plan asks for 30 x 9 m. The deck is only 8.00 m wide (y -4..+4) and of that the two kerbs (0.30),
-# the two tactile strips, the two slot drains (y +-2.25..2.55) and the south column line with its 1.30 m
-# footing pads (y -3.65..-2.35) are not buildable, so a 9 m wide hall cannot stand on this platform.
-# The hall keeps its 30 m length and is 3.60 m wide, between the two drains, leaving a 1.9 m walking
-# corridor on each side. Any change to that needs a wider platform in roads.json.
+# ---- the waiting hall, on the PAVEMENT between the platform and the terminal (moved 2026-11-27)
+# The plan asks for 30 x 9 m. The 8.00 m island deck (y -4..+4) cannot carry that: the two kerbs, the tactile
+# strips, the slot drains and the south column line's footing pads leave only 3.6 m buildable. The pavement on the
+# terminal side (model y 4.00..14.40, 10.40 m wide) is under the same vault, so the hall stands there instead.
+# Its north wall has to keep clear of the north column line (y 13.0), whose 1.30 m footing pads reach from
+# y 12.35 to 13.65: the wall line is at y 12.00, so every part of the hall's frame clears the pad face by at
+# least 0.27 m and the roof edge (y 12.32) stops 0.03 m short of it. That gives 30.0 x 7.65 m.
+# The pavement is 0.18 m below the deck, so the hall's floor, sill, thresholds and furniture sit at pavement
+# level (z 0), not deck level, and the doors face the platform (south).
 HALL_X0 = 60.0
 HALL_X1 = 90.0
-HALL_YN = 1.80           # north wall line (terminal side)
-HALL_YS = -1.80          # south wall line (coach side)
+HALL_YN = 12.00          # north wall line (terminal side), clear of the north footing pads at y 12.35
+HALL_YS = 4.35           # south wall line (platform side), 0.35 m in from the pavement kerb at y 4.00
+HALL_YM = (HALL_YN + HALL_YS) / 2                    # the hall's centre line, y 8.175
+HALL_FLOOR_Z = 0.0       # pavement level: the hall's finished floor (the deck is 0.18 higher)
 HALL_BAY = 2.5           # mullion spacing: 12 bays over the 30 m
 HALL_SILL_W = 0.16       # sill channel width
-HALL_SILL_Z = 0.30       # sill top
+HALL_SILL_Z = HALL_FLOOR_Z + 0.12                    # sill top, 0.12 m over the floor
+HALL_THRESH_Z = HALL_FLOOR_Z + 0.022                 # door threshold slab top, proud of the paving
 HALL_POST = (0.10, 0.12)  # mullion: across x, deep in y
 HALL_BEAM = (0.16, 0.22)  # head beam: across, deep in z
-HALL_HEAD_Z = 3.23       # head beam soffit (3.05 m clear over the deck)
-HALL_CEIL_Z = 3.25       # ceiling panel soffit
-HALL_ROOF_Z = 3.65       # roof deck top
-HALL_DOOR_N_X = 66.25    # the two sliding door sets, on the bay centre lines
-HALL_DOOR_S_X = 83.75
+HALL_HEAD_Z = HALL_FLOOR_Z + 3.05                    # head beam soffit: 3.05 m clear over the floor
+HALL_CEIL_Z = HALL_FLOOR_Z + 3.07                    # ceiling panel soffit
+HALL_ROOF_Z = HALL_FLOOR_Z + 3.47                    # roof deck top
+# three sliding door sets, all on bay centre lines: two in the south wall facing the platform and the coaches,
+# one in the north wall towards the terminal doors.
+HALL_DOOR_S1_X = 66.25
+HALL_DOOR_S2_X = 83.75
+HALL_DOOR_N_X = 73.75
 HALL_DOOR_CLEAR = 2.40   # clear opening between the jamb mullions
-SEAT_Z = 0.63            # every seat surface: 0.45 m over the deck, as Art/CoachSeat (cushion top 0.45)
+SEAT_Z = DECK_Z + 0.45   # platform seat surfaces, as Art/CoachSeat (cushion top 0.45 over the deck)
+HALL_SEAT_Z = HALL_FLOOR_Z + 0.45                    # and the same height over the hall floor
 
 # ---- the bays the signs belong to: Data/Sites/chablais/roads.json, roads[0].paint "bays"
 # n 12, bay width 3.60, sawtooth angle 25 deg -> pitch 3.60 / sin(25) = 8.518 m (the lamp spacing in the same file).
@@ -139,7 +149,7 @@ N_BAYS = 12
 BAY_PITCH = 3.6 / math.sin(math.radians(25.0))       # 8.518
 BAY_RUN = N_BAYS * BAY_PITCH
 BAY_X0 = (PL_LEN - BAY_RUN) / 2
-SIGN_POST_Y = -2.08      # sign post centre (between the hall's south sill and the south slot drain)
+SIGN_POST_Y = -2.08      # sign post centre (platform side of the south slot drain; the hall is off the platform)
 SIGN_Z = 3.05            # sign box centre height over ground
 SIGN_BOX = (0.90, 0.22, 0.52)   # lit box: x, y, z
 
