@@ -99,3 +99,12 @@ Built by script in Blender 3.3, real metres, one object per part, named `BusStn_
    other way round.
 
 No game run and no publish without the owner's word.
+
+## Pictures - the owner's go, 2026-11-27
+"You're welcome to send some renders of the bus station area with buses and people when you get to that point."
+
+So: once the station is imported, the bays are laid out, coaches use them and passengers walk the platform - step 4
+done, not before - run the game for pictures and send them. 3840x2160 PNG. The whole subject in frame: coaches
+standing in the bays and people on the platform and at the crossings, not an empty deck. I look at every one myself
+before any of them goes to him, against the A320 clean after-pictures as the bar. Earlier steps get the blueprint
+sheet and at most one still render of the model, as usual - this go is for the finished area with life in it.
