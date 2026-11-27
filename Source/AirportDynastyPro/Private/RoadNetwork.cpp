@@ -832,9 +832,9 @@ bool ARoadNetwork::BuildSome(double Budget)
 												  FVector2D(Dp * Cs - Bw * Sn, OIn + Dp * Sn + Bw * Cs), FVector2D(-Bw * Sn, OIn + Bw * Cs)};
 						for (int32 e = 0; e < 4; ++e)
 						{
-							const FVector2D U = Cor[e], V = Cor[(e + 1) % 4];
-							if (FMath::Abs(V.X - U.X) < 1e-4) continue;
-							const FVector2D A2 = U.X < V.X ? U : V, B2 = U.X < V.X ? V : U;
+							const FVector2D U = Cor[e], Ve = Cor[(e + 1) % 4];
+							if (FMath::Abs(Ve.X - U.X) < 1e-4) continue;
+							const FVector2D A2 = U.X < Ve.X ? U : Ve, B2 = U.X < Ve.X ? Ve : U;
 							const double Sl = (B2.Y - A2.Y) / (B2.X - A2.X);               // how fast the line goes out along the road
 							const double T = Wl * FMath::Sqrt(1.0 + Sl * Sl);              // thickness measured across the road, so the
 							auto Ln = [&](double d) { return A2.Y + Sl * (d - (S0 + A2.X)); };   // painted line is Wl wide square to itself

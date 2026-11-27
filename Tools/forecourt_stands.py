@@ -22,12 +22,13 @@ def extras(ex):
     """(paint, props) for the forecourt road; ex(x): how far along the road (m) plan x is (exactly)."""
     paint, props = [], []
     # the ranks run with the road (its distance grows toward the west): a rank's first box at its east end
-    for x_east, n in ((-5.0, 10), (238.0 - (80.0 - (11 * (CAB_LEN + CAB_GAP) - CAB_GAP)) / 2, 11)):
+    for x_east, n in ((-5.0, 10),):
         paint.append({'kind': 'boxes', 'side': 'right', 'lane': 7, 'n': n, 'len': CAB_LEN, 'gap': CAB_GAP, 'w': 0.15, 'color': 'yellow',
                       'text': ['TAXI'], 'park': False, 'from': ex(x_east), 'src': TAG})
-    # the coach station's five bays: x 472 + 16 i .. 485 + 16 i, the first box at the east end (x 549)
-    paint.append({'kind': 'boxes', 'side': 'right', 'lane': 7, 'n': 5, 'len': 13.0, 'gap': 3.0, 'w': 0.20, 'color': 'yellow',
-                  'text': ['BUSES', 'ONLY'], 'park': False, 'from': ex(549.0), 'src': TAG})
+    # TAXI RANK EAST (x 158..238) and the five old coach bays (x 472..549) were REMOVED on 2026-11-27: the bus station
+    # now stands over x 180..520 (Tools/bus_station_forecourt.py, docs/Bus-Station-Plan.md) with its own 12 sawtooth
+    # bays A1-A12 and 6 taxi spots. Both old rows sat inside that run and painted straight over the new bays, so
+    # running this script put the old forecourt back. Do not restore them. The west rank and both shelters stand on.
     # the shelters: 12 x 2.5 m, 1 m in from the kerb (edge 8), their middles at x -40 and 198; one each ("spacing" past its end)
     for xc in (-40.0, 198.0):
         props.append({'mesh': 'taxishelter', 'side': 'right', 'edge': 8, 'off': 2.25, 'spacing': 1000, 'out': 1, 'block': True,
