@@ -78,6 +78,17 @@ public:
 	float KneelOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? Coaches[Coach].Kneel : 0.f; }
 	ABabylonModel* ModelOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? Coaches[Coach].M.Get() : nullptr; }
 
+	// ---- the town hub's one-way loop (to-do 373; roads.json "routes"), behind adp.CoachLine like all driving
+	/** Sends a coach (its driver at the wheel, everyone seated) along the loop: out of its terminal stand forward to the town
+	 *  hub (bToTown), or from the hub back to its own stand, arriving the way the parked coaches face. Forward only: if it
+	 *  cannot pull out without touching the coach in front it first backs up only as far as it needs, the reverse beep
+	 *  sounding. Bay: the hub bay (INDEX_NONE: the first free one). False (logged) when it cannot go. */
+	bool SendOnRoute(int32 Coach, bool bToTown, int32 Bay = INDEX_NONE);
+	/** Being sent (backing up, or its riders driving the loop)? */
+	bool OnRoute(int32 Coach) const { return RouteGo.Contains(Coach); }
+	/** The loop's path from a root place (world cm, the front axle's way; tests). Empty, Why said, when there is none. */
+	TArray<FVector> RoutePath(int32 Coach, bool bToTown, int32 Bay, const FTransform& From, FString& Why) const;
+
 private:
 	static TWeakObjectPtr<ACoaches> One;
 	struct FMover { int32 Group = INDEX_NONE; FTransform Pivot; FQuat OpenTurn = FQuat::Identity; FVector OpenShift = FVector::ZeroVector; };
@@ -120,5 +131,14 @@ private:
 	FReach Reach;
 	void ReachTick(float Dt);
 	void ReachEnd();
+	// the loop (to-do 373)
+	struct FRouteGo { TArray<FVector> Path; float BackLeft = 0.f, Backed = 0.f; UAudioComponent* Beep = nullptr; bool bToTown = false; bool bDriving = false; int32 Bay = INDEX_NONE; };
+	TMap<int32, FRouteGo> RouteGo;
+	TMap<int32, FTransform> HomeStand;     // a coach's terminal stand (world root): where it was when first sent to town
+	TMap<int32, int32> HubBayOf;           // the hub bay a coach went to
+	USoundBase* SndBeep = nullptr;
+	void RouteTick(float Dt);
+	/** The first other coach the body touches driving the first stretch of Path from From (INDEX_NONE: none). */
+	int32 RouteHits(int32 Coach, const FTransform& From, const TArray<FVector>& Path) const;
 	FTransform RootW(const FCoach& C) const;
 };

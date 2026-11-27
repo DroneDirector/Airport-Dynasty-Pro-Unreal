@@ -68,7 +68,8 @@ void ACoaches::Add(ABabylonModel* Coach)
 		SndKneel = LoadObject<USoundBase>(nullptr, TEXT("/Game/Coach/Sounds/CoachKneel.CoachKneel"));
 		SndBay = LoadObject<USoundBase>(nullptr, TEXT("/Game/Coach/Sounds/CoachBay.CoachBay"));
 		SndHum = LoadObject<USoundBase>(nullptr, TEXT("/Game/Coach/Sounds/CoachDrive.CoachDrive"));
-		for (USoundBase* S : {SndDoor, SndKneel, SndBay, SndHum}) if (S) Keep.Add(S);   // (held: else the GC frees them)
+		SndBeep = LoadObject<USoundBase>(nullptr, TEXT("/Game/ApronBus/Sounds/ABReverseBeep.ABReverseBeep"));   // (the coach loop backing up, to-do 373)
+		for (USoundBase* S : {SndDoor, SndKneel, SndBay, SndHum, SndBeep}) if (S) Keep.Add(S);   // (held: else the GC frees them)
 		// the airport's own name (never baked: Data/airfield.json, as the road signs)
 		ADPSite::AirportBlock()->TryGetStringField(TEXT("name"), AirportName);   // (the site's: Site.h)
 	}
@@ -545,6 +546,231 @@ void ACoaches::DriveOff(int32 Ci)
 }
 #pragma endregion
 
+#pragma region the town hub's one-way loop (to-do 373)
+namespace CoachLoop
+{
+	constexpr float LoopAxleF = 370.f, LoopAxleR = -240.f;   // cm from the root (Data/airportcoach-riders.json)
+	constexpr float LoopBackX = -650.f;                   // the body's back (cm; assumed: the model's 12.95 m)
+	constexpr float LoopPullLen = 1800.f;                 // a pull-out's run into the next lane
+	constexpr float LoopBackSpeed = 90.f, LoopMaxBack = 600.f, LoopPad = 30.f, LoopLook = 3500.f;
+	constexpr float LoopTownLimit = 13.9f;                // m/s: 50 km/h
+
+	FVector LoopPlan(const TArray<TSharedPtr<FJsonValue>>& A) { return A.Num() >= 2 ? FVector(A[0]->AsNumber() * 100.0, -A[1]->AsNumber() * 100.0, 0.0) : FVector::ZeroVector; }
+	int32 LoopNearest(const TArray<FVector>& P, const FVector& Q)
+	{
+		int32 Best = 0; double Bd = 1e30;
+		for (int32 i = 0; i < P.Num(); ++i) { const double D = FVector::DistSquared2D(P[i], Q); if (D < Bd) { Bd = D; Best = i; } }
+		return Best;
+	}
+	int32 LoopBack(const TArray<FVector>& P, int32 i, float Cm)   // the lane point Cm back along it from i
+	{
+		float Acc = 0.f;
+		while (i > 0 && Acc < Cm) { Acc += float(FVector::Dist2D(P[i], P[i - 1])); --i; }
+		return i;
+	}
+	/** Path's end and Next's start each cut back J cm, the gap rounded with one Hermite curve (DirA: Path's way when it is a single point). */
+	void LoopJoin(TArray<FVector>& Path, const TArray<FVector>& Next, float J, const FVector& DirA)
+	{
+		float Cut = J;
+		while (Path.Num() > 1 && Cut > 0.f)
+		{
+			const float L = float(FVector::Dist2D(Path.Last(), Path[Path.Num() - 2]));
+			if (L <= Cut) { Cut -= L; Path.Pop(); } else { Path.Last() = FMath::Lerp(Path.Last(), Path[Path.Num() - 2], Cut / L); Cut = 0.f; }
+		}
+		int32 S = 0; float Acc = 0.f;
+		while (S + 2 < Next.Num() && Acc < J) { Acc += float(FVector::Dist2D(Next[S], Next[S + 1])); ++S; }
+		const FVector A = Path.Last(), B = Next[S];
+		const FVector Ta = (Path.Num() > 1 ? A - Path[Path.Num() - 2] : DirA).GetSafeNormal2D(), Tb = (Next[S + 1] - B).GetSafeNormal2D();
+		const float D = float(FVector::Dist2D(A, B)), K = D * 0.9f;
+		const int32 N = FMath::Max(1, FMath::CeilToInt(D / 100.f));
+		for (int32 k = 1; k < N; ++k)
+		{
+			const float t = float(k) / N, t2 = t * t, t3 = t2 * t;
+			Path.Add(A * (2 * t3 - 3 * t2 + 1) + Ta * (K * (t3 - 2 * t2 + t)) + B * (-2 * t3 + 3 * t2) + Tb * (K * (t3 - t2)));
+		}
+		for (int32 i = S; i < Next.Num(); ++i) Path.Add(Next[i]);
+	}
+	/** Two coach bodies (root places, world) closer than PadCm anywhere: their outlines as boxes, seen from above. */
+	bool LoopTouch(const FTransform& Ra, const FTransform& Rb, float PadCm)
+	{
+		const float HalfL = (CoachDim::XF * 100.f - LoopBackX) / 2.f, Mid = (CoachDim::XF * 100.f + LoopBackX) / 2.f, HalfW = CoachDim::W * 50.f;
+		const FVector Fa = Ra.GetUnitAxis(EAxis::X).GetSafeNormal2D(), Fb = Rb.GetUnitAxis(EAxis::X).GetSafeNormal2D();
+		const FVector Ca = Ra.GetLocation() + Fa * Mid, Cb = Rb.GetLocation() + Fb * Mid;
+		const FVector Axes[4] = {Fa, FVector(-Fa.Y, Fa.X, 0), Fb, FVector(-Fb.Y, Fb.X, 0)};
+		for (const FVector& Ax : Axes)
+		{
+			auto Reach = [&](const FVector& F) { const FVector Rt(-F.Y, F.X, 0); return FMath::Abs(FVector::DotProduct(F, Ax)) * HalfL + FMath::Abs(FVector::DotProduct(Rt, Ax)) * HalfW; };
+			if (FMath::Abs(FVector::DotProduct(Cb - Ca, Ax)) > Reach(Fa) + Reach(Fb) + PadCm) return false;
+		}
+		return true;
+	}
+}
+
+TArray<FVector> ACoaches::RoutePath(int32 Ci, bool bToTown, int32 Bay, const FTransform& From, FString& Why) const
+{
+	using namespace CoachLoop;
+	TArray<FVector> Path;
+	FString Text; TSharedPtr<FJsonObject> J; const TSharedPtr<FJsonObject>* Rt = nullptr; const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+	if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()
+		|| !J->TryGetObjectField(TEXT("routes"), Rt) || !(*Rt)->TryGetArrayField(bToTown ? TEXT("coach-to-town") : TEXT("coach-to-terminal"), Steps))
+	{ Why = TEXT("this site's roads.json has no coach loop"); return Path; }
+	TMap<FString, TSharedPtr<FJsonObject>> Road;
+	for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("roads"))) if (const TSharedPtr<FJsonObject> O = V->AsObject()) Road.Add(O->GetStringField(TEXT("id")), O);
+	// the bay: where its front bumper stops (the hub's "bays"; at the terminal the coach's own stand)
+	FVector Bump = FVector::ZeroVector;
+	if (bToTown)
+	{
+		const TSharedPtr<FJsonObject>* Hub = Road.Find(TEXT("TOWN-HUB")); const TArray<TSharedPtr<FJsonValue>>* Bays = nullptr;
+		if (!Hub || !(*Hub)->TryGetArrayField(TEXT("bays"), Bays) || !Bays->IsValidIndex(Bay)) { Why = FString::Printf(TEXT("no hub bay %d"), Bay); return Path; }
+		Bump = LoopPlan((*Bays)[Bay]->AsArray());
+	}
+	else
+	{
+		const FTransform* H = HomeStand.Find(Ci);
+		if (!H) { Why = TEXT("it has no stand at the terminal (never sent from one)"); return Path; }
+		Bump = H->TransformPosition(FVector(CoachDim::XF * 100.f, 0, 0));
+	}
+	const FVector Axle = From.TransformPosition(FVector(LoopAxleF, 0, 0)), Fwd = From.GetUnitAxis(EAxis::X).GetSafeNormal2D();
+	for (int32 s = 0; s < Steps->Num(); ++s)
+	{
+		const TSharedPtr<FJsonObject> St = (*Steps)[s]->AsObject();
+		const FString Id = St->GetStringField(TEXT("road")); const bool bRight = St->GetStringField(TEXT("side")) == TEXT("right");
+		const int32 Lane = int32(St->GetNumberField(TEXT("lane"))); double Jm = 8.0; St->TryGetNumberField(TEXT("join"), Jm);
+		FVehicleLane L;
+		if (!Road.Contains(Id) || !FVehicleLane::FromRoad(Id, bRight, Lane, L)) { Why = FString::Printf(TEXT("step %d: no lane %s %s %d"), s, *Id, bRight ? TEXT("right") : TEXT("left"), Lane); Path.Reset(); return Path; }
+		bool bClosed = false; Road[Id]->TryGetBoolField(TEXT("closed"), bClosed);
+		bool bPull = false;
+		auto Index = [&](const TCHAR* Key) -> int32
+		{
+			const TSharedPtr<FJsonValue> V = St->TryGetField(Key);
+			if (!V) return INDEX_NONE;
+			if (V->Type == EJson::Array) return LoopNearest(L.Pts, LoopPlan(V->AsArray()));
+			const FString T = V->AsString();
+			if (T == TEXT("coach")) { bPull = true; return LoopNearest(L.Pts, Axle + Fwd * LoopPullLen); }
+			if (T.StartsWith(TEXT("bay")))
+			{
+				const float Before = T.Len() > 4 ? FCString::Atof(*T.Mid(4)) * 100.f : 0.f;
+				return LoopBack(L.Pts, LoopNearest(L.Pts, Bump), (CoachDim::XF * 100.f - LoopAxleF) + Before);
+			}
+			return INDEX_NONE;
+		};
+		const int32 I0 = Index(TEXT("from")), I1 = Index(TEXT("to"));
+		if (I0 == INDEX_NONE || I1 == INDEX_NONE || (I1 <= I0 && !bClosed)) { Why = FString::Printf(TEXT("step %d (%s) runs nowhere or backwards (%d -> %d)"), s, *Id, I0, I1); Path.Reset(); return Path; }
+		TArray<FVector> Seg;
+		for (int32 i = I0; i != I1; i = (i + 1) % L.Pts.Num()) Seg.Add(L.Pts[i]);
+		Seg.Add(L.Pts[I1]);
+		if (Seg.Num() < 2) Seg.Add(L.Pts[(I1 + 1) % L.Pts.Num()]);
+		if (Path.Num() == 0) { Path.Add(Axle); LoopJoin(Path, Seg, bPull ? 0.f : float(Jm) * 100.f, Fwd); }
+		else LoopJoin(Path, Seg, float(Jm) * 100.f, Fwd);
+	}
+	for (FVector& P : Path) P.Z = From.GetLocation().Z;   // (the riders put each wheel on the ground)
+	return Path;
+}
+
+int32 ACoaches::RouteHits(int32 Ci, const FTransform& From, const TArray<FVector>& Path) const
+{
+	using namespace CoachLoop;
+	// the body along the path: the front axle on it, the rear axle trailing (as the riders drive it)
+	FVector Rear = From.TransformPosition(FVector(LoopAxleR, 0, 0)); float Run = 0.f;
+	for (int32 k = 0; k < Path.Num() && Run < LoopLook; ++k)
+	{
+		if (k > 0) Run += float(FVector::Dist2D(Path[k], Path[k - 1]));
+		const FVector F = Path[k]; FVector H = F - Rear; H.Z = 0.f; H = H.GetSafeNormal();
+		if (H.IsNearlyZero()) continue;
+		Rear = F - H * (LoopAxleF - LoopAxleR);
+		const FTransform Me(H.Rotation(), F - H * LoopAxleF);
+		for (int32 j = 0; j < Coaches.Num(); ++j)
+			if (j != Ci && Coaches[j].M.IsValid() && FVector::Dist2D(RootW(Coaches[j]).GetLocation(), F) < 3000.f && LoopTouch(Me, RootW(Coaches[j]), LoopPad)) return j;
+	}
+	return INDEX_NONE;
+}
+
+bool ACoaches::SendOnRoute(int32 Ci, bool bToTown, int32 Bay)
+{
+	using namespace CoachLoop;
+	const TCHAR* Way = bToTown ? TEXT("to the town hub") : TEXT("back to the terminal");
+	UVehicleRiders* R = Riders(Ci);
+	if (!R) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - no riders (adp.CoachLine off, or its driving parts missing)"), Ci, Way); return false; }
+	if (!R->DriverAtWheel() || R->IsDriving() || RouteGo.Contains(Ci)) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - %s"), Ci, Way, R->IsDriving() || RouteGo.Contains(Ci) ? TEXT("already on its way") : TEXT("no driver at the wheel")); return false; }
+	const FTransform From = RootW(Coaches[Ci]);
+	if (bToTown)
+	{
+		if (!HomeStand.Contains(Ci)) HomeStand.Add(Ci, From);
+		if (Bay == INDEX_NONE)   // the first hub bay nobody has
+		{
+			TSet<int32> Taken; for (const TPair<int32, int32>& P : HubBayOf) if (P.Key != Ci) Taken.Add(P.Value);
+			for (int32 b = 0; b < 64; ++b) if (!Taken.Contains(b)) { Bay = b; break; }
+		}
+	}
+	// pulling out: backed up only as far as it needs to clear the coach in front, never into the one behind
+	FString Why; TArray<FVector> Path; float Backed = 0.f; int32 Hit = INDEX_NONE, FirstHit = INDEX_NONE;
+	for (Backed = 0.f; Backed <= LoopMaxBack; Backed += 25.f)
+	{
+		FTransform At = From; At.AddToTranslation(-From.GetUnitAxis(EAxis::X).GetSafeNormal2D() * Backed);
+		if (Backed > 0.f)
+		{
+			bool bBehind = false;
+			for (int32 j = 0; j < Coaches.Num() && !bBehind; ++j) bBehind = j != Ci && Coaches[j].M.IsValid() && LoopTouch(At, RootW(Coaches[j]), LoopPad);
+			if (bBehind) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - boxed in by coach %d in front, no room behind after %.2f m"), Ci, Way, FirstHit, Backed / 100.f - 0.25f); return false; }
+		}
+		Path = RoutePath(Ci, bToTown, Bay, At, Why);
+		if (Path.Num() < 2) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - %s"), Ci, Way, *Why); return false; }
+		Hit = RouteHits(Ci, At, Path);
+		if (Hit == INDEX_NONE) break;
+		if (FirstHit == INDEX_NONE) FirstHit = Hit;
+	}
+	if (Hit != INDEX_NONE) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - still touches coach %d after backing %.1f m"), Ci, Way, Hit, LoopMaxBack / 100.f); return false; }
+	float Len = 0.f; for (int32 i = 1; i < Path.Num(); ++i) Len += float(FVector::Dist2D(Path[i], Path[i - 1]));
+	FRouteGo& G = RouteGo.Add(Ci); G.Path = MoveTemp(Path); G.BackLeft = Backed; G.bToTown = bToTown; G.Bay = Bay;
+	if (bToTown) HubBayOf.Add(Ci, Bay); else HubBayOf.Remove(Ci);
+	const FString BayS = bToTown ? FString::Printf(TEXT(" (hub bay %d)"), Bay) : FString();
+	const FString BackS = Backed > 0.f ? FString::Printf(TEXT(", backing up %.2f m first (coach %d in front)"), Backed / 100.f, FirstHit) : FString(TEXT(", straight out"));
+	ADP_LOG(TEXT("Coaches: coach %d sent %s%s - %.2f km%s"), Ci, Way, *BayS, Len / 100000.f, *BackS);
+	return true;
+}
+
+void ACoaches::RouteTick(float Dt)
+{
+	using namespace CoachLoop;
+	for (auto It = RouteGo.CreateIterator(); It; ++It)
+	{
+		const int32 Ci = It.Key(); FRouteGo& G = It.Value();
+		UVehicleRiders* R = Coaches.IsValidIndex(Ci) ? Riders(Ci) : nullptr;
+		if (!R) { if (G.Beep) G.Beep->Stop(); ADP_WARN(TEXT("Coaches: coach %d's loop dropped (its riders gone)"), Ci); It.RemoveCurrent(); continue; }
+		if (G.bDriving)
+		{
+			if (!R->IsDriving()) { ADP_LOG(TEXT("Coaches: coach %d %s"), Ci, G.bToTown ? *FString::Printf(TEXT("in hub bay %d"), G.Bay) : TEXT("back on its stand")); It.RemoveCurrent(); }
+			continue;
+		}
+		FCoach& C = Coaches[Ci];
+		if (G.BackLeft > 0.f)
+		{
+			if (!G.Beep && SndBeep && C.M.IsValid())
+			{
+				G.Beep = UGameplayStatics::SpawnSoundAttached(SndBeep, C.M->GetModelRoot(), NAME_None, FVector(-500.f, 0.f, 120.f), EAttachLocation::KeepRelativeOffset, false, 0.6f, 1.f, 0.f, nullptr, nullptr, false);
+				if (G.Beep) Keep.Add(G.Beep);
+				ADP_LOG(TEXT("Coaches: coach %d backs up %.2f m to pull out (reverse beep %s)"), Ci, G.BackLeft / 100.f, G.Beep ? TEXT("on") : TEXT("MISSING"));
+			}
+			if (G.Beep && !G.Beep->IsPlaying()) G.Beep->Play();
+			SetLamps(Ci, uint8(LowBeam | Tail | Reverse));
+			const float Step = FMath::Min(G.BackLeft, LoopBackSpeed * Dt);
+			FTransform Rb = C.RootBase; Rb.AddToTranslation(-Rb.GetUnitAxis(EAxis::X).GetSafeNormal2D() * Step);
+			DrivePlace(Ci, Rb, 0.f, 0.f, 0.f, C.Line.RollRad - Step / 52.f, 0.f, 0.f, 0.f, 0.f);
+			G.BackLeft -= Step; G.Backed += Step;
+			continue;
+		}
+		if (G.Beep) { G.Beep->Stop(); Keep.Remove(G.Beep); G.Beep = nullptr; ADP_LOG(TEXT("Coaches: coach %d backed %.2f m - beep off"), Ci, G.Backed / 100.f); }
+		SetLamps(Ci, uint8(LowBeam | Tail));
+		// the path into the coach's parent space (the riders drive its RootBase)
+		const FTransform Parent = C.RootBase.Inverse() * RootW(C);
+		TArray<FVector> Local; Local.Reserve(G.Path.Num());
+		for (const FVector& P : G.Path) Local.Add(Parent.InverseTransformPosition(P));
+		if (!R->Drive(Local, LoopTownLimit)) { ADP_WARN(TEXT("Coaches: coach %d's riders won't drive the loop (someone not seated, or you aboard)"), Ci); It.RemoveCurrent(); continue; }
+		G.bDriving = true;
+	}
+}
+#pragma endregion
+
 void ACoaches::Tick(float Dt)
 {
 	Super::Tick(Dt);
@@ -552,6 +778,7 @@ void ACoaches::Tick(float Dt)
 	APawn* Me = PC ? PC->GetPawn() : nullptr;
 	const FVector MeAt = Me ? Me->GetActorLocation() : FVector::ZeroVector;
 	ReachTick(Dt);
+	RouteTick(Dt);
 	// your capsule hip-wide inside a coach (the aisle 0.45 m), your own width again outside
 	if (ACharacter* Ch = Cast<ACharacter>(Me))
 	{
