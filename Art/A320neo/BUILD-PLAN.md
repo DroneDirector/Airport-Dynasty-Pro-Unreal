@@ -68,6 +68,11 @@ and the pivot axis matches the real one (flap tracks run along the track, not al
 6. **Cabin and cockpit** - 2-class 150 from sheet 5: seats, rails, bins, PSUs, lining, floor, galleys, lavatories,
    attendant seats, slide bustles; cockpit from sheets 7 and 8: seats, sidesticks, pedals, glareshield, FCU, six
    displays, overhead, pedestal, every panel block with its DZUS edge.
+   **Seat quality (owner, 2026-11-27):** the cabin seats must be as good as the coach seats -
+   `Art/CoachSeat/CoachSeat.blend` and its `T_Coach_*` texture set are the bar. That means a real shell, foam
+   with a seam line and stitching, a separate cushion and back, armrests with their pivots, the tray table and
+   its arm, the literature pocket, the recline mechanism and the leg frame on the seat track - not a boxy
+   stand-in. Fabric with a woven weave, not flat colour.
 7. **Textures** - from licensed photos: paint grain, skin joints, dirt streaks behind panels, brake dust on the
    wheels, soot aft of the exhaust, worn alloy inside the bays. Unstretched UVs, 4K where it shows.
 8. **Checks and pictures** - find_zfight and find_gaps clean, part count and names listed, 3 renders plus the
