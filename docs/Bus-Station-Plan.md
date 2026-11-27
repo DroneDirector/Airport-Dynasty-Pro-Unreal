@@ -107,7 +107,12 @@ are not to be redesigned - the waiting hall, furniture, lighting and everything 
 
 ## The ground truth - measured from the laid-out forecourt, 2026-11-27
 Any builder touching the station or the deck uses THESE numbers, not its own. Read off
-`Data/Sites/chablais/roads.json` at the station run; `y` is the world y, the terminal's landside wall is y 0.
+`Data/Sites/chablais/roads.json` at the station run. **`y` below is the ROAD PLAN's y**, as that file writes it, with
+the terminal's landside wall at y 0 - it is NOT the world y. The road network lays a plan point down at
+`(x * 100, -y * 100, ground)` (`RoadNetwork.cpp:570`), and `FTerminalPlan::ToWorld(X, Y, Z)` is
+`(X * 100, -Z * 100, Y * 100)`, so **the sign flips: plan y -14.35 is world y +1435 cm**. The forecourt, its bays and
+the platform all stand at POSITIVE world y. An earlier note here called these numbers the world y and a build was
+briefed to put the platform at world y -14.35, on the wrong side of the terminal; it was caught before it was placed.
 
 | | y from | y to | width |
 |---|---|---|---|

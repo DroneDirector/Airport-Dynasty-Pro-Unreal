@@ -958,8 +958,13 @@ def sign_post(tag, x, label_lines, name):
     lit_box(name, '', (x, yb, D.SIGN_Z), D.SIGN_BOX, m)
 
 
+# The road paints bay A1 first at its own start, and its s runs east to west along the platform
+# (Data/Sites/chablais/roads.json, roads[0].paint "bays": plan x falls as s grows), so A1 is the EAST-most
+# stand and A12 the west. These posts are placed west to east, so the number counts DOWN: the post on bay
+# line i carries A(N_BAYS - i). Painted bay and sign must agree or a coach is sent to the wrong stand.
 for i in range(D.N_BAYS):
-    sign_post('A%d' % (i + 1), D.bay_x(i), ['A%d' % (i + 1)], 'SignA%02d' % (i + 1))
+    n = D.N_BAYS - i
+    sign_post('A%d' % n, D.bay_x(i), ['A%d' % n], 'SignA%02d' % n)
 sign_post('Taxi', D.PL_LEN - 6.0, ['TAXI'], 'SignTaxi')
 
 # ---------------------------------------------------------------- 8g  timetable cases on the arch columns
