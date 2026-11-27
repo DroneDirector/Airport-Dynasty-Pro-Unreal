@@ -143,6 +143,31 @@ bool ASimTraffic::RunwayBusy(const UWorld* W)
 	return false;
 }
 
+FString ASimTraffic::RunwayTraffic(const UWorld* W)
+{
+	if (!W) return FString();
+	for (TActorIterator<ASimTraffic> It(const_cast<UWorld*>(W)); It; ++It)
+		for (const FMove& M : It->Moves)
+		{
+			if (M.Phase == EPhase::Rollout || (M.Phase == EPhase::Approach && M.Height < 400.f)) return TEXT("traffic landing");
+			if (M.Phase == EPhase::Roll || (M.Phase == EPhase::Climb && M.Height < 100.f)) return TEXT("traffic departing");
+			if ((M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn) && (FMath::Abs(M.Nose.Y - It->F.RwyY) < 100.f || FMath::Abs(M.Main.Y - It->F.RwyY) < 100.f)) return TEXT("traffic on the runway");
+		}
+	return FString();
+}
+
+FString ASimTraffic::RunwaySpoken(const UWorld* W)
+{
+	// the end in use from the real wind (RunwayToX1), its number from the site's runway heading (as the pushback clearance)
+	bool bToX1 = true;
+	if (W) for (TActorIterator<ASimTraffic> It(const_cast<UWorld*>(W)); It; ++It) { bToX1 = It->RunwayToX1(); break; }
+	double Hdg = 336.0; if (TSharedPtr<FJsonObject> Ab = ADPSite::AirportBlock()) Ab->TryGetNumberField(TEXT("hdg"), Hdg);
+	const double H = FMath::Fmod(bToX1 ? Hdg : Hdg + 180.0, 360.0);
+	const int32 Rw = FMath::RoundToInt(H / 10.0) == 0 ? 36 : FMath::RoundToInt(H / 10.0);
+	static const TCHAR* Dg[] = {TEXT("zero"), TEXT("one"), TEXT("two"), TEXT("three"), TEXT("four"), TEXT("five"), TEXT("six"), TEXT("seven"), TEXT("eight"), TEXT("niner")};
+	return FString::Printf(TEXT("%s %s"), Dg[Rw / 10], Dg[Rw % 10]);
+}
+
 bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why) const
 {
 	UWorld* W = GetWorld();

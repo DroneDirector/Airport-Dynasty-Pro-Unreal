@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "RunwayRadio.h"
 #include "HangarTow.generated.h"
 
 class ABabylonModel;
@@ -39,6 +40,9 @@ public:
 	static bool YouFit(UWorld* W, const FVector& At, FString& Key, FVector2f& Nose, FVector2f& Main);
 	/** E at the tow bar: the tow ends here if the nose tyre is on its stop mark (0.5 m, 3 deg); else Hint says how far off. */
 	static bool YouEnd(UWorld* W, const FString& Key, FString& Hint);
+	/** E at the hangar tug's wheel, holding short of the runway on your own tow (hangar step 6): your call to the tower.
+	 *  False: no call of yours is due (E does what it did). */
+	static bool YouCall(UWorld* W);
 
 	/** One leg of the tow: the line the leading gear follows (plan m, corners rounded) - the nose tyre's pulled, the main
 	 *  gear's pushed tail first; the other gear follows 12.8 m behind on the same line. */
@@ -54,6 +58,8 @@ private:
 		float BlockT = 0.f;                               // (stopped for another aircraft's wingtip: when it was last logged)
 		FVector2f Nose = FVector2f::ZeroVector, Main = FVector2f::ZeroVector;
 		bool bCleared = false; float HoldT = 0.f;        // (holding short of the runway: cleared to cross, how long held)
+		ADPRunwayRadio::FCall Radio;                     // (the crossing on the tower frequency: RunwayRadio.h, hangar step 6)
+		bool bCallNow = false, bAtHold = false, bWasOn = false, bVacate = false;   // (you: E made the call; at the holding point now; on the strip last frame; "vacated" due)
 		bool bRider = false; int32 Rider = 0;             // (the brake rider in the cockpit; AGSE::MaintRider's answer)
 		int32 Chocks = 0, CkI = INDEX_NONE;              // (the hangar's chocks: 0 in the store, 1 being set, 2 set, 3 being taken away; its first of 4 instances)
 		TWeakObjectPtr<ABabylonModel> Model; TWeakObjectPtr<UADPAircraftLights> Lamps; TWeakObjectPtr<AHangar> Hall;
@@ -77,4 +83,5 @@ private:
 	bool Rejoin(FJob& J);
 	void Finish(FJob& J);
 	void Mark(const FJob& J, FVector2f& Nose, FVector2f& Dir) const;
+	ADPRunwayRadio::FWho RadioWho(const FJob& J, const FVector2f& At) const;   // (who talks for this tow, holding short at At)
 };

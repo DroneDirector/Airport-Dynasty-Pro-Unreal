@@ -27,6 +27,7 @@
 #include "VehicleDirt.h"
 #include "StaffPeople.h"
 #include "ServiceVehicles.h"
+#include "RunwayRadio.h"
 #include "GSE.generated.h"
 
 class ABabylonModel;
@@ -790,6 +791,8 @@ public:   // (the maintenance vans' rides: asked for by the tugs' wing walkers t
 	TMap<int32, TPair<int32, EJob>> VanWas;   // (a van taken for a ride: its job's driver and state, given back after)
 	TMap<int32, uint8> VanTrip;        // (a van: 1 driving its riders, 2 they get out)
 	TMap<int32, double> VanClear;      // (a van holding short: since when the runway is free)
+	TMap<int32, ADPRunwayRadio::FCall> VanRadio;   // (a van's runway crossing on the tower frequency, hangar step 6: from the holding point to "vacated")
+	ADPRunwayRadio::FWho VanWho(int32 Ti) const;    // (who talks for that van: its driver, its radio)
 	TMap<int32, FVector> VanSouth;     // (a van: where it was taken from on the stands' side - the drop back there)
 	TSet<int32> VanStrip;              // (vans on the runway strip now: departures hold)
 	static bool Across(const FVector& A, const FVector& B);

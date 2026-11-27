@@ -2,6 +2,9 @@
 // pushback (Push, Release), with its own drive from its place by the bus chargers out to the aircraft and home again. HangarTow.cpp asks
 // for it; your own tow (step C) is to go through the same calls.
 #include "Tugs.h"
+#include "BabylonModel.h"
+#include "People.h"
+#include "CrewVoice.h"
 #include "StaffPeople.h"
 #include "GSE.h"
 #include "Sim/ADPVehicleArea.h"
@@ -65,6 +68,23 @@ bool ATugs::TowHooked(const FString& Key) const
 {
 	for (const FTug& T : Tugs) if (T.Key == Key) return AtNose(T);
 	return false;
+}
+
+bool ATugs::TowRadio(const FString& Key, AActor*& Tug, AActor*& Driver, FString& Voice, int32& No) const
+{
+	Tug = nullptr; Driver = nullptr; Voice.Reset(); No = 1;
+	const int32 I = Tugs.IndexOfByPredicate([&](const FTug& X) { return X.Key == Key; }); if (I == INDEX_NONE) return false;
+	const FTug& T = Tugs[I];
+	for (int32 i = 0; i < I; ++i) if (Tugs[i].bHangar == T.bHangar) ++No;
+	Tug = T.M.Get();
+	if (Crew.IsValidIndex(T.Driver) && Crew[T.Driver].A.IsValid())
+	{
+		Driver = Crew[T.Driver].A.Get();
+		const AADPPeople::FWho* Wh = AADPPeople::Get(GetWorld()) ? AADPPeople::Get(GetWorld())->Find(Driver) : nullptr;
+		Voice = ADPCrewVoice::VoiceFor(Crew[T.Driver].Name, Wh && Wh->bFemale);
+	}
+	else Voice = ADPCrewVoice::VoiceFor(Key, false);
+	return Tug != nullptr;
 }
 
 float ATugs::TowWalkerLag(const FString& Key) const

@@ -57,6 +57,7 @@ static bool GTourTracking = false;   // (the tug tour's tracking camera has a su
 #include "Camera/CameraActor.h"
 #include "TowerADC.h"
 #include "Hangar.h"
+#include "HangarTow.h"
 #include "FireStation.h"
 #include "TownBuildings.h"
 #include "Airfield.h"
@@ -2053,6 +2054,7 @@ void AADPHUD::Interact()
 	if (AFireTruck* T = Cast<AFireTruck>(GetOwningPawn())) { if (!T->CabPress()) T->Exit(); return; }   // (E on a cab switch you look at presses it: FireTruckYou.cpp)
 	// a vehicle's own control you look at (VehicleControls.h)
 	if (!PC->IsInputKeyDown(EKeys::LeftMouseButton) && !Drone.IsValid() && !AWashHose::Held() && !ASeats::IsSitting() && !ADoorPanelUse::IsActive() && AVehicleControls::Interact(GetOwningPawn())) return;
+	if (Cast<AServiceDrive>(GetOwningPawn()) && AHangarTow::YouCall(GetWorld())) return;   // (holding short on your own hangar tow: E calls the tower - HangarTow.h)
 	if (AServiceDrive* T = Cast<AServiceDrive>(GetOwningPawn())) { T->Exit(); return; }   // (in a service vehicle: ServiceDrive.h)
 	if (Drone.IsValid()) return;   // (a drone presses nothing)
 	// the jetway's control panel menu open: E closes it (JetwayRigs.h)

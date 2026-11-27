@@ -973,7 +973,16 @@ stand end; the deck top (0.906 m, rollers 1.028 m) is not yet checked against th
 - Wingtips: the tow stops and logs when its A320 shape 3 m ahead comes within 3 m of another aircraft within 90 m.
 - The hangar tug reaches remote stands by the apron planner and cargo stands along K beside the nose; hired walkers left
   north of the runway stay there and are let go (logged), never walking across.
-- Not yet: your own tow (step C), an ATC radio call for the crossing (log only), landings
+- Tower radio for the crossing (hangar step 6, RunwayRadio.h/.cpp): at the holding point the tug driver (and each
+  maintenance van's driver, GSEMaint VanCross) calls "<site> Tower, tug 1, towing <reg spelled>, holding short runway
+  <in use> at <taxiway>, request crossing to the hangar"; the tower (one controller voice, bf_emma) answers "cross runway
+  xx, report vacated" or "hold short runway xx, traffic landing/departing", the driver reads back and reports "runway
+  vacated" off the far side. The read-back clearance gates the crossing; it is only given after RunwayBusy (and tows /
+  vans on the strip) have been clear 10 s, and is cancelled ("hold position") if traffic appears before the readback.
+  Driver heard in his own voice where he sits, the tower from the vehicle's radio (CrewVoice, ~30 m), subtitles near,
+  every line logged "Radio: [...]". One frequency for all. Your own tow: at the holding point E calls (shown, not voiced),
+  you hear the reply; on the strip uncleared = runway incursion warning + log + the tower's call. Untested in game.
+- Not yet: landings
   waiting for a tow, the van ride for crew across the runway (stair crew still use HiredWay over it), the baked chock
   store staying full while its chocks are out, a tow running over a save; untested in game.
 

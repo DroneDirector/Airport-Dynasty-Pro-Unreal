@@ -71,6 +71,9 @@ public:
 	void TowDrop(const FString& Key) { Tows.Remove(Key); }
 	/** The tow's tug is hooked on (its crew at the aircraft). */
 	bool TowHooked(const FString& Key) const;
+	/** The tow's tug for the tower talk (RunwayRadio.h): Tug its model, Driver the one at its wheel (null: nobody), Voice
+	 *  his (CrewVoice), No the tug's number (the hangar tugs counted on their own). False: no tug on that tow. */
+	bool TowRadio(const FString& Key, AActor*& Tug, AActor*& Driver, FString& Voice, int32& No) const;
 	/** How far (m) the furthest wing / tail walker of that tow is from his place now (0: none out yet): the tow keeps to their pace. */
 	float TowWalkerLag(const FString& Key) const;
 	/** A hangar's chocks (to-do 311): one of the tow's walkers (else its handler) fetches them from Store and sets them at

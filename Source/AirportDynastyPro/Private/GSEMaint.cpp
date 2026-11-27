@@ -9,6 +9,7 @@
 #include "GSE.h"
 #include "ServiceVehicles.h"
 #include "Tugs.h"
+#include "BabylonModel.h"
 #include "JetwayRigs.h"
 #include "Airfield.h"
 #include "CrewPose.h"
@@ -16,6 +17,9 @@
 #include "Sim/ADPSim.h"
 #include "HangarTow.h"
 #include "SimTraffic.h"
+#include "RunwayRadio.h"
+#include "CrewVoice.h"
+#include "People.h"
 #include "Engine/World.h"
 
 namespace
@@ -346,8 +350,36 @@ void AGSE::VanAlight(int32 Ci, TFunction<void()> Then)
 	Done();
 }
 
+ADPRunwayRadio::FWho AGSE::VanWho(int32 Ti) const
+{
+	ADPRunwayRadio::FWho Who; if (!Tractors.IsValidIndex(Ti)) return Who;
+	const FTractor& T = Tractors[Ti];
+	int32 No = 1; for (int32 i = 0; i < Ti; ++i) if (Tractors[i].Svc != INDEX_NONE && MtSpec(Tractors[i].Svc).bMaint) ++No;
+	Who.Callsign = FString::Printf(TEXT("maintenance van %d"), No);
+	Who.Radio = T.M.Get(); Who.To = ATugs::SideOf(T.At.Y) == 2 ? TEXT("to the apron") : TEXT("to the hangars");
+	const ATugs* G = Tg();
+	if (G && G->Crew.IsValidIndex(T.Driver) && G->Crew[T.Driver].A.IsValid())
+	{
+		Who.Driver = G->Crew[T.Driver].A.Get();
+		AADPPeople* Pp = AADPPeople::Get(GetWorld()); const AADPPeople::FWho* Wh = Pp ? Pp->Find(Who.Driver) : nullptr;
+		Who.Voice = ADPCrewVoice::VoiceFor(G->Crew[T.Driver].Name, Wh && Wh->bFemale);
+	}
+	else Who.Voice = ADPCrewVoice::VoiceFor(Who.Callsign, false);
+	return Who;
+}
+
 void AGSE::VanTick()
 {
+	// the vans' runway crossings (hangar step 6): "runway vacated" once off the strip, then done
+	for (auto It = VanRadio.CreateIterator(); It; ++It)
+	{
+		if (!Tractors.IsValidIndex(It->Key)) { It.RemoveCurrent(); continue; }
+		if (It->Value.Step == 5 && VanStrip.Contains(It->Key)) continue;   // (still crossing)
+		if (It->Value.Step < 5) continue;                                 // (holding short: Until)
+		ADPRunwayRadio::Vacated(GetWorld(), It->Value, VanWho(It->Key));
+		if (It->Value.Step == 6) It.RemoveCurrent();
+	}
+
 	// a van whose riders are all in leaves for its driver's drop; once all are out it is free again
 	TSet<int32> Vans; for (const TPair<int32, FVanRider>& R : VanRiders) if (R.Value.Ti != INDEX_NONE) Vans.Add(R.Value.Ti);
 	for (auto It = VanTrip.CreateIterator(); It; ++It) if (It->Value == 2 && !Vans.Contains(It->Key))
@@ -398,14 +430,15 @@ void AGSE::VanCross(int32 Ti, const FVector& To, TFunction<void()> Done)
 	if (!Apron(W, W.Num() ? W.Last() : T.At, Plan(A.X, A.Y), &T)) { ADP_LOG(TEXT("GSE: the %s finds no way to the runway crossing - tries again"), *T.Name); RetryIn(Ti, 8.f, [this, Ti, To, Done] { VanCross(Ti, To, Done); }); return; }
 	Go(T, MoveTemp(W), false, [this, Ti, A, B, To, Done]
 	{
-		FTractor& V = Tractors[Ti]; VanClear.Add(Ti, -1.0);
+		FTractor& V = Tractors[Ti]; VanClear.Add(Ti, -1.0); VanRadio.Add(Ti, ADPRunwayRadio::FCall());
 		ADP_LOG(TEXT("GSE: the %s holds short of the runway at the tows' crossing"), *V.Name);
-		V.Until = [this, Ti]
+		V.Until = [this, Ti, A]
 		{
-			const double Now = GetWorld()->GetTimeSeconds(); double& C = VanClear.FindOrAdd(Ti);
-			if (ASimTraffic::RunwayBusy(GetWorld()) || AHangarTow::OnRunway(GetWorld(), false)) { C = -1.0; return false; }
-			if (C < 0.0) C = Now;
-			return Now - C >= 10.0;
+			// (hangar step 6: the driver calls the tower; its clearance, read back, lets the van cross - never while the runway
+			//  is busy or a tow is on it, and only after 10 s free: RunwayRadio.h)
+			UWorld* Wd = GetWorld(); const bool bTraffic = ASimTraffic::RunwayBusy(Wd), bTow = AHangarTow::OnRunway(Wd, false);
+			ADPRunwayRadio::FWho Who = VanWho(Ti); Who.Twy = ADPRunwayRadio::TwyAt(A);
+			return ADPRunwayRadio::Hold(Wd, VanRadio.FindOrAdd(Ti), Who, true, bTraffic || bTow, bTraffic ? ASimTraffic::RunwayTraffic(Wd) : FString(bTow ? TEXT("aircraft under tow crossing") : TEXT("")));
 		};
 		V.AfterUntil = [this, Ti, A, B, To, Done]
 		{
@@ -415,6 +448,7 @@ void AGSE::VanCross(int32 Ti, const FVector& To, TFunction<void()> Done)
 			Go(U, MoveTemp(X), false, [this, Ti, To, Done]
 			{
 				VanStrip.Remove(Ti); ADP_LOG(TEXT("GSE: the %s is off the runway"), *Tractors[Ti].Name);
+				if (ADPRunwayRadio::FCall* Rc = VanRadio.Find(Ti)) Rc->Step = FMath::Max(Rc->Step, 5);   // ("vacated" next: VanTick)
 				VanCross(Ti, To, Done);
 			});
 		};

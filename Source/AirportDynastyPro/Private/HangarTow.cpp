@@ -22,6 +22,7 @@
 #include "SimTraffic.h"
 #include "GSE.h"
 #include "VehicleControls.h"
+#include "RunwayRadio.h"
 #include "CrewPose.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -633,6 +634,11 @@ void AHangarTow::Run(FJob& J, float Dt)
 	const bool bChocked = J.bBack && J.Chocks != 0;
 	const float Lag = bGo ? Tg->TowWalkerLag(J.Key) : 0.f;   // (the wing walkers keep pace: walking, never far from their wingtips)
 	// your own tow (to-do 311 step C): you steer it at the hangar tug's wheel, the same limits; left to the crew, they go on from where it stands
+	if (J.bVacate && !Tg->YouPushing(J.Key))   // (the tower told: also while it waits for its walkers or the door)
+	{
+		ADPRunwayRadio::Vacated(W, J.Radio, RadioWho(J, J.Nose));
+		if (J.Radio.Step == 6 || J.Radio.Step < 5) J.bVacate = false;
+	}
 	if (Tg->YouPushing(J.Key)) { J.bYou = true; YouRun(J, Dt, bGo, bChocked, Lag); return; }
 	if (J.bYou && bGo && !Rejoin(J))
 	{
@@ -659,12 +665,13 @@ void AHangarTow::Run(FJob& J, float Dt)
 		Rem = FMath::Min(Rem, Lg.HoldS - J.S);
 		if (J.S >= Lg.HoldS - 0.05f)
 		{
-			if (ASimTraffic::RunwayBusy(W) || (AGSE::Find(W) && AGSE::Find(W)->VanOnStrip()))
-			{
-				J.HoldT = 0.f;
-				if ((J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s holds short of the runway - traffic"), *J.Reg); }
-			}
-			else if ((J.HoldT += Dt) >= 10.f) { J.bCleared = true; ADP_LOG(TEXT("HangarTow: %s cleared to cross the runway"), *J.Reg); }
+			// (hangar step 6: the tug driver calls the tower; the tower's clearance, read back, lets it cross - never while busy)
+			const bool bVan = AGSE::Find(W) && AGSE::Find(W)->VanOnStrip(), bBusy = ASimTraffic::RunwayBusy(W) || bVan;
+			if (J.Radio.Step >= 6) J.Radio = ADPRunwayRadio::FCall();
+			const FString Traffic = ASimTraffic::RunwayBusy(W) ? ASimTraffic::RunwayTraffic(W) : FString(bVan ? TEXT("vehicle crossing") : TEXT(""));
+			if (ADPRunwayRadio::Hold(W, J.Radio, RadioWho(J, LegAt(Lg, Lg.HoldS)), true, bBusy, Traffic))
+			{ J.bCleared = true; J.bWasOn = false; ADP_LOG(TEXT("HangarTow: %s cleared by the tower to cross the runway"), *J.Reg); }
+			else if (bBusy && (J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s holds short of the runway - traffic"), *J.Reg); }
 			J.V = 0.f; return;
 		}
 	}
@@ -689,6 +696,12 @@ void AHangarTow::Run(FJob& J, float Dt)
 	const FVector2f Lead = LegAt(Lg, J.S), Trail = LegAt(Lg, J.S - GearL);
 	J.Nose = Lg.bPush ? Trail : Lead; J.Main = Lg.bPush ? Lead : Trail;
 	Pose(J);
+	{
+		// off the strip on the far side: "runway vacated" (hangar step 6)
+		const FAirfieldData& Af = AAirfield::Shared(); const bool bOnNow = InStrip(Af, J.Nose) || InStrip(Af, J.Main);
+		if (J.bWasOn && !bOnNow) J.bVacate = true;
+		J.bWasOn = bOnNow;
+	}
 	if (J.S < Len - 0.005f) return;
 	J.V = 0.f; J.S = 0.f; J.bCleared = false; J.HoldT = 0.f;
 	if (++J.Leg < J.Legs.Num()) { ADP_LOG(TEXT("HangarTow: %s - leg %d of %d"), *J.Reg, J.Leg + 1, J.Legs.Num()); return; }
@@ -778,9 +791,39 @@ bool AHangarTow::Rejoin(FJob& J)
 	if (!InStrip(D, LegAt(Nw, Nw.S[1]))) for (float S = Nw.S[1]; S <= Nl; S += 0.5f) if (InStrip(D, LegAt(Nw, S))) { Nw.HoldS = FMath::Max(0.f, S - 0.5f); break; }
 	J.Legs[Bl] = Nw; J.Leg = Bl; J.S = Nw.S[1]; J.V = 0.f; J.HoldT = 0.f;
 	J.bCleared = InStrip(D, J.Nose) || InStrip(D, J.Main);   // (on the runway already: it goes on across)
+	if (J.bCleared) { if (J.Radio.Step < 5) J.Radio.Step = 5; J.bWasOn = true; }   // (its "vacated" still said off the far side)
+	else if (!J.bVacate) J.Radio = ADPRunwayRadio::FCall();
+	J.bCallNow = false; J.bAtHold = false;
 	J.bYou = false;
 	ADP_LOG(TEXT("HangarTow: %s - its crew take your tow over at (%.0f, %.0f), %.0f m from its route, leg %d of %d"), *J.Reg, J.Nose.X, J.Nose.Y, Bd, Bl + 1, J.Legs.Num());
 	return true;
+}
+
+bool AHangarTow::YouCall(UWorld* W)
+{
+	if (!W) return false;
+	for (TActorIterator<AHangarTow> It(W); It; ++It)
+		for (FJob& J : It->Jobs)
+			if (J.bYou && J.bAtHold && J.Radio.Step == 0 && !J.bCallNow)
+			{
+				if (!ADPRunwayRadio::FreqFree(W)) { AVehicleControls::Note(W, TEXT("Someone is talking on the frequency - call again in a moment")); return true; }
+				J.bCallNow = true; ADP_LOG(TEXT("HangarTow: %s (yours) - you call the tower for the runway crossing"), *J.Reg);
+				return true;
+			}
+	return false;
+}
+
+ADPRunwayRadio::FWho AHangarTow::RadioWho(const FJob& J, const FVector2f& At) const
+{
+	ADPRunwayRadio::FWho Wh; int32 No = 1;
+	if (const ATugs* Tg = ATugs::Get(GetWorld())) Tg->TowRadio(J.Key, Wh.Radio, Wh.Driver, Wh.Voice, No);
+	Wh.Callsign = FString::Printf(TEXT("tug %d"), No);
+	Wh.Towing = TEXT("towing ") + ADPRunwayRadio::Spell(J.Reg);
+	Wh.Twy = ADPRunwayRadio::TwyAt(At);
+	Wh.To = J.bBack ? FString::Printf(TEXT("to stand %s"), *J.Stand) : FString(TEXT("to the hangar"));
+	Wh.bYou = J.bYou;
+	if (Wh.bYou) Wh.Driver = nullptr;   // (you at the wheel: your own words)
+	return Wh;
 }
 
 void AHangarTow::YouRun(FJob& J, float Dt, bool bGo, bool bChocked, float Lag)
@@ -812,18 +855,39 @@ void AHangarTow::YouRun(FJob& J, float Dt, bool bGo, bool bChocked, float Lag)
 	// the runway: held short 107.5 m from its centre line until nothing rolls, lands or takes off, then 10 s more (as the crew's)
 	auto ByStrip = [&D](const FVector2f& P) { return FMath::Abs(P.Y - D.RwyY) < 113.5f && P.X > D.RwyX0 && P.X < D.RwyX1; };
 	const bool bOn = InStrip(D, J.Nose) || InStrip(D, J.Main), bBy = ByStrip(J.Nose) || ByStrip(J.Main);
-	if (!bBy) { J.bCleared = false; J.HoldT = 0.f; }
-	else if (bOn) J.bCleared = true;
+	// (hangar step 6: you call the tower at the holding point - E; its clearance, read back, lets you cross - never while busy)
+	J.bAtHold = false;
+	if (J.bWasOn && !bOn) J.bVacate = true;
+	J.bWasOn = bOn;
+	if (J.bVacate) { ADPRunwayRadio::Vacated(W, J.Radio, RadioWho(J, J.Nose)); if (J.Radio.Step == 6 || J.Radio.Step < 5) J.bVacate = false; }
+	if (!bBy) { J.bCleared = false; J.HoldT = 0.f; if (!J.bVacate) { J.Radio = ADPRunwayRadio::FCall(); J.bCallNow = false; } }
+	else if (bOn)
+	{
+		if (!J.bCleared && J.Radio.Step < 5)
+		{
+			ADP_WARN(TEXT("HangarTow: %s (yours) on the runway strip without a crossing clearance (%.0f, %.0f)"), *J.Reg, J.Nose.X, J.Nose.Y);
+			ADPRunwayRadio::Incursion(W, J.Radio, RadioWho(J, J.Nose));
+			AVehicleControls::Note(W, TEXT("Runway incursion - you are on the runway without a crossing clearance. Vacate it now"));
+		}
+		J.bCleared = true;
+	}
 	else if (!J.bCleared && bGo)
 	{
-		bMay = false;
-		if (ASimTraffic::RunwayBusy(W) || (AGSE::Find(W) && AGSE::Find(W)->VanOnStrip()))
+		bMay = false; J.bAtHold = true;
+		if (J.Radio.Step >= 6) { J.Radio = ADPRunwayRadio::FCall(); J.bCallNow = false; }
+		const bool bVan = AGSE::Find(W) && AGSE::Find(W)->VanOnStrip(), bBusy = ASimTraffic::RunwayBusy(W) || bVan;
+		const FString Traffic = ASimTraffic::RunwayBusy(W) ? ASimTraffic::RunwayTraffic(W) : FString(bVan ? TEXT("vehicle crossing") : TEXT(""));
+		if (J.V >= 0.1f && J.Radio.Step == 0) Why = TEXT("hold short of the runway - stop at the holding point and call the tower");
+		else if (ADPRunwayRadio::Hold(W, J.Radio, RadioWho(J, J.Nose), J.bCallNow, bBusy, Traffic))
 		{
-			J.HoldT = 0.f; Why = TEXT("hold short of the runway - traffic on it or close in");
-			if ((J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s (yours) holds short of the runway - traffic"), *J.Reg); }
+			J.bCleared = true; bMay = true; J.bWasOn = false;
+			ADP_LOG(TEXT("HangarTow: %s (yours) cleared by the tower to cross the runway"), *J.Reg);
+			AVehicleControls::Note(W, FString::Printf(TEXT("Cleared to cross runway %s - report vacated"), *ASimTraffic::RunwaySpoken(W)));
 		}
-		else if ((J.HoldT += J.V < 0.1f ? Dt : 0.f) >= 10.f) { J.bCleared = true; bMay = true; ADP_LOG(TEXT("HangarTow: %s (yours) cleared to cross the runway"), *J.Reg); AVehicleControls::Note(W, TEXT("Cleared to cross the runway")); }
-		else Why = J.V < 0.1f ? FString::Printf(TEXT("holding short of the runway - cleared to cross in %.0f s"), 10.f - J.HoldT) : FString(TEXT("hold short of the runway - stop for the crossing clearance"));
+		else if (J.Radio.Step == 0) Why = TEXT("holding short of the runway - E: call the tower for the crossing");
+		else if (J.Radio.Step == 2 || J.Radio.Step == 3) Why = FString::Printf(TEXT("hold short of the runway (%s) - the tower will call you"), Traffic.IsEmpty() ? TEXT("waiting") : *Traffic);
+		else Why = TEXT("holding short of the runway - on the radio with the tower");
+		if (bBusy && (J.WhyT -= Dt) <= 0.f) { J.WhyT = 30.f; ADP_LOG(TEXT("HangarTow: %s (yours) holds short of the runway - traffic"), *J.Reg); }
 	}
 	// wingtips: 3 m from every other aircraft
 	FString Who; const bool bWing = bGo && !Clear(J, J.Nose, J.Main, Who);
