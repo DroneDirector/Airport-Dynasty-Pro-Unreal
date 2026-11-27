@@ -54,24 +54,29 @@ def verts(name):
 bm = bmesh.new(); bm.from_mesh(o.data)
 F0 = list(bm.faces)
 cen0 = np.array([f.calc_center_median()[:] for f in F0])
+# (a face is in a pool if its bounding box reaches the box - by centroid alone, big triangles across a cut line were never cut)
+fmn0 = np.array([[min(v.co[i] for v in f.verts) for i in range(3)] for f in F0]); fmx0 = np.array([[max(v.co[i] for v in f.verts) for i in range(3)] for f in F0])
 POOLS = {}
+def fbox(f):
+    cs = [v.co for v in f.verts]; return [min(c[i] for c in cs) for i in range(3)], [max(c[i] for c in cs) for i in range(3)]
 def pool(key, lo, hi):
     if key not in POOLS:
-        m = np.all((cen0 >= np.array(lo)) & (cen0 <= np.array(hi)), axis=1)
+        m = np.all((fmx0 >= np.array(lo)) & (fmn0 <= np.array(hi)), axis=1)
         POOLS[key] = [F0[i] for i in np.nonzero(m)[0]]
     return key
 def bisect(key, lo, hi, p, n):
     fs = [f for f in POOLS[key] if f.is_valid]
-    fs = [f for f in fs if all(lo[i] - 0.3 <= f.calc_center_median()[i] <= hi[i] + 0.3 for i in range(3))]
+    fs = [f for f, (a, b) in ((f, fbox(f)) for f in fs) if all(b[i] >= lo[i] - 0.3 and a[i] <= hi[i] + 0.3 for i in range(3))]
     if not fs: return
     geom = list(set(fs) | {e for f in fs for e in f.edges} | {v for f in fs for v in f.verts})
     r = bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=Vector(p), plane_no=unit(n), clear_inner=False, clear_outer=False)
     POOLS[key] = [f for f in POOLS[key] if f.is_valid] + [g for g in r['geom'] if isinstance(g, bmesh.types.BMFace)]
     POOLS[key] = list(set(POOLS[key]))
 SPECS = []
+PLANES = {}         # each part's cut planes: its edges on them are the borders of its connected areas, and get closed (caps)
 def part(name, key, lo, hi, planes, keep, meta):
     for p, n in planes: bisect(key, lo, hi, p, n)
-    SPECS.append((name, lo, hi, keep, meta))
+    SPECS.append((name, lo, hi, keep, meta)); PLANES[name] = [(Vector(p), unit(n)) for p, n in planes]
 
 def side_of(p, n): # mask: centroid on the +n side of the plane
     return lambda C: (C - np.array(p)) @ np.array(unit(n)) > 0
@@ -216,10 +221,34 @@ for s, sd in ((-1, '_L'), (1, '_R')):
 bm.faces.ensure_lookup_table()
 C = np.array([f.calc_center_median()[:] for f in bm.faces]); N = np.array([f.normal[:] for f in bm.faces])
 lay = bm.faces.layers.int.new('adp_part')
+# CONNECTED AREAS, not single faces (the lumpy skin's normals made single faces drop out, leaving torn edges): inside a
+# part's box, faces are joined across every edge that does not lie on one of its cut planes; an area goes to the part whole
+# when most of its area (by face area) passes the part's test, so both skins of a shell panel go together and its edge is
+# exactly the cut line
+bm.faces.index_update(); bm.verts.index_update(); bm.verts.ensure_lookup_table()
+AR = np.array([f.calc_area() for f in bm.faces])
+VC = np.array([v.co[:] for v in bm.verts])
 ids = np.zeros(len(C), int)
 for k, (name, lo, hi, keep, meta) in enumerate(SPECS):
-    m = np.all((C >= np.array(lo) - 0.05) & (C <= np.array(hi) + 0.05), axis=1) & keep(C, N) & (ids == 0)
-    ids[m] = k + 1
+    box = np.all((C >= np.array(lo) - 0.05) & (C <= np.array(hi) + 0.05), axis=1) & (ids == 0)
+    want = box & keep(C, N)
+    onp = np.stack([np.abs((VC - np.array(p)) @ np.array(n)) < 2e-4 for p, n in PLANES[name]], 1)
+    seen = np.zeros(len(C), bool); kept = 0.0
+    for fi in np.nonzero(box)[0]:
+        if seen[fi]: continue
+        comp = [fi]; seen[fi] = True; st = [bm.faces[fi]]
+        while st:
+            g = st.pop()
+            for e in g.edges:
+                a, b_ = e.verts[0].index, e.verts[1].index
+                if np.any(onp[a] & onp[b_]): continue
+                for h in e.link_faces:
+                    j = h.index
+                    if not seen[j] and box[j]: seen[j] = True; comp.append(j); st.append(h)
+        comp = np.array(comp); aw = AR[comp][want[comp]].sum()
+        if aw >= 0.5 * AR[comp].sum() and aw > 0: ids[comp] = k + 1; kept += AR[comp].sum()
+    meta['area'] = (round(float(AR[want].sum()), 3), round(kept, 3))
+    print('AREA %-24s by single faces %.3f m2, by connected areas %.3f m2' % (name, AR[want].sum(), kept))
 for f, i in zip(bm.faces, ids): f[lay] = int(i)
 bm.to_mesh(o.data); bm.free()
 bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o
@@ -257,6 +286,103 @@ M_TANK = pmat('A320_OilTank', (0.70, 0.71, 0.72), 0.9, 0.35)        # oil tank: 
 M_PIPE = pmat('A320_Pipe', (0.78, 0.76, 0.72), 1.0, 0.3)            # stainless pipes
 M_HARN = pmat('A320_Harness', (0.48, 0.34, 0.18), 0.0, 0.75)        # braided harness, tan-brown
 M_MOUNT = pmat('A320_Mount', (0.25, 0.26, 0.27), 0.9, 0.45)         # titanium mounts
+M_EDGE = pmat('A320_PanelEdge', (0.50, 0.53, 0.50), 0.25, 0.5)      # cut edges of shell parts: sealed, primer grey
+
+# ---- sealed edges: where a cut plane went through a closed shell (wing, tail, nacelle), the part and the body each get a
+# flat cap on that plane, made from their own edge loops on it - the edge is closed, nothing looks into the void. The caps
+# of part and body lie back to back (facing away from each other), so they never flicker.
+from mathutils.geometry import delaunay_2d_cdt
+from collections import defaultdict
+def cap(ob, planes, tol=2e-4):
+    b = bmesh.new(); b.from_mesh(ob.data)
+    if M_EDGE.name not in [m.name for m in ob.data.materials if m]: ob.data.materials.append(M_EDGE)
+    mi = [m.name if m else '' for m in ob.data.materials].index(M_EDGE.name)
+    uv = b.loops.layers.uv.active
+    BE = [e for e in b.edges if e.is_boundary]
+    if not BE: b.free(); return 0
+    P0 = np.array([e.verts[0].co[:] for e in BE]); P1 = np.array([e.verts[1].co[:] for e in BE])
+    made = 0
+    for p, n, *bx in planes:          # (p, n) or (p, n, lo, hi): only edges inside that box
+        inb = np.ones(len(BE), bool)
+        if bx: inb = np.all(((P0 + P1) / 2 >= np.array(bx[0]) - 0.1) & ((P0 + P1) / 2 <= np.array(bx[1]) + 0.1), axis=1)
+        pa, na = np.array(p[:]), np.array(n[:])
+        m = inb & (np.abs((P0 - pa) @ na) < tol) & (np.abs((P1 - pa) @ na) < tol)
+        E = [BE[i] for i in np.nonzero(m)[0]]
+        if len(E) < 2: continue
+        side = sum((e.link_faces[0].calc_center_median() - p).dot(n) for e in E)
+        t1 = n.orthogonal().normalized(); t2 = n.cross(t1)
+        vs = sorted({v for e in E for v in e.verts}, key=lambda v: v.index); ix = {v: i for i, v in enumerate(vs)}
+        deg = defaultdict(int); ed = []
+        for e in E:
+            a, c = ix[e.verts[0]], ix[e.verts[1]]; ed.append((a, c)); deg[a] += 1; deg[c] += 1
+        # chains: join the open ends pairwise, nearest first (another chain's end before its own other end)
+        par = list(range(len(vs)))
+        def fnd(a):
+            while par[a] != a: par[a] = par[par[a]]; a = par[a]
+            return a
+        for a, c in ed: par[fnd(a)] = fnd(c)
+        ends = [i for i in range(len(vs)) if deg[i] == 1]
+        co2 = [((v.co - p).dot(t1), (v.co - p).dot(t2)) for v in vs]
+        pairs = sorted(((Vector(co2[a]) - Vector(co2[c])).length + (0.0 if fnd(a) != fnd(c) else 1e3), a, c) for i, a in enumerate(ends) for c in ends[i + 1:])
+        used = set()
+        for d, a, c in pairs:
+            if a in used or c in used: continue
+            used |= {a, c}; ed.append((a, c))
+        try:
+            r = delaunay_2d_cdt(co2, ed, [], 1, 1e-6)
+        except Exception as ex:
+            print('CAP %s: failed %s' % (ob.name, ex)); continue
+        oc, of, ov = r[0], r[2], r[3]
+        nv = []
+        for i, c2 in enumerate(oc):
+            q = vs[ov[i][0]].co.copy() if ov[i] else p + t1 * c2[0] + t2 * c2[1]
+            nv.append(b.verts.new(q))
+        flip = side > 0      # the body lies on the +n side: the cap faces -n
+        for f in of:
+            if len(f) < 3: continue
+            fv = [nv[i] for i in (reversed(f) if flip else f)]
+            try: nf = b.faces.new(fv)
+            except ValueError: continue
+            nf.material_index = mi; nf.smooth = False; made += 1
+            if uv:
+                for l in nf.loops: l[uv].uv = ((l.vert.co - p).dot(t1), (l.vert.co - p).dot(t2))
+    b.to_mesh(ob.data); b.free(); return made
+
+# ---- single-skin panels (fuselage doors, gear doors, spoilers): their inner skin is joined to the outer one by a rim along
+# the whole edge (a real panel thickness, sealed); the body's opening gets a reveal wall going in, so no slit looks into the void
+def rim_into(b, src_b, off, outward_from):
+    """b: the liner bmesh (same vertex order as src_b, moved in by off); adds quads from every edge of the panel to the liner"""
+    b.verts.ensure_lookup_table(); src_b.verts.ensure_lookup_table(); k = 0
+    for e in src_b.edges:
+        if not e.is_boundary: continue
+        a, c = e.verts[0].index, e.verts[1].index
+        q = [b.verts[a], b.verts[c], b.verts[len(src_b.verts) + c], b.verts[len(src_b.verts) + a]]
+        try: f = b.faces.new(q)
+        except ValueError: continue
+        f.normal_update()
+        if f.normal.dot(f.calc_center_median() - outward_from) < 0: f.normal_flip()
+        f.smooth = False; k += 1
+    return k
+def reveal(src, name, depth, mat, floor=False):
+    """fixed wall from the opening's edge (= the panel's edge) straight in by depth; floor: also a floor at that depth"""
+    ob = bpy.data.objects[src]; sb = bmesh.new(); sb.from_mesh(ob.data); sb.normal_update()
+    cen = sum((v.co for v in sb.verts), Vector()) / len(sb.verts)
+    b = bmesh.new()
+    def out_(v):      # 2 mm back behind the opening's edge (away from its middle, along the skin): never on the panel's own rim
+        t = v.co - cen; t -= v.normal * t.dot(v.normal); return t.normalized() * 0.006 if t.length > 1e-6 else Vector()
+    for v in sb.verts: b.verts.new(v.co + out_(v))
+    for v in sb.verts: b.verts.new(v.co - v.normal * depth + out_(v))
+    b.verts.ensure_lookup_table(); nv = len(sb.verts)
+    for e in sb.edges:
+        if not e.is_boundary: continue
+        a, c = e.verts[0].index, e.verts[1].index
+        f = b.faces.new([b.verts[a], b.verts[c], b.verts[nv + c], b.verts[nv + a]]); f.normal_update()
+        if f.normal.dot(cen - f.calc_center_median()) < 0: f.normal_flip()      # facing into the opening
+        f.smooth = False
+    if floor:
+        for f in sb.faces: b.faces.new([b.verts[nv + v.index] for v in f.verts])
+    for v in [v for v in b.verts if not v.link_faces]: b.verts.remove(v)
+    sb.free(); r = mkobj(name, b, mat); OWN.append(dict(name=name, moves_with=None, what='reveal wall of the opening behind %s (fixed)' % src)); return r
 
 def mkobj(name, bmx, mat):
     me = bpy.data.meshes.new(name); bmx.to_mesh(me); bmx.free()
@@ -277,13 +403,34 @@ def open_box(name, x0, x1, y0, y1, z0, z1, openface, mat):
     bmesh.ops.reverse_faces(b, faces=b.faces)                     # inward
     return mkobj(name, b, mat)
 OWN = []        # json: our own parts
+# (OFF by default, 2026-11-27: on this skin - a soup of ~1000 loose Meshy pieces - the cut lines are broken into many short
+#  chains, and the caps filled between them came out as grey shards across the openings, worse than no cap. ADP_CAPS=1 turns
+#  them on for a look. The real fix is a clean skin per panel, projected onto his surface; see the hand-over.)
+SHELL = ('flap', 'aileron', 'slat', 'elevator', 'rudder', 'fancowl', 'reverser') if os.environ.get('ADP_CAPS') == '1' else ()
+body_planes = []
+for name, lo, hi, keep, meta in SPECS:
+    if meta['kind'] not in SHELL or name not in bpy.data.objects: continue
+    meta['caps'] = cap(bpy.data.objects[name], PLANES[name])
+    body_planes += [(p, n, lo, hi) for p, n in PLANES[name]]
+print('CAPS parts:', sum(m.get('caps', 0) for *_, m in SPECS), 'body:', cap(o, body_planes) if body_planes else 0)
 def liner(src, name, off, mat):
-    ob = bpy.data.objects[src]; b = bmesh.new(); b.from_mesh(ob.data)
-    for v in b.verts: v.co -= v.normal * off
-    bmesh.ops.reverse_faces(b, faces=b.faces)
-    for f in b.faces: f.material_index = 0
+    ob = bpy.data.objects[src]; sb = bmesh.new(); sb.from_mesh(ob.data); sb.normal_update()
+    cen = sum((v.co for v in sb.verts), Vector()) / len(sb.verts)
+    b = bmesh.new()
+    for v in sb.verts: b.verts.new(v.co)            # (the panel's own edge, for the rim; dropped below if unused)
+    for v in sb.verts: b.verts.new(v.co - v.normal * off)
+    b.verts.ensure_lookup_table(); nv = len(sb.verts)
+    for f in sb.faces:
+        nf = b.faces.new([b.verts[nv + v.index] for v in reversed(f.verts)]); nf.smooth = True
+    rim_into(b, sb, off, cen)
+    for v in [v for v in b.verts if not v.link_faces]: b.verts.remove(v)
+    sb.free()
     li = mkobj(name, b, mat); OWN.append(dict(name=name, moves_with=src, what='inner skin %.0f cm inside %s' % (off * 100, src))); return li
 
+# spoilers: the upper skin only - a 4 cm panel with a rim, over a bay 14 cm deep in the wing
+for name, lo, hi, keep, meta in SPECS:
+    if meta['kind'] == 'spoiler' and name in bpy.data.objects:
+        liner(name, name + '_Inner', 0.04, M_INNER); reveal(name, name.replace('Spoiler', 'SpoilerBay'), 0.14, M_WELL, floor=True)
 # gear wells: dark boxes above the doors, their open side 2 cm above the highest point of the door skin
 for nm in GDOORS:
     meta = [s[4] for s in SPECS if s[0] == nm][0]; v = verts(nm)
@@ -293,7 +440,7 @@ for nm in GDOORS:
     depth = 1.75 if nm.startswith('Main') else 0.95
     open_box(nm.replace('Door', 'Well'), xa + 0.01, xb - 0.01, meta['y'][0] + 0.01, meta['y'][1] - 0.01, zt, zt + depth, '-z', M_WELL)
     OWN.append(dict(name=nm.replace('Door', 'Well'), moves_with=None, what='wheel well lining behind %s (fixed)' % nm))
-    liner(nm, nm + '_Inner', 0.03, M_INNER)
+    liner(nm, nm + '_Inner', 0.03, M_INNER); reveal(nm, nm + '_Reveal', 0.05, M_WELL)
 # cargo holds: lined boxes inside each door, the outer edges 2.5 cm inside the skin
 for nm, y0, y1, z0, z1, ang, way in CARGO:
     v = verts(nm)
@@ -302,7 +449,7 @@ for nm, y0, y1, z0, z1, ang, way in CARGO:
     zx = 0.9 if way == 'in' else 0.0
     open_box(nm.replace('Door', 'Hold'), xs, xs + 1.4, y0 + 0.01, y1 - 0.01, z0 + 0.01, z1 - 0.01 + zx, '-x', M_HOLD)
     OWN.append(dict(name=nm.replace('Door', 'Hold'), moves_with=None, what='cargo hold lining behind %s (fixed)' % nm))
-    liner(nm, nm + '_Inner', 0.04, M_INNER)
+    liner(nm, nm + '_Inner', 0.04, M_INNER); reveal(nm, nm + '_Reveal', 0.045, M_HOLD)
     meta = [s_[4] for s_ in SPECS if s_[0] == nm][0]
     top = v[v[:, 2] > z1 - 0.04]; hx = float(top[:, 0].mean())
     meta['hinge'] = (V(hx, y0, z1), V(hx, y1, z1))
@@ -377,7 +524,7 @@ for s, en in ((1, 'Eng1'), (-1, 'Eng2')):
     mkobj('EngHarness_%s' % en, b, M_HARN)
     for n_ in ('EngCase', 'EngGearbox', 'EngStarterIDG', 'EngOilTank', 'EngMount', 'EngPipes', 'EngHarness'):
         OWN.append(dict(name='%s_%s' % (n_, en), moves_with=None, what='engine inside (own model), seen with the fan cowls open'))
-    for half in ('Out', 'In'): liner('FanCowl_%s_%s' % (en, half), 'FanCowl_%s_%s_Inner' % (en, half), 0.03, M_ACOU)
+    # (no liner in the fan cowls: they keep their own inner skin, the shell is closed by the caps)
 # (tube_arc's 'a0 * s' runs the arcs the right way round on both engines: for s = -1 the angles flip sign, so swap them)
 for ob in bpy.data.objects:
     pass
@@ -438,6 +585,24 @@ for sd, s in (('_L', -1), ('_R', 1)):
         inner = vb[np.argsort(np.abs(vb[:, 0]))[:20]].mean(0); bp = Vector(inner.tolist())
         GEAR.append(dict(name='SideBrace' + sd, parts=['SideBrace' + sd], pivot=r3(bp), axis=r3(ax), up_deg=88.0,
                          note='folding side stay: turned about its inboard (fixed) end with the leg - an approximation until the two links are split'))
+# the game's taxi gear (SimTraffic.cpp Gear(): rolls, steers, compresses by these names and pivots - cm, (x, -y, z) * 100):
+# the same points measured on the parts here, so a moved pivot shows at once
+GAME_CM = dict(NoseAxle=(0.0, 0.0, 45.4), NoseLegAt=(0.0, 0.0, 110.6), MainAxle_L=(-387.8, 1280.3, 64.6), MainAxle_R=(385.9, 1280.3, 64.8),
+               MainLegAt_L=(-405.4, 1256.5, 173.1), MainLegAt_R=(410.8, 1251.8, 139.4))
+TAXI = dict(names=['NoseWheels', 'NoseLeg', 'MainWheels_L', 'MainWheels_R', 'MainLeg_L', 'MainLeg_R'], steer_axis='vertical through the nose axle',
+            strut_travel_m=dict(nose=0.08, main=0.12), game_constants_cm=GAME_CM, measured={})
+for nm, key in (('NoseWheels', 'NoseAxle'), ('MainWheels_L', 'MainAxle_L'), ('MainWheels_R', 'MainAxle_R')):
+    v = verts(nm)
+    if v is None: continue
+    c = (v.min(0) + v.max(0)) / 2; g = GAME_CM[key]; gb = (g[0] / 100, -g[1] / 100, g[2] / 100)
+    TAXI['measured'][nm] = dict(axle=r3(c), tyre_radius_m=round(float(v[:, 2].max() - v[:, 2].min()) / 2, 3),
+                                moved_from_game_cm=round(float(np.linalg.norm(c - np.array(gb))) * 100, 1))
+    print('TAXI %s axle %s game %s moved %.1f cm' % (nm, r3(c), r3(gb), np.linalg.norm(c - np.array(gb)) * 100))
+TURN = dict(source='Airbus, A320 Aircraft Characteristics - Airport and Maintenance Planning (AC), sections 2-1 (dimensions) and 4-2 (turning radii)',
+            note='NOT checked against the document: the AC download failed on 2026-11-27 (404 / redirect); the values below are the well-known published '
+                 'figures, the turning radii are left empty until read from section 4-2 with its page number',
+            wheelbase_m=12.64, main_gear_track_m=7.59, nose_steering_tiller_deg=75.0, nose_steering_pedals_deg=6.0, effective_steering_deg=None,
+            min_radius_nose_gear_m=None, min_radius_wingtip_m=None, min_radius_tail_m=None, pavement_width_180_m=None)
 GD = [p for p in PANELS if p['kind'] == 'geardoor']
 seq_up = [dict(t=[0.0, 2.0], parts=[p['name'] for p in GD], action='open'),
           dict(t=[2.0, 8.0], parts=[g['name'] for g in GEAR], action='fold up'),
@@ -454,7 +619,7 @@ DOC = dict(model='Art/A320/A320.glb (made by Art/A320/make_a320_panels.py from t
            rotation='right-hand rule about axis through pivot; the axis is signed so a positive angle is the opening / deploy direction (flaps, ailerons, elevators: trailing edge down; spoilers: up; slats: leading edge down; rudder: trailing edge to +x; doors and cowls: open)',
            engine='CFM56-5B shape (short fan duct, core nozzle and plug outside): fan cowls on the pylon hinge, a pivoting-door thrust reverser (4 doors)',
            engine_inside=ENG, parts=PANELS, own_parts=OWN,
-           gear=dict(parts=GEAR, doors=[p['name'] for p in GD], sequence_up=seq_up, sequence_down=seq_dn, up_s=10.0, down_s=15.0,
+           gear=dict(taxi=TAXI, turning=TURN, parts=GEAR, doors=[p['name'] for p in GD], sequence_up=seq_up, sequence_down=seq_dn, up_s=10.0, down_s=15.0,
                      note='gear down = legs at 0 deg, doors closed; up = legs at up_deg, doors closed. The struts/legs/wheels of each leg move together about its pivot; the wells are lined (NoseGearWell_*, MainGearWell_*).'))
 json.dump(DOC, open(os.path.join(ROOT, 'Data', 'a320-panels.json'), 'w'), indent=1)
 bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, 'A320.glb'), export_format='GLB', use_selection=False,

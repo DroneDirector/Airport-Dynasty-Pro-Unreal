@@ -6,9 +6,9 @@
  "engine_inside": {
   "Eng1": {
    "centre": [
-    5.4965,
+    5.4921,
     0.0,
-    1.9559
+    1.966
    ],
    "cowl_min_r": 1.2,
    "case_r": 1.06,
@@ -19,9 +19,9 @@
   },
   "Eng2": {
    "centre": [
-    -5.5117,
+    -5.5141,
     0.0,
-    1.9587
+    1.9604
    ],
    "cowl_min_r": 1.2,
    "case_r": 1.06,
@@ -70,12 +70,12 @@
      "FULL": 40
     }
    },
-   "faces": 178,
+   "faces": 867,
    "box": [
     [
      2.35,
-     -13.8208,
-     3.1419
+     -14.2049,
+     3.0794
     ],
     [
      6.2,
@@ -122,12 +122,12 @@
      "FULL": 35
     }
    },
-   "faces": 1346,
+   "faces": 1377,
    "box": [
     [
      6.3,
-     -14.7854,
-     3.4795
+     -14.5214,
+     3.4499
     ],
     [
      11.85,
@@ -171,11 +171,11 @@
     "positive": "trailing edge down",
     "droop_deg": 5.0
    },
-   "faces": 1365,
+   "faces": 1408,
    "box": [
     [
      11.95,
-     -15.2393,
+     -15.5977,
      4.0228
     ],
     [
@@ -227,7 +227,7 @@
     [
      5.9,
      -12.0,
-     3.7158
+     3.7044
     ]
    ]
   },
@@ -410,7 +410,7 @@
     ],
     [
      11.75,
-     -13.0123,
+     -12.9973,
      4.3002
     ]
    ]
@@ -447,7 +447,7 @@
     "travel_m": 0.55,
     "travel_dir": "forward-down along the chord"
    },
-   "faces": 689,
+   "faces": 663,
    "box": [
     [
      3.2,
@@ -456,7 +456,7 @@
     ],
     [
      4.8,
-     -7.538,
+     -8.3947,
      3.6994
     ]
    ]
@@ -493,7 +493,7 @@
     "travel_m": 0.55,
     "travel_dir": "forward-down along the chord"
    },
-   "faces": 1050,
+   "faces": 1051,
    "box": [
     [
      6.4,
@@ -585,7 +585,7 @@
     "travel_m": 0.55,
     "travel_dir": "forward-down along the chord"
    },
-   "faces": 1044,
+   "faces": 1045,
    "box": [
     [
      11.2,
@@ -595,7 +595,7 @@
     [
      13.6,
      -11.5954,
-     4.5381
+     4.5336
     ]
    ]
   },
@@ -631,7 +631,7 @@
     "travel_m": 0.55,
     "travel_dir": "forward-down along the chord"
    },
-   "faces": 1078,
+   "faces": 1160,
    "box": [
     [
      13.6,
@@ -683,17 +683,17 @@
      "FULL": 40
     }
    },
-   "faces": 151,
+   "faces": 1108,
    "box": [
     [
      -6.2,
-     -13.7982,
-     3.1372
+     -14.385,
+     2.9756
     ],
     [
      -2.35,
      -12.6,
-     3.6995
+     3.6847
     ]
    ]
   },
@@ -735,12 +735,12 @@
      "FULL": 35
     }
    },
-   "faces": 1444,
+   "faces": 2369,
    "box": [
     [
      -11.85,
-     -14.7372,
-     3.4841
+     -15.3186,
+     3.3008
     ],
     [
      -6.3,
@@ -784,11 +784,11 @@
     "positive": "trailing edge down",
     "droop_deg": 5.0
    },
-   "faces": 1365,
+   "faces": 1273,
    "box": [
     [
      -14.95,
-     -15.2321,
+     -15.1856,
      4.0205
     ],
     [
@@ -876,7 +876,7 @@
     "roll_deg": 35.0,
     "speedbrake_deg": 40.0
    },
-   "faces": 22,
+   "faces": 23,
    "box": [
     [
      -7.775,
@@ -884,7 +884,7 @@
      3.6851
     ],
     [
-     -6.4604,
+     -6.45,
      -12.3005,
      3.8963
     ]
@@ -931,7 +931,7 @@
     ],
     [
      -7.775,
-     -12.5622,
+     -12.4711,
      4.0234
     ]
    ]
@@ -1019,7 +1019,7 @@
     [
      -11.75,
      -13.6942,
-     4.1013
+     4.0799
     ],
     [
      -10.425,
@@ -1060,7 +1060,7 @@
     "travel_m": 0.55,
     "travel_dir": "forward-down along the chord"
    },
-   "faces": 593,
+   "faces": 576,
    "box": [
     [
      -4.8,
@@ -1069,7 +1069,7 @@
     ],
     [
      -3.2,
-     -7.8819,
+     -8.3813,
      3.6778
     ]
    ]
@@ -1198,7 +1198,7 @@
     "travel_m": 0.55,
     "travel_dir": "forward-down along the chord"
    },
-   "faces": 1099,
+   "faces": 1100,
    "box": [
     [
      -13.6,
@@ -1244,7 +1244,7 @@
     "travel_m": 0.55,
     "travel_dir": "forward-down along the chord"
    },
-   "faces": 1166,
+   "faces": 1240,
    "box": [
     [
      -15.9,
@@ -1292,15 +1292,15 @@
     ],
     "positive": "trailing edge down"
    },
-   "faces": 2955,
+   "faces": 3440,
    "box": [
     [
      0.85,
      -31.8048,
-     4.5797
+     4.5792
     ],
     [
-     6.077,
+     6.1024,
      -29.4826,
      5.3999
     ]
@@ -1340,16 +1340,16 @@
     ],
     "positive": "trailing edge down"
    },
-   "faces": 3135,
+   "faces": 3699,
    "box": [
     [
-     -6.0952,
+     -6.1213,
      -31.8034,
-     4.5803
+     4.4813
     ],
     [
      -0.85,
-     -29.4835,
+     -29.4746,
      5.4002
     ]
    ]
@@ -1387,7 +1387,7 @@
      30.0
     ]
    },
-   "faces": 2421,
+   "faces": 2422,
    "box": [
     [
      -0.1775,
@@ -1432,17 +1432,17 @@
     "open_deg": 55.0,
     "hold_open_rods": 2
    },
-   "faces": 1932,
+   "faces": 2167,
    "box": [
     [
      5.5,
-     -8.5661,
+     -8.7556,
      0.5741
     ],
     [
      6.8273,
-     -7.1986,
-     3.0945
+     -7.22,
+     3.5053
     ]
    ]
   },
@@ -1477,16 +1477,16 @@
     "open_deg": 55.0,
     "hold_open_rods": 2
    },
-   "faces": 1175,
+   "faces": 1017,
    "box": [
     [
      4.0671,
-     -8.52,
+     -8.8308,
      0.5728
     ],
     [
      5.5,
-     -7.22,
+     -6.9944,
      3.1285
     ]
    ]
@@ -1521,7 +1521,7 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 669,
+   "faces": 1967,
    "box": [
     [
      4.1997,
@@ -1529,9 +1529,9 @@
      0.683
     ],
     [
-     5.076,
+     5.1224,
      -8.62,
-     1.7107
+     1.7394
     ]
    ]
   },
@@ -1565,17 +1565,17 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 543,
+   "faces": 2270,
    "box": [
     [
      4.1453,
-     -9.78,
-     2.1772
+     -9.9119,
+     2.1515
     ],
     [
-     5.0734,
-     -8.5233,
-     3.5259
+     5.1434,
+     -8.5136,
+     3.4885
     ]
    ]
   },
@@ -1609,17 +1609,17 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 514,
+   "faces": 2291,
    "box": [
     [
-     5.9,
-     -9.7362,
-     2.1877
+     5.7735,
+     -9.9203,
+     2.1445
     ],
     [
      6.8109,
-     -8.523,
-     3.0942
+     -8.5181,
+     3.0005
     ]
    ]
   },
@@ -1653,17 +1653,17 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 499,
+   "faces": 1788,
    "box": [
     [
-     5.9204,
+     5.8781,
      -9.72,
      0.6868
     ],
     [
      6.7523,
      -8.62,
-     1.7089
+     1.7491
     ]
    ]
   },
@@ -1698,16 +1698,16 @@
     "open_deg": 55.0,
     "hold_open_rods": 2
    },
-   "faces": 2065,
+   "faces": 1777,
    "box": [
     [
      -6.8405,
-     -8.5785,
+     -9.0066,
      0.5733
     ],
     [
      -5.5,
-     -7.1879,
+     -7.22,
      3.1067
     ]
    ]
@@ -1743,16 +1743,16 @@
     "open_deg": 55.0,
     "hold_open_rods": 2
    },
-   "faces": 1178,
+   "faces": 1244,
    "box": [
     [
      -5.5,
-     -8.52,
+     -9.0932,
      0.5726
     ],
     [
      -4.0931,
-     -7.2173,
+     -7.0626,
      3.123
     ]
    ]
@@ -1787,17 +1787,17 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 539,
+   "faces": 1740,
    "box": [
     [
-     -5.0697,
+     -5.1246,
      -9.72,
      0.6783
     ],
     [
      -4.2007,
      -8.62,
-     1.7115
+     1.7431
     ]
    ]
   },
@@ -1831,17 +1831,17 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 502,
+   "faces": 2037,
    "box": [
     [
-     -5.0763,
-     -9.735,
-     2.18
+     -5.0991,
+     -9.9175,
+     2.1486
     ],
     [
-     -4.1639,
+     -4.2027,
      -8.62,
-     3.5351
+     3.4185
     ]
    ]
   },
@@ -1875,15 +1875,15 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 528,
+   "faces": 1953,
    "box": [
     [
      -6.814,
-     -9.7362,
-     2.1837
+     -9.8868,
+     2.1462
     ],
     [
-     -5.9,
+     -5.7537,
      -8.62,
      3.1114
     ]
@@ -1919,7 +1919,7 @@
    "motion": {
     "open_deg": 32.0
    },
-   "faces": 467,
+   "faces": 1046,
    "box": [
     [
      -6.7508,
@@ -1927,7 +1927,7 @@
      0.7033
     ],
     [
-     -5.9195,
+     -5.8789,
      -8.62,
      1.7052
     ]
@@ -1963,7 +1963,7 @@
    "motion": {
     "open_deg": 120.0
    },
-   "faces": 61,
+   "faces": 67,
    "box": [
     [
      -1.9835,
@@ -2007,7 +2007,7 @@
    "motion": {
     "open_deg": 120.0
    },
-   "faces": 79,
+   "faces": 81,
    "box": [
     [
      -2.0336,
@@ -2051,7 +2051,7 @@
    "motion": {
     "open_deg": 95.0
    },
-   "faces": 34,
+   "faces": 37,
    "box": [
     [
      -1.9784,
@@ -2095,7 +2095,7 @@
    "motion": {
     "open_deg": 90.0
    },
-   "faces": 267,
+   "faces": 269,
    "box": [
     [
      -1.9,
@@ -2187,8 +2187,8 @@
    "box": [
     [
      -0.55,
-     1.4712,
-     2.2511
+     1.1974,
+     2.23
     ],
     [
      0.0,
@@ -2227,12 +2227,12 @@
    "motion": {
     "open_deg": 88.0
    },
-   "faces": 54,
+   "faces": 55,
    "box": [
     [
      0.0,
      0.96,
-     2.23
+     2.2516
     ],
     [
      0.55,
@@ -2244,6 +2244,106 @@
  ],
  "own_parts": [
   {
+   "name": "Spoiler1_R_Inner",
+   "moves_with": "Spoiler1_R",
+   "what": "inner skin 4 cm inside Spoiler1_R"
+  },
+  {
+   "name": "SpoilerBay1_R",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler1_R (fixed)"
+  },
+  {
+   "name": "Spoiler2_R_Inner",
+   "moves_with": "Spoiler2_R",
+   "what": "inner skin 4 cm inside Spoiler2_R"
+  },
+  {
+   "name": "SpoilerBay2_R",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler2_R (fixed)"
+  },
+  {
+   "name": "Spoiler3_R_Inner",
+   "moves_with": "Spoiler3_R",
+   "what": "inner skin 4 cm inside Spoiler3_R"
+  },
+  {
+   "name": "SpoilerBay3_R",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler3_R (fixed)"
+  },
+  {
+   "name": "Spoiler4_R_Inner",
+   "moves_with": "Spoiler4_R",
+   "what": "inner skin 4 cm inside Spoiler4_R"
+  },
+  {
+   "name": "SpoilerBay4_R",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler4_R (fixed)"
+  },
+  {
+   "name": "Spoiler5_R_Inner",
+   "moves_with": "Spoiler5_R",
+   "what": "inner skin 4 cm inside Spoiler5_R"
+  },
+  {
+   "name": "SpoilerBay5_R",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler5_R (fixed)"
+  },
+  {
+   "name": "Spoiler1_L_Inner",
+   "moves_with": "Spoiler1_L",
+   "what": "inner skin 4 cm inside Spoiler1_L"
+  },
+  {
+   "name": "SpoilerBay1_L",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler1_L (fixed)"
+  },
+  {
+   "name": "Spoiler2_L_Inner",
+   "moves_with": "Spoiler2_L",
+   "what": "inner skin 4 cm inside Spoiler2_L"
+  },
+  {
+   "name": "SpoilerBay2_L",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler2_L (fixed)"
+  },
+  {
+   "name": "Spoiler3_L_Inner",
+   "moves_with": "Spoiler3_L",
+   "what": "inner skin 4 cm inside Spoiler3_L"
+  },
+  {
+   "name": "SpoilerBay3_L",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler3_L (fixed)"
+  },
+  {
+   "name": "Spoiler4_L_Inner",
+   "moves_with": "Spoiler4_L",
+   "what": "inner skin 4 cm inside Spoiler4_L"
+  },
+  {
+   "name": "SpoilerBay4_L",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler4_L (fixed)"
+  },
+  {
+   "name": "Spoiler5_L_Inner",
+   "moves_with": "Spoiler5_L",
+   "what": "inner skin 4 cm inside Spoiler5_L"
+  },
+  {
+   "name": "SpoilerBay5_L",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind Spoiler5_L (fixed)"
+  },
+  {
    "name": "MainGearWell_L",
    "moves_with": null,
    "what": "wheel well lining behind MainGearDoor_L (fixed)"
@@ -2252,6 +2352,11 @@
    "name": "MainGearDoor_L_Inner",
    "moves_with": "MainGearDoor_L",
    "what": "inner skin 3 cm inside MainGearDoor_L"
+  },
+  {
+   "name": "MainGearDoor_L_Reveal",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind MainGearDoor_L (fixed)"
   },
   {
    "name": "MainGearWell_R",
@@ -2264,6 +2369,11 @@
    "what": "inner skin 3 cm inside MainGearDoor_R"
   },
   {
+   "name": "MainGearDoor_R_Reveal",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind MainGearDoor_R (fixed)"
+  },
+  {
    "name": "NoseGearWell_L",
    "moves_with": null,
    "what": "wheel well lining behind NoseGearDoor_L (fixed)"
@@ -2272,6 +2382,11 @@
    "name": "NoseGearDoor_L_Inner",
    "moves_with": "NoseGearDoor_L",
    "what": "inner skin 3 cm inside NoseGearDoor_L"
+  },
+  {
+   "name": "NoseGearDoor_L_Reveal",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind NoseGearDoor_L (fixed)"
   },
   {
    "name": "NoseGearWell_R",
@@ -2284,6 +2399,11 @@
    "what": "inner skin 3 cm inside NoseGearDoor_R"
   },
   {
+   "name": "NoseGearDoor_R_Reveal",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind NoseGearDoor_R (fixed)"
+  },
+  {
    "name": "CargoHoldFwd",
    "moves_with": null,
    "what": "cargo hold lining behind CargoDoorFwd (fixed)"
@@ -2292,6 +2412,11 @@
    "name": "CargoDoorFwd_Inner",
    "moves_with": "CargoDoorFwd",
    "what": "inner skin 4 cm inside CargoDoorFwd"
+  },
+  {
+   "name": "CargoDoorFwd_Reveal",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind CargoDoorFwd (fixed)"
   },
   {
    "name": "CargoHoldAft",
@@ -2304,6 +2429,11 @@
    "what": "inner skin 4 cm inside CargoDoorAft"
   },
   {
+   "name": "CargoDoorAft_Reveal",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind CargoDoorAft (fixed)"
+  },
+  {
    "name": "CargoHoldBulk",
    "moves_with": null,
    "what": "cargo hold lining behind CargoDoorBulk (fixed)"
@@ -2312,6 +2442,11 @@
    "name": "CargoDoorBulk_Inner",
    "moves_with": "CargoDoorBulk",
    "what": "inner skin 4 cm inside CargoDoorBulk"
+  },
+  {
+   "name": "CargoDoorBulk_Reveal",
+   "moves_with": null,
+   "what": "reveal wall of the opening behind CargoDoorBulk (fixed)"
   },
   {
    "name": "EngCase_Eng1",
@@ -2349,16 +2484,6 @@
    "what": "engine inside (own model), seen with the fan cowls open"
   },
   {
-   "name": "FanCowl_Eng1_Out_Inner",
-   "moves_with": "FanCowl_Eng1_Out",
-   "what": "inner skin 3 cm inside FanCowl_Eng1_Out"
-  },
-  {
-   "name": "FanCowl_Eng1_In_Inner",
-   "moves_with": "FanCowl_Eng1_In",
-   "what": "inner skin 3 cm inside FanCowl_Eng1_In"
-  },
-  {
    "name": "EngCase_Eng2",
    "moves_with": null,
    "what": "engine inside (own model), seen with the fan cowls open"
@@ -2392,19 +2517,98 @@
    "name": "EngHarness_Eng2",
    "moves_with": null,
    "what": "engine inside (own model), seen with the fan cowls open"
-  },
-  {
-   "name": "FanCowl_Eng2_Out_Inner",
-   "moves_with": "FanCowl_Eng2_Out",
-   "what": "inner skin 3 cm inside FanCowl_Eng2_Out"
-  },
-  {
-   "name": "FanCowl_Eng2_In_Inner",
-   "moves_with": "FanCowl_Eng2_In",
-   "what": "inner skin 3 cm inside FanCowl_Eng2_In"
   }
  ],
  "gear": {
+  "taxi": {
+   "names": [
+    "NoseWheels",
+    "NoseLeg",
+    "MainWheels_L",
+    "MainWheels_R",
+    "MainLeg_L",
+    "MainLeg_R"
+   ],
+   "steer_axis": "vertical through the nose axle",
+   "strut_travel_m": {
+    "nose": 0.08,
+    "main": 0.12
+   },
+   "game_constants_cm": {
+    "NoseAxle": [
+     0.0,
+     0.0,
+     45.4
+    ],
+    "NoseLegAt": [
+     0.0,
+     0.0,
+     110.6
+    ],
+    "MainAxle_L": [
+     -387.8,
+     1280.3,
+     64.6
+    ],
+    "MainAxle_R": [
+     385.9,
+     1280.3,
+     64.8
+    ],
+    "MainLegAt_L": [
+     -405.4,
+     1256.5,
+     173.1
+    ],
+    "MainLegAt_R": [
+     410.8,
+     1251.8,
+     139.4
+    ]
+   },
+   "measured": {
+    "NoseWheels": {
+     "axle": [
+      -0.0064,
+      -0.0004,
+      0.4536
+     ],
+     "tyre_radius_m": 0.454,
+     "moved_from_game_cm": 0.6
+    },
+    "MainWheels_L": {
+     "axle": [
+      -3.8784,
+      -12.8034,
+      0.6463
+     ],
+     "tyre_radius_m": 0.647,
+     "moved_from_game_cm": 0.1
+    },
+    "MainWheels_R": {
+     "axle": [
+      3.8587,
+      -12.8025,
+      0.6475
+     ],
+     "tyre_radius_m": 0.647,
+     "moved_from_game_cm": 0.1
+    }
+   }
+  },
+  "turning": {
+   "source": "Airbus, A320 Aircraft Characteristics - Airport and Maintenance Planning (AC), sections 2-1 (dimensions) and 4-2 (turning radii)",
+   "note": "NOT checked against the document: the AC download failed on 2026-11-27 (404 / redirect); the values below are the well-known published figures, the turning radii are left empty until read from section 4-2 with its page number",
+   "wheelbase_m": 12.64,
+   "main_gear_track_m": 7.59,
+   "nose_steering_tiller_deg": 75.0,
+   "nose_steering_pedals_deg": 6.0,
+   "effective_steering_deg": null,
+   "min_radius_nose_gear_m": null,
+   "min_radius_wingtip_m": null,
+   "min_radius_tail_m": null,
+   "pavement_width_180_m": null
+  },
   "parts": [
    {
     "name": "NoseGear",
