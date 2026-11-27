@@ -345,7 +345,7 @@ for sd, sg in (('L', -1), ('R', 1)):
              cut=cut_xz('Pax4' + sd, P4['x_center'], P4['width'],
                         g(P4, 'sill_ground_MRW_fwd', 'sill_ground', dflt=3.60), P4['height'], sg, r=.13))
     for n, xe in enumerate(EXIT_X):
-        door_def(id='Exit%d%s' % (n + 1, sd), side=sg, kind='exit', thick=.115, hinge='top', angle=68,
+        door_def(id='Exit%d%s' % (n + 1, sd), side=sg, kind='exit', thick=.115, hinge='top', angle=0,
                  bustle=False, window=True,
                  cut=cut_xz('Exit%d%s' % (n + 1, sd), xe, OW['width'],
                             g(OW, 'sill_ground_MRW_fwd', 'sill_ground', dflt=3.87), OW['height'],
@@ -377,20 +377,21 @@ for sd, sg in (('L', -1), ('R', 1)):
                             r=.075, pad=.085, kind='window'), sd, n))
 
 # ---------------------------------------------------------------------- cockpit windows
-# Drawn in the SIDE VIEW (x aft of the nose tip, z above ground at MRW fwd CG) straight from
-# doors.cockpit_windows: band x 1.13-2.65, glazing z 4.16-4.95, three a side
-# (1 windshield, 2 sliding DV/escape, 3 fixed rear), CP1 lower corner at x 1.13 z 4.17.
-# Each outline is a polygon in (x, z); it is wrapped onto the nose by t_of_z, so every pane
-# follows the nose contour.  Only the PORT side is modelled; starboard is a mirror of it.
-CKW = DR['cockpit_windows']
+# doors.cockpit_windows (band x 1.13-2.65, glazing z 4.16-4.95, CP1 lower corner x 1.13 z 4.17)
+# is a SIDE-VIEW SILHOUETTE of the three windows, not a patch of skin: at x 1.13 the crown is
+# only z 4.235, because that end of the band lies on the FRONT FACE of the nose.  So the windows
+# are not drawn in the side view at all.  Each one is drawn as a closed outline on its own flat
+# drawing board in space - the windscreen on a board raked 32 deg back from vertical, windows 2
+# and 3 on boards facing straight outboard - and every point of that outline is then shrunk onto
+# the nose skin along a ray from a point inside the cockpit (a shrinkwrap on the analytic skin,
+# along its local normal).  Frame and pane therefore follow the real skin everywhere, and the
+# silhouette they end up with lands inside the published band.
+# Only the PORT side is modelled; starboard is an exact mirror across y = 0.
+CKW = CKWIN = DR['cockpit_windows']
 CKZ0, CKZ1 = CKW['z_ground_range']
 CKX0, CKX1 = CKW['x_range']
-CK_CP1 = CKW.get('CP1_ground_MRW_fwd_measured', 4.17)
 CKFRAME = .040        # width of the raised frame round each pane, metres
 CKPROUD = .026        # the frame lip stands this far proud of the skin
-CKWIN = [('W1', [(CKX0, CK_CP1), (1.98, 4.47), (1.98, 4.84), (1.37, 4.37)], .050),
-         ('W2', [(2.09, 4.51), (2.37, 4.60), (2.37, 4.93), (2.09, 4.85)], .042),
-         ('W3', [(2.47, 4.63), (CKX1, 4.71), (CKX1, CKZ1), (2.47, 4.91)], .038)]
 
 def _ccw(pts):
     a = sum((pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1])
@@ -447,32 +448,130 @@ def cut_loop(name, loop_xt, dep, pad=.085, kind='cockpit', liploop=None):
                      dep=dep))
     return CUTS[-1]
 
-# The published cockpit band (x 1.13-2.65, z 4.16-4.95) does not fit the published nose
-# profile: at x 1.13 the crown is only z 4.25, so that band would run over the top of the
-# nose. The published z values and the window shapes are kept; the three windows are moved
-# aft together by the smallest amount that keeps the frames CK_CLR below the crown.
-CK_CLR = .135
-def _ck_shift():
-    pts = [q for _, poly, _ in CKWIN for q in poly]
-    d = 0.0
-    while d < 4.0:
-        if all(zz <= ZTOP(xx + d) - CK_CLR for (xx, zz) in pts): return round(d, 3)
-        d += .005
-    return d
-CK_DX = _ck_shift()
-print('A320NEO-STEP1 cockpit windows moved aft by %.3f m to clear the crown' % CK_DX)
-CKWIN = [(nm, [(xx + CK_DX, zz) for (xx, zz) in poly], rr_) for nm, poly, rr_ in CKWIN]
+# ---- shrinkwrap of a drawn outline onto the skin ---------------------------------------------
+def _f_imp(P):
+    """< 0 inside the skin, 0 on it: the superellipse of the ring at that station"""
+    cz, hh, hw = ring(P[0])
+    return abs(P[1] / hw) ** SE + abs((P[2] - cz) / hh) ** SE - 1.0
+
+def _xt_of_point(P):
+    """exact inverse of surf(): the (x, t) of a point that lies on the skin"""
+    cz, hh, hw = ring(P[0])
+    return (P[0], math.atan2(_p((P[2] - cz) / hh, SE * .5), _p(P[1] / hw, SE * .5)))
+
+def skin_hit(C, d):
+    """the point where the ray C + s*d (s > 0, C inside) leaves the skin"""
+    n = math.sqrt(sum(q * q for q in d)) or 1e-9
+    d = [q / n for q in d]
+    lo, hi = 0.0, .05
+    while hi < 8.0:
+        if _f_imp([C[i] + hi * d[i] for i in range(3)]) > 0: break
+        lo = hi; hi *= 1.6
+    for _ in range(64):
+        mid = (lo + hi) * .5
+        if _f_imp([C[i] + mid * d[i] for i in range(3)]) < 0: lo = mid
+        else: hi = mid
+    s = (lo + hi) * .5
+    return [C[i] + s * d[i] for i in range(3)]
+
+def board(C, nvec, R, hint):
+    """a flat drawing board R m in front of C: origin, u axis (along hint), v axis (up)"""
+    nv = Vector(nvec).normalized(); h = Vector(hint)
+    eu = (h - nv * h.dot(nv)).normalized()
+    ev = nv.cross(eu)
+    if ev.z < 0: ev = -ev
+    return ([C[i] + R * nv[i] for i in range(3)], eu, ev)
+
+def wrap_loop(w, pts_uv, side):
+    """shrinkwrap a board outline onto the skin -> a closed loop in (x, t).
+    side -1 = port (as drawn), +1 = starboard (mirrored across y = 0)"""
+    C = w['C']; P0, eu, ev = w['board']; out = []
+    for (u, v) in pts_uv:
+        P = [P0[i] + eu[i] * u + ev[i] * v for i in range(3)]
+        x, t = _xt_of_point(skin_hit(C, [P[i] - C[i] for i in range(3)]))
+        out.append((x, math.pi - t) if side > 0 else (x, t))
+    return out
+
+def densify(pts, step=.012):
+    out = []
+    for i in range(len(pts)):
+        a, b = pts[i], pts[(i + 1) % len(pts)]
+        n = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) / step))
+        for k in range(n):
+            out.append((a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n))
+    return out
+
+def even_n(pts, n=56):
+    """resample a closed 2-D outline to exactly n points, evenly by arc length, so two
+    rings of different size still bridge one-to-one"""
+    L = [0.0]
+    for i in range(len(pts)):
+        a, b = pts[i], pts[(i + 1) % len(pts)]
+        L.append(L[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    tot = L[-1]; out = []; j = 0
+    for k in range(n):
+        d = tot * k / n
+        while L[j + 1] < d: j += 1
+        a, b = pts[j], pts[(j + 1) % len(pts)]
+        f = (d - L[j]) / max(1e-9, L[j + 1] - L[j])
+        out.append((a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f))
+    return out
+
+def _loop_order(loop, S):
+    """counter-clockwise in (x, t*S), starting at the lower-left corner - the order
+    rr_points() uses, so the skin bridge and every frame ring pair up the same way"""
+    a = sum(loop[i][0] * loop[(i + 1) % len(loop)][1] - loop[(i + 1) % len(loop)][0] * loop[i][1]
+            for i in range(len(loop)))
+    rev = a < 0
+    l2 = loop[::-1] if rev else loop
+    k = min(range(len(l2)), key=lambda i: l2[i][0] + l2[i][1] * S)
+    return (rev, k)
+
+def _apply_order(loop, order):
+    rev, k = order
+    l2 = loop[::-1] if rev else loop
+    return l2[k:] + l2[:k]
+
+# Window 1 is the pair of forward-facing windscreens, raked 32 deg back from vertical, each side
+# of the centre post at |y| ~ 0.08; windows 2 (sliding DV/escape) and 3 (fixed) sit on the SIDE
+# of the nose at its local half width, so both show from straight abeam.  quad = the four corners
+# of the frame outline on the board, in metres (u aft/outboard, v up).
+RK1 = math.radians(32)
+CKWINS = [
+    dict(nm='W1', C=(1.90, 0.0, 4.00), n=(-math.cos(RK1), 0.0, math.sin(RK1)), R=.650,
+         hint=(0, -1, 0), rr=.050, pad=.055,
+         quad=[(.100, -.185), (.930, -.245), (.870, .115), (.240, .205)]),
+    dict(nm='W2', C=(1.95, 0.0, 4.30), n=(0.0, -1.0, .12), R=1.065, hint=(1, 0, 0), rr=.045,
+         pad=.062, quad=[(-.175, -.175), (.175, -.145), (.175, .165), (-.175, .195)]),
+    dict(nm='W3', C=(2.50, 0.0, 4.38), n=(0.0, -1.0, .12), R=1.290, hint=(1, 0, 0), rr=.045,
+         pad=.062, quad=[(-.150, -.150), (.150, -.130), (.150, .150), (-.150, .170)]),
+]
 
 CKCUTS = []
-for nm, poly, rr_ in CKWIN:
-    # keep the outline (and the 40 mm frame round it) clear of the crown, so the frame follows
-    # the nose and no two offset loops collapse onto the same clamped line
-    base = [(xx, min(zz, ZTOP(xx) - .135)) for (xx, zz) in round_poly(poly, rr_)]
-    for sd, sg in (('L', -1), ('R', 1)):         # the same (x, z) outline on both sides:
-        hole = xz_to_xt(base, sg)                             # t_of_z(+1) and t_of_z(-1) are
-        lip = xz_to_xt(off_poly(base, -.008), sg)             # exact mirrors of each other
-        c = cut_loop('Ck%s%s' % (nm, sd), hole, .005, pad=.075, liploop=lip)
-        if sd == 'L': CKCUTS.append((c, nm, base))            # frames: port only, then mirrored
+for w in CKWINS:
+    w['board'] = board(w['C'], w['n'], w['R'], w['hint'])
+    w['base'] = densify(_ccw(round_poly(w['quad'], w['rr'])))
+    w['order'] = {}
+    for sd, sg in (('L', -1), ('R', 1)):
+        raw = wrap_loop(w, w['base'], sg)
+        S = ring(sum(p[0] for p in raw) / len(raw))[1]
+        w['order'][sg] = o = _loop_order(raw, S)
+        hole = _apply_order(raw, o)
+        lip = _apply_order(wrap_loop(w, off_poly(w['base'], -.008), sg), o)
+        c = cut_loop('Ck%s%s' % (w['nm'], sd), hole, .005, pad=w['pad'], liploop=lip)
+        if sd == 'L':
+            CKCUTS.append((c, w))
+            P3 = [surf(x_, t_) for (x_, t_) in hole]
+            w['bbox'] = (min(p.x for p in P3), max(p.x for p in P3), min(p.y for p in P3),
+                         max(p.y for p in P3), min(p.z for p in P3), max(p.z for p in P3))
+            print('A320NEO-STEP1 cockpit %s port glazing x %.3f..%.3f y %.3f..%.3f z %.3f..%.3f'
+                  % ((w['nm'],) + w['bbox']))
+_CKALL = [c for c in CUTS if c['kind'] == 'cockpit']
+for _a, _b in [(_CKALL[i], _CKALL[j]) for i in range(len(_CKALL)) for j in range(len(_CKALL))
+               if i < j]:
+    if (_a['x0'] - _a['px'] < _b['x1'] + _b['px'] and _b['x0'] - _b['px'] < _a['x1'] + _a['px']
+            and _a['t0'] - _a['pt'] < _b['t1'] + _b['pt'] and _b['t0'] - _b['pt'] < _a['t1'] + _a['pt']):
+        raise SystemExit('cockpit window cut-outs overlap: %s %s' % (_a['name'], _b['name']))
 
 # ---------------------------------------------------------------------- the skin
 def build_skin():
@@ -632,12 +731,12 @@ def build_cockpit_windows(holes):
     """PORT side only, then mirrored across y = 0 - the two sides are identical by construction.
     Each window: a raised frame lip ~26 mm proud of the skin with a bevelled edge, the pane
     seated 29 mm below the top of the lip (3 mm inside the skin, so no pane stands out)."""
-    n_pt = 160
-    fr = [k / float(n_pt) for k in range(n_pt)]
     port = []
-    for c, nm, base in CKCUTS:
-        S = c['S']
-        P = lambda d, side=-1: resample(xz_to_xt(off_poly(base, d), side), fr, S)
+    for c, w in CKCUTS:
+        S = c['S']; nm = w['nm']
+        def P(d, w=w):
+            """the window outline offset by d on its drawing board, shrunk onto the skin"""
+            return _apply_order(wrap_loop(w, off_poly(w['base'], d), -1), w['order'][-1])
         V, F = [], []
         a1 = loop_mesh(V, F, P(CKFRAME), .000)            # sits flat on the skin
         a2 = loop_mesh(V, F, P(CKFRAME - .008), CKPROUD)  # bevelled outer edge of the lip
@@ -649,26 +748,32 @@ def build_cockpit_windows(holes):
         a8 = loop_mesh(V, F, P(CKFRAME), -.056)           # flange behind the skin
         F += (bridge(a1, a2) + bridge(a2, a3) + bridge(a3, a4) + bridge(a4, a5)
               + bridge(a5, a6) + bridge(a6, a7) + bridge(a7, a8) + bridge(a8, a1))
+        if nm == 'W2':
+            # the sliding window's handle: one solid with the frame (its base sits inside the
+            # lip, so nothing floats and no two faces lie on each other)
+            uc = w['quad'][1][0] - .080; vc = w['quad'][1][1] - .025 - CKFRAME * .5
+            rings = []
+            for sc, hgt in ((1.00, CKPROUD - .010), (1.00, CKPROUD + .020), (.78, CKPROUD + .032)):
+                hq = _ccw(round_poly([(uc - .038 * sc, vc - .019 * sc), (uc + .038 * sc, vc - .019 * sc),
+                                      (uc + .038 * sc, vc + .019 * sc), (uc - .038 * sc, vc + .019 * sc)],
+                                     .009))
+                rings.append(loop_mesh(V, F, wrap_loop(w, even_n(hq, 56), -1), hgt))
+            F += bridge(rings[0], rings[1]) + bridge(rings[1], rings[2])
+            for r, flip in ((rings[0], False), (rings[2], True)):
+                cb = len(V)
+                V.append(sum((V[i] for i in r), Vector((0, 0, 0))) / len(r))
+                F += fan(r, cb, flip)
         port.append(add('A320N_Cockpit_WindowFrame_%s_L' % nm, V, F, MT['grey'], bevel=.003))
         V, F = [], []                               # the pane: 22 mm thick, under the frame shelf
-        pane = P(.004)                          # rim bites through the frame shelf
+        pane = P(.006)                      # the rim beds under the frame shelf
         xs = [q[0] for q in pane]; ts = [q[1] for q in pane]
         pxc = sum(xs) / len(xs); ptc = sum(ts) / len(ts)
         o = disc_on_surface(V, F, pane, pxc, ptc, -.020)   # follows the nose contour, so the
         i = disc_on_surface(V, F, pane, pxc, ptc, -.042, flip=True)   # glass never breaks the skin
         F += bridge(o, i, flip=True)
         port.append(add('A320N_Cockpit_WindowPane_%s_L' % nm, V, F, MT['glass']))
-    # DV window: the sliding window's upper and lower rails and its handle (port, then mirrored)
-    poly = CKWIN[1][1]
-    xa = min(p[0] for p in poly); xb = max(p[0] for p in poly)
-    zl = min(p[1] for p in poly); zh = max(p[1] for p in poly)
-    for tag, z0 in (('U', zh + CKFRAME + .014), ('L', zl - CKFRAME - .030)):
-        V, F = [], []
-        box_in_xz(V, F, xa - .02, xb + .03, z0, z0 + .016, -1, .006, -.012, 10, 2)
-        port.append(add('A320N_Cockpit_DVRail_%s_L' % tag, V, F, MT['steel'], bevel=.002))
-    V, F = [], []
-    box_in_xz(V, F, xb - .12, xb - .04, zl - .036, zl - .004, -1, .040, -.012, 4, 3)
-    port.append(add('A320N_Cockpit_DVHandle_L', V, F, MT['steel'], bevel=.004))
+    # the sliding window's rails and handle are part of its own frame solid (above), so
+    # nothing stands loose on the skin and no two faces lie on each other.
     for ob in port:
         mirror_y(ob, ob.name[:-1] + 'R')
 
@@ -689,7 +794,13 @@ def build_doors(holes):
         c = dd['cut']; h = holes[c['name']]; S = c['S']; did = dd['id']; dp = h['depth']
         fr = [k / 64.0 for k in range(64)]
         hole_xt = resample(rr_points(c['xc'], c['tc'], c['ax'], c['at'], c['r'], S), fr, S)
-        leaf_xt = resample(rr_points(c['xc'], c['tc'], c['ax'] - .006, c['at'] - .006 / S, c['r'], S), fr, S)
+        # a leaf that stays shut (the overwing exits) sits INSIDE the recess: its outline
+        # clears the turned-in lip of the skin and its face is 6 mm under the skin, so the
+        # hatch is flush to look at and no two faces lie on each other.
+        shut = dd['angle'] == 0
+        lsh = .045 if shut else .006
+        leaf_xt = resample(rr_points(c['xc'], c['tc'], c['ax'] - lsh, c['at'] - lsh / S, c['r'], S), fr, S)
+        lz = -.006 if shut else 0.0
         th = dd['thick']
 
         # frame channel inside the recess
@@ -701,11 +812,13 @@ def build_doors(holes):
         F += bridge(f1, f2) + bridge(f2, f3) + bridge(f3, f4) + bridge(f4, f1)
         add('A320N_Door_%s_Frame' % did, V, F, MT['alu'])
 
-        # sill plate across the bottom of the opening
-        V, F = [], []
-        tb = c['t0'] + .022
-        box_on_surface(V, F, c['x0'] + .02, c['x1'] - .02, tb, tb + .034, -dp + .004, -dp - .050, 14, 3)
-        add('A320N_Door_%s_Sill' % did, V, F, MT['steel'], bevel=.003)
+        # sill plate across the bottom of the opening (a shut hatch fills the opening itself,
+        # so it gets no sill - nothing to stand on and nothing for the leaf to clash with)
+        if not shut:
+            V, F = [], []
+            tb = c['t0'] + .022
+            box_on_surface(V, F, c['x0'] + .02, c['x1'] - .02, tb, tb + .034, -dp + .004, -dp - .050, 14, 3)
+            add('A320N_Door_%s_Sill' % did, V, F, MT['steel'], bevel=.003)
 
         # the bay behind the opening so nothing is see-through
         V, F = [], []
@@ -727,8 +840,8 @@ def build_doors(holes):
 
         # leaf: outer skin following the fuselage, edge band, inner skin
         V, F = [], []
-        o_loop = disc_on_surface(V, F, leaf_xt, c['xc'], c['tc'], 0.0)
-        i_loop = disc_on_surface(V, F, leaf_xt, c['xc'], c['tc'], -th, flip=True)
+        o_loop = disc_on_surface(V, F, leaf_xt, c['xc'], c['tc'], lz)
+        i_loop = disc_on_surface(V, F, leaf_xt, c['xc'], c['tc'], lz - th, flip=True)
         F += bridge(o_loop, i_loop, flip=True)
         leaf = add('A320N_Door_%s_Leaf' % did, V, F, MT['paint'], bevel=.006)
 
@@ -739,7 +852,7 @@ def build_doors(holes):
             a = k / 8.0 * math.tau
             sect.append(loop_mesh(V, F, shrink(leaf_xt, c['xc'], c['tc'],
                                                .990 + .012 * math.cos(a)),
-                                  -th - .004 + .014 * math.sin(a)))
+                                  lz - th - .004 + .014 * math.sin(a)))
         for k in range(8):
             F += bridge(sect[k], sect[(k + 1) % 8])
         seal = add('A320N_Door_%s_Seal' % did, V, F, MT['rubber'])
@@ -749,15 +862,15 @@ def build_doors(holes):
         ht = c['tc'] + c['at'] * (-.52 if dd['hinge'] == 'top' else -.06)
         V, F = [], []
         hw_, hh_ = .115, .035 / S
-        g1 = loop_mesh(V, F, rr_points(hx, ht, hw_, hh_, .022, S, 80), .004)
-        g2 = loop_mesh(V, F, rr_points(hx, ht, hw_ * .80, hh_ * .70, .018, S, 80), -.040)
+        g1 = loop_mesh(V, F, rr_points(hx, ht, hw_, hh_, .022, S, 80), lz + .004)
+        g2 = loop_mesh(V, F, rr_points(hx, ht, hw_ * .80, hh_ * .70, .018, S, 80), lz - .040)
         F += bridge(g1, g2)
-        cb = len(V); V.append(soff(hx, ht, -.040)); F += fan(g2, cb)
-        l1 = loop_mesh(V, F, rr_points(hx, ht, hw_ * .70, hh_ * .40, .014, S, 80), -.012)
-        l2 = loop_mesh(V, F, rr_points(hx, ht, hw_ * .70, hh_ * .40, .014, S, 80), -.030)
+        cb = len(V); V.append(soff(hx, ht, lz - .040)); F += fan(g2, cb)
+        l1 = loop_mesh(V, F, rr_points(hx, ht, hw_ * .70, hh_ * .40, .014, S, 80), lz - .012)
+        l2 = loop_mesh(V, F, rr_points(hx, ht, hw_ * .70, hh_ * .40, .014, S, 80), lz - .030)
         F += bridge(l1, l2)
-        cb = len(V); V.append(soff(hx, ht, -.030)); F += fan(l2, cb)
-        cb = len(V); V.append(soff(hx, ht, -.012)); F += fan(l1, cb, True)
+        cb = len(V); V.append(soff(hx, ht, lz - .030)); F += fan(l2, cb)
+        cb = len(V); V.append(soff(hx, ht, lz - .012)); F += fan(l1, cb, True)
         handle = add('A320N_Door_%s_Handle' % did, V, F, MT['steel'], bevel=.003)
 
         swing = [leaf, seal, handle]
@@ -767,24 +880,24 @@ def build_doors(holes):
             btc = c['tc'] - c['at'] * .40
             bxt = resample(rr_points(c['xc'], btc, c['ax'] * .80, c['at'] * .46, .09, S),
                            [k / 48.0 for k in range(48)], S)
-            b1 = loop_mesh(V, F, bxt, -th - .004)
-            b2 = loop_mesh(V, F, shrink(bxt, c['xc'], btc, .90), -th - .215)
+            b1 = loop_mesh(V, F, bxt, lz - th - .004)
+            b2 = loop_mesh(V, F, shrink(bxt, c['xc'], btc, .90), lz - th - .215)
             F += bridge(b1, b2, True)
-            cb = len(V); V.append(soff(c['xc'], btc, -th - .215)); F += fan(b2, cb, True)
-            cb = len(V); V.append(soff(c['xc'], btc, -th - .004)); F += fan(b1, cb)
+            cb = len(V); V.append(soff(c['xc'], btc, lz - th - .215)); F += fan(b2, cb, True)
+            cb = len(V); V.append(soff(c['xc'], btc, lz - th - .004)); F += fan(b1, cb)
             swing.append(add('A320N_Door_%s_Bustle' % did, V, F, MT['grey'], bevel=.005))
 
         if dd['window']:      # a window in the passenger doors and the overwing hatches
             wx = c['xc']; wt = c['tc'] + (c['at'] * .42 if dd['kind'] == 'pax' else 0.0)
             ww, wh = (.105, .17 / S) if dd['kind'] == 'pax' else (.095, .15 / S)
             V, F = [], []
-            o1 = loop_mesh(V, F, rr_points(wx, wt, ww + .028, wh + .028 / S, .05, S, 120), .006)
-            o2 = loop_mesh(V, F, rr_points(wx, wt, ww, wh, .04, S, 120), -.026)
+            o1 = loop_mesh(V, F, rr_points(wx, wt, ww + .028, wh + .028 / S, .05, S, 120), lz + .006)
+            o2 = loop_mesh(V, F, rr_points(wx, wt, ww, wh, .04, S, 120), lz - .026)
             F += bridge(o1, o2)
             swing.append(add('A320N_Door_%s_WindowFrame' % did, V, F, MT['grey'], bevel=.003))
             V, F = [], []
-            p = loop_mesh(V, F, rr_points(wx, wt, ww + .010, wh + .010 / S, .04, S, 120), -.026)
-            cb = len(V); V.append(soff(wx, wt, -.026)); F += fan(p, cb)
+            p = loop_mesh(V, F, rr_points(wx, wt, ww + .010, wh + .010 / S, .04, S, 120), lz - .026)
+            cb = len(V); V.append(soff(wx, wt, lz - .026)); F += fan(p, cb)
             swing.append(add('A320N_Door_%s_WindowPane' % did, V, F, MT['glass']))
 
         # hinge: a bracket standing off the skin, a pin, and a gooseneck arm onto the leaf.
@@ -1379,7 +1492,7 @@ def build_antennas():
 
 def build_lights():
     """the two anti-collision beacons: housing, reflector, lens, screws round the glass"""
-    for nm, xx, tt in (('Top', 17.50, math.pi * .5), ('Bottom', 19.00, -math.pi * .5)):
+    for nm, xx, tt in (('Top', 17.50, math.pi * .5), ('Bottom', 9.80, -math.pi * .5)):
         base = surf(xx, tt); nv = nrm(xx, tt)
         excl(xx - .09, xx + .09, tt - .060, tt + .060, .035, .030)
         V, F = [], []
@@ -1424,7 +1537,11 @@ def renders():
             ('A320neo-shell-side.png', (18.0, -72.0, 7.5), (18.6, 0, 4.4), 62),
             ('A320neo-shell-doors.png', (2.0, -10.5, 6.6), (5.4, 0, 4.2), 45),
             ('A320neo-shell-tail.png', (30.0, -16.0, 10.0), (32.0, 0, 5.8), 55),
-            ('A320neo-shell-nose.png', (-7.8, -7.4, 5.8), (2.2, 0, 4.55), 55)]:
+            ('A320neo-shell-nose.png', (-7.8, -7.4, 5.8), (2.2, 0, 4.55), 55),
+            # straight-on front: both windscreens, symmetric about the centreline
+            ('A320neo-shell-front.png', (-26.0, 0.0, 4.60), (2.0, 0.0, 4.50), 180),
+            # straight abeam, close up on the nose: windows 2 and 3 must show plainly
+            ('A320neo-shell-nose-side.png', (1.95, -16.0, 4.47), (1.95, 0.0, 4.40), 135)]:
         cam.location = loc; cam.data.lens = lens
         d = mathutils.Vector(look) - mathutils.Vector(loc)
         cam.rotation_euler = d.to_track_quat('-Z', 'Y').to_euler()
