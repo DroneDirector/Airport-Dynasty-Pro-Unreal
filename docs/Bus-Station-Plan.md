@@ -100,6 +100,11 @@ Built by script in Blender 3.3, real metres, one object per part, named `BusStn_
 
 No game run and no publish without the owner's word.
 
+## The vault is approved - owner, 2026-11-27
+He saw `docs/Pictures/busstation-vault.png` (the 16 m span, open both sides, 5.50 m clear, real glass) and said:
+"Yeah, I like the look. You can go ahead." So the vault's form, span, column lines and materials are settled and
+are not to be redesigned - the waiting hall, furniture, lighting and everything after it are built to match it.
+
 ## The ground truth - measured from the laid-out forecourt, 2026-11-27
 Any builder touching the station or the deck uses THESE numbers, not its own. Read off
 `Data/Sites/chablais/roads.json` at the station run; `y` is the world y, the terminal's landside wall is y 0.
