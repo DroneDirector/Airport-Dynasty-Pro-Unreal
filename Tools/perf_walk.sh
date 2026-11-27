@@ -3,12 +3,12 @@
 # by itself (-UIPerfWalk: Grand Hall, airside stairs, escalator, Floor 2, gate walkway, gate 1, its jetway, the service
 # stair, the apron looking back at the terminal) and every slow frame goes to ADP-Perf.log with its cause and place.
 #   bash Tools/perf_walk.sh            the newest packaged build in F:/ADP-Packaged (the real frames)
-#   bash Tools/perf_walk.sh offscreen  the packaged build drawn off-screen (when Windows is locked: it slows a window down)
+#   bash Tools/perf_walk.sh offscreen  refused: every run is visible on the owner's screen (2026-11-27)
 #   bash Tools/perf_walk.sh editor     the editor build (only to check the route; its frames aren't the game's)
 #   ... coaches                        the coaches' own walk instead (to-do 146: car park, zebra crossing, along the coaches,
 #                                      into one and down its aisle, the main hall; by day - 13:00 site time; XTRA=-WalkNight adds the night parts, only for a real reason) - with any of the above
 #   ... both                           the terminal walk then the coaches walk, in one go
-#   ... 4k                             drawn off-screen at 3840x2160 (Full HD: offscreen)
+#   ... 4k                             full screen at 3840x2160, visible
 #   ... screen                         his own screen in real full screen (-fullscreen)
 # (his own resolution and window settings are saved before and put back after every run: -ResX overwrites them)
 R=/c/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal
@@ -16,12 +16,12 @@ R=/c/Users/Simon/Documents/Airport-Dynasty-Pro-Unreal
 # any other running game - the installed game, or the editor running the game (-game) - stops the walk until it ends
 N=$(powershell -NoProfile -Command "@(Get-CimInstance Win32_Process | Where-Object { \$_.Name -like 'AirportDynastyPro-Win64*' -or (\$_.Name -like 'UnrealEditor*' -and \$_.CommandLine -match ' -game') }).Count")
 [ "${N//[^0-9]/}" != "0" ] && { echo "STOP: another copy of the game is running ($N) - one copy at a time; the editor itself may stay open"; exit 1; }
-# (offscreen: drawn without a window - for runs while Windows is locked, which holds a window's frames back)
+# every run is visible, full screen, on the owner's screen (owner 2026-11-27): no -RenderOffscreen
 OFF=""; EXE=""; ROUTE="-UIPerfWalk"
 for a in "$@"; do
   case "$a" in
-    offscreen) OFF="-RenderOffscreen -ResX=1920 -ResY=1080 -ForceRes -windowed " ; EXE="r.SetRes 1920x1080w" ;;
-    4k) OFF="-RenderOffscreen -ResX=3840 -ResY=2160 -ForceRes -windowed " ; EXE="r.SetRes 3840x2160w" ;;
+    offscreen) echo "STOP: hidden runs are not allowed - the owner watches every test on his screen (2026-11-27); if Windows is locked, wait"; exit 1 ;;
+    4k) OFF="-fullscreen -ResX=3840 -ResY=2160 -ForceRes " ; EXE="r.SetRes 3840x2160f" ;;   # (visible on his screen, owner 2026-11-27)
     screen) OFF="-fullscreen" ;;
     coaches) ROUTE="-UICoachWalk" ;;
     both) ROUTE="-UIFullWalk" ;;

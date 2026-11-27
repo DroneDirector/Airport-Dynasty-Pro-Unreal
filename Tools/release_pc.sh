@@ -99,7 +99,7 @@ print(' '.join(sorted(set(m.group(0).decode('utf-16-le') for m in re.finditer(rb
   echo "== the full game, and a start check"
   rm -rf $P/$V/Full; cp -r $P/$A/Full $P/$V/Full; cp -r $P/$V/Windows/. $P/$V/Full/   # (the earlier packs stay; this release's pack added)
   L="$LOCALAPPDATA/AirportDynastyPro/Saved/Logs"; rm -f "$L/ADP.log"
-  (cd $P/$V/Full && ADP_LOG=1 timeout 90 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -unattended -RenderOffscreen -windowed -ResX=640 -ResY=360 > /dev/null 2>&1) || true
+  (cd $P/$V/Full && ADP_LOG=1 timeout 90 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -unattended -fullscreen > /dev/null 2>&1) || true
   C=$(grep -c CRASH "$L/ADP.log" 2>/dev/null || true); echo "start check crashes: ${C:-none logged}"
   [ "$C" = "0" ] || [ -z "$C" ] || { grep -h CRASH -A5 "$L/ADP.log" | head -20; echo "STOP: it crashed"; exit 1; }
   # a new career from the title screen to the airport, and Continue, in the packaged game (owner, 2026-11-23: 0.18.1 was
