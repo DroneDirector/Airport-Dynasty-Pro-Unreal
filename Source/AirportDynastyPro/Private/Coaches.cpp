@@ -546,7 +546,7 @@ void ACoaches::DriveOff(int32 Ci)
 }
 #pragma endregion
 
-#pragma region the town hub's one-way loop (to-do 373)
+#pragma region the town hub one-way loop (to-do 373)
 namespace CoachLoop
 {
 	constexpr float LoopAxleF = 370.f, LoopAxleR = -240.f;   // cm from the root (Data/airportcoach-riders.json)
