@@ -177,7 +177,8 @@ The first build put it on the island platform and had to cut it to 30.0 x 3.60 m
 tactile strips, slot drains and the column footing pads, so a 9 m hall cannot stand there. A 3.6 m wide room 30 m
 long is a corridor, not the hall the plan asks for.
 
-The room is on the **pavement** instead - model y 4.35..12.35 (world y -10.00..-2.00), 8.0 m deep, 30 m long, under
-the vault, clear of the north column line at model y 13.0. The pavement is 0.18 m below the deck, so the hall's floor
+The room is on the **pavement** instead - AS BUILT (commit b7b379c4): model y 4.35..12.00 (world y -10.00..-2.35),
+**30.0 x 7.65 m**, under the vault. The north wall stops at y 12.00 because the north column line's 1.30 m footing
+pads run y 12.35..13.65: the frame clears their face by 0.27 m and the roof edge stops 0.03 m short of it. The pavement is 0.18 m below the deck, so the hall's floor
 and sill sit at pavement level with a real threshold at each door, and the doors face the platform. The platform is
 left clear its whole length for passengers, benches and the bay signs.
