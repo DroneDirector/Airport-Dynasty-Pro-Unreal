@@ -182,3 +182,18 @@ The room is on the **pavement** instead - AS BUILT (commit b7b379c4): model y 4.
 pads run y 12.35..13.65: the frame clears their face by 0.27 m and the roof edge stops 0.03 m short of it. The pavement is 0.18 m below the deck, so the hall's floor
 and sill sit at pavement level with a real threshold at each door, and the doors face the platform. The platform is
 left clear its whole length for passengers, benches and the bay signs.
+
+## It stands in the world, lit, with the clock running - AS BUILT 2026-11-27
+Imported (1036 nodes, 1101 uassets) and placed from `Airfield.cpp`, on the model site only: plan x 275.7558,
+plan z -14.35 (world 27576, 1435), ground + sink + 0.03 m, actor yaw 180 - `Place` adds its half turn, so Blender
++x runs east along the platform and +y looks at the terminal, with model y 14.35 on the terminal's landside wall.
+The x comes from the road's own bays (`roads.json` paint bays from 1456.73, pitch 8.51833 m): the twelve sign posts
+sit on the twelve bay centres. The facing is checked at run time from the imported parts (hall panel vs. road-side
+uplight, signs A01 vs. A12) and logged; the wrong way round warns.
+`BusStationLife.cpp` lights it from `Data/busstation-lights.json`: 42 disc spots down from the vault (2400 cd,
+22 m, draw 250 m), 42 uplights along their aim (650 cd, 13 m), 21 hall rect panels (900 cd, 10 m), all through
+`AddLamp` - no shadows, no flares, no haze, dimmed by day - and the 105 lamp faces take the kit's `lamp` material.
+The clock: four hand groups bound once on their own bosses, turned every second from the site's time (or
+`ASunClock::HourOverride`), 30 deg an hour, 6 deg a minute, nothing cached, so a sped-up day moves them.
+Open: the model labels the signs A1 west -> A12 east, the road numbers the bays A1 east -> A12 west, so the labels
+are back to front (the positions are right). Fix in `make_busstation.py`'s sign loop.

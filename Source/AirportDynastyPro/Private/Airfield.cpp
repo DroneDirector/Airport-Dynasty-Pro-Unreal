@@ -17,6 +17,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "CargoTerminalLife.h"
+#include "BusStationLife.h"
 #include "RollerDoor.h"
 #include "Misc/PackageName.h"
 #include "Serialization/JsonReader.h"
@@ -1328,6 +1329,48 @@ bool AAirfield::Build(bool bModelSite)
 			}
 		}
 		else { if (Cargo) Cargo->Destroy(); Slab("liftClad", D.Cargo.X0, D.Cargo.Y0, D.Cargo.X1, D.Cargo.Y1, 0, 18); }
+	}
+	// the bus station on the terminal forecourt (Art/BusStation): its platform runs along the forecourt road with the
+	// twelve sawtooth bays the road network paints there (Data/Sites/chablais/roads.json, roads[0] paint "bays":
+	// from 1456.73 along the run, pitch 3.6/sin 25 deg = 8.5183 m). The model's own bay signs stand at
+	// 23.890046 + pitch * (i + 0.5), so the first is at model x 28.1492; the first road bay's centre is at plan
+	// x 397.6066, which puts the model's x 0 at plan x 275.7558. Its platform's middle line (model y 0) sits at plan
+	// z -14.35, so the model's y 14.35 - its north face - comes out exactly on the terminal's landside wall at plan
+	// z 0, 1.35 m clear of it. ABabylonModel::Place turns the root a further half turn, so at actor yaw 180 the model
+	// looks the right way: Blender +x east along the platform, Blender +y to the terminal (world -y).
+	if (bModelSite)
+	{
+		FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		const float BusX = 275.7558f, BusY = -14.35f;
+		const float Z = GroundAt(BusX, BusY) + Sink + 0.03f;   // (3 cm over the pad: the road network's own kerbed platform is 18 cm high here)
+		const FVector BusAt = FTerminalPlan::ToWorld(BusX, Z, BusY);
+		ABabylonModel* Bus = GetWorld() ? GetWorld()->SpawnActor<ABabylonModel>(BusAt, FRotator(0, 180.f, 0), S) : nullptr;
+		if (Bus && Bus->Place(TEXT("BusStation")))
+		{
+			// the proof that it looks the right way, from the model's own imported parts: the hall's ceiling panel
+			// (Blender y +6.175, towards the terminal) must come out at a smaller world y than an uplight lens on the
+			// road side (Blender y -2.74), and sign A01's post (Blender x 28.149) west of A12's.
+			const FTransform T = Bus->GetRootComponent()->GetComponentTransform();
+			FTransform Hall, Road, Sg1, Sg12;
+			if (Bus->NodeBase(TEXT("BusStn_CeilPanel_LensS01"), Hall) && Bus->NodeBase(TEXT("BusStn_Uplight_LensA01S"), Road)
+				&& Bus->NodeBase(TEXT("BusStn_SignA01_Post"), Sg1) && Bus->NodeBase(TEXT("BusStn_SignA12_Post"), Sg12))
+			{
+				const FVector H = T.TransformPosition(Hall.GetLocation()), R = T.TransformPosition(Road.GetLocation());
+				const FVector P1 = T.TransformPosition(Sg1.GetLocation()), P12 = T.TransformPosition(Sg12.GetLocation());
+				ADP_LOG(TEXT("Airfield: the bus station stands at plan %.2f,%.2f (world %.0f,%.0f); hall side world y %.0f, road side %.0f (%s); sign A01 world x %.0f, A12 %.0f"),
+					BusX, BusY, BusAt.X, BusAt.Y,
+					H.Y, R.Y, H.Y < R.Y ? TEXT("facing the terminal") : TEXT("THE WRONG WAY ROUND"), P1.X, P12.X);
+				if (H.Y >= R.Y) ADP_WARN(TEXT("Airfield: the bus station faces away from the terminal - its yaw is wrong"));
+			}
+			else ADP_WARN(TEXT("Airfield: the bus station model has no sign or lens nodes to check its facing by"));
+			// its lights and its platform clock (the model's lamp system; the clock reads the site's own time)
+			ABusStationLife::Make(Bus);
+		}
+		else
+		{
+			if (Bus) Bus->Destroy();
+			ADP_WARN(TEXT("Airfield: no bus station model (Tools/import_model.py Art/BusStation/make_busstation.py Art/BusStation/BusStation.glb BusStation)"));
+		}
 	}
 	ADP_LOG(TEXT("Airfield built: %d taxiways, %d stands"), D.Taxiways.Num(), D.Stands.Num());
 	return true;
