@@ -1,0 +1,46 @@
+# The pictures the owner asked for on 2026-11-27: the cargo terminal and the hangars, by day.
+#   bash Tools/perf_views.sh Tools/views/pics-cargo-hangar.txt editor
+# 3840 x 2160 into Saved/Screenshots/run/. A shot whose subject is missing is left out and says so in the log,
+# so a picture that is here was really there. Plan metres: yaw 0 looks east (+x), yaw -90 looks north (+plan y).
+cmd r.VSync 0
+speed 1 1
+hour 13
+weather 2
+wait 25
+lives
+# --- the cargo terminal (model x 200..665, plan y 1231..1301; the apron in front to y 1066, the truck court behind to y 1441)
+look 0 0 8 CargoTerminal
+wait 5
+shot4k cargo-terminal-whole
+view 430 2.0 1185 -90 3
+wait 5
+shot4k cargo-terminal-airside
+view 230 2.0 1180 -55 3
+wait 5
+shot4k cargo-terminal-corner
+view 430 2.0 1380 90 2
+wait 5
+shot4k cargo-terminal-truckcourt
+# --- the hangars (H1 x -430 open, H2 x -280 shut, H3 x -130 open; the door line on the apron edge at plan y 1231,
+#     the hall 46 x 48 m running north from it)
+look 0 0 8 Hangar
+wait 5
+shot4k hangar-whole
+view -430 2.0 1196 -90 3
+wait 5
+shot4k hangar-h1-door
+view -430 1.8 1255 90 0
+wait 5
+shot4k hangar-h1-inside-out
+view -430 2.2 1242 -90 4
+wait 5
+shot4k hangar-h1-inside-back
+view -280 2.0 1200 -75 4
+wait 5
+shot4k hangar-h2-shut
+view -620 3.0 1180 -40 4
+wait 5
+shot4k hangars-row
+hour live
+weather live
+quit
