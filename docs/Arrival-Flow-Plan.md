@@ -63,6 +63,11 @@
 ### Out of the terminal: A+15 to about A+45
 23. **The arrivals hall:** meeters and greeters wait at the exit (people holding name signs, families). *Missing.*
 24. **Out to the car park** (built), the zebra crossings (built), and later taxis, buses, trains and rental cars.
+    - Dropped kerbs (2026-11-28): wherever a zebra meets a pavement or an island, the kerb and the pavement edge come down
+      flush with the road (0.5 cm above it) over the crossing's width plus 0.3 m each side. The kerb ramps back up over
+      0.9 m along the road, and the pavement over 0.5 to 2.3 m behind the kerb. Islands are cut through. The kerb's
+      collision follows, because it is cooked from the same mesh. This is done in RoadNetwork.cpp (CutKerbs, on every road
+      part as it is built, and in the bake). The road hash moved, so saved roads rebuild. There is no tactile paving yet.
 
 ### The aircraft carries on
 25. **The turnaround continues** into the next departure: cleaning, catering, water and toilet service, fuel, the cabin check, then boarding (the Departure-Flow-Plan, from its step 11).

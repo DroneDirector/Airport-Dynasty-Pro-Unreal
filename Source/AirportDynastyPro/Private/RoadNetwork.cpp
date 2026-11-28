@@ -46,6 +46,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshNormals.h"
 #if WITH_EDITOR
 // (the roads' bake, ARoadNetwork::BakeAll, runs in the editor only: these stay out of the game's own build; Windows'
 //  min/max macros, left defined by another file in the same build chunk, are hidden while the geometry headers are read)
@@ -94,7 +95,7 @@ namespace
 	{
 		FString J; TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Wr = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&J);
 		FJsonSerializer::Serialize(R.ToSharedRef(), Wr);
-		return HashCombine(FCrc::StrCrc32(*J), GroundCrc()) ^ 0x5eed0002u;   // (the last number: bumped when the road builder itself changes)
+		return HashCombine(FCrc::StrCrc32(*J), GroundCrc()) ^ 0x5eed0003u;   // (the last number: bumped when the road builder itself changes)
 	}
 	const TMap<FString, FBakedRoad>& Baked()
 	{
@@ -220,11 +221,120 @@ namespace
 		Said.Add(Tx);
 	}
 
+	// ---- the dropped kerbs at the zebra crossings (2026-11-28, stress walk on 0.20.2: the forecourt's kerb at plan
+	// (75.1, -54.6) stood across the walk onto the zebra five times). As at a real crossing, where a zebra meets a
+	// pavement or an island the kerb and the pavement's edge come down flush with the road over the crossing's width and
+	// 0.3 m each side, easing back up along the kerb over 0.9 m (the transition kerbs) and into the pavement from 0.5 m
+	// to 2.3 m behind the kerb - the back of the pavement, and every other kerb, stay as built. Done on MetaRoad's own
+	// parts as they come out (WritePart; the bake too): their edges split on the ramps' lines, their points lowered. ----
+	struct FCurbGap
+	{
+		FVector C = FVector::ZeroVector, F = FVector::ForwardVector, R = FVector::RightVector;   // (world: on the path at the crossing; along; to the right)
+		double H = 180.0, Ramp = 90.0, Slope = 0.0, ALo = -1500.0, AHi = 1500.0;   // (cm: flush half-length along, ramp along, rise per cm along, how far across)
+		TArray<FVector2D> Bands;   // (the pavements and islands there: from - to across, cm, + to the right)
+		TArray<double> Kerbs;      // (their edges toward a carriageway, cm across)
+	};
+	TArray<FCurbGap> GCurbGaps;                       // (the road being built now)
+	TMap<FString, TArray<FCurbGap>> GCurbGapsById;    // (every road's, for the bake)
+	constexpr double CurbFlushIn = 50.0, CurbRampIn = 230.0, CurbLift = 0.5;
+
+	// how far a point comes down there (0 not at all .. 1 flush) and the road's height under it
+	double CurbDrop(const FCurbGap& G, const FVector& P, double& ZRoad)
+	{
+		const FVector Q = P - G.C;
+		const double D = FVector::DotProduct(Q, G.F), A = FVector::DotProduct(Q, G.R), Ad = FMath::Abs(D);
+		ZRoad = G.C.Z + G.Slope * D;
+		if (Ad >= G.H + G.Ramp || A < G.ALo || A > G.AHi) return 0.0;
+		const double Along = Ad <= G.H ? 1.0 : 1.0 - (Ad - G.H) / G.Ramp;
+		double Across = 0.0;
+		for (const double K : G.Kerbs) if (FMath::Abs(A - K) <= 40.0) Across = 1.0;   // (the kerb stone itself)
+		auto KerbsIn = [&G](const FVector2D& B) { int32 N = 0; for (const double K : G.Kerbs) N += (K >= B.X - 1.0 && K <= B.Y + 1.0); return N; };
+		for (const FVector2D& B : G.Bands)
+			if (A >= B.X - 1.0 && A <= B.Y + 1.0 && KerbsIn(B) > 1) Across = 1.0;   // (an island between two kerbs: cut through flush)
+			else if (A >= B.X - 1.0 && A <= B.Y + 1.0)
+				for (const double K : G.Kerbs)
+					if (K >= B.X - 1.0 && K <= B.Y + 1.0)
+					{
+						const double Gd = FMath::Abs(A - K);
+						Across = FMath::Max(Across, Gd <= CurbFlushIn ? 1.0 : FMath::Clamp(1.0 - (Gd - CurbFlushIn) / (CurbRampIn - CurbFlushIn), 0.0, 1.0));
+					}
+		return Along * Across;
+	}
+
+	// one part of a road with its kerbs dropped at the crossings (ToWorld: its points to the world); how many points came down
+	int32 CutKerbs(UE::Geometry::FDynamicMesh3& M, const FTransform& ToWorld, const TArray<FCurbGap>& Gaps)
+	{
+		if (Gaps.Num() == 0 || M.VertexCount() == 0) return 0;
+		// its edges split where a ramp begins or ends, so the drop has points to bend at
+		auto SplitOn = [&M, &ToWorld](const FCurbGap& G, const FVector& N, double O, bool bAlong)
+		{
+			TArray<int32> Es; Es.Reserve(M.EdgeCount());
+			for (const int32 E : M.EdgeIndicesItr()) Es.Add(E);
+			for (const int32 E : Es)
+			{
+				const UE::Geometry::FIndex2i V = M.GetEdgeV(E);
+				const FVector Pa = ToWorld.TransformPosition(M.GetVertex(V.A)), Pb = ToWorld.TransformPosition(M.GetVertex(V.B));
+				const double Sa = FVector::DotProduct(Pa - G.C, N) - O, Sb = FVector::DotProduct(Pb - G.C, N) - O;
+				if (!((Sa > 0.5 && Sb < -0.5) || (Sa < -0.5 && Sb > 0.5))) continue;
+				const FVector Mid = (Pa + Pb) * 0.5 - G.C;
+				const double MD = FVector::DotProduct(Mid, G.F), MA = FVector::DotProduct(Mid, G.R);
+				if (bAlong ? (MA < G.ALo - 100.0 || MA > G.AHi + 100.0) : FMath::Abs(MD) > G.H + G.Ramp + 100.0) continue;
+				UE::Geometry::FDynamicMesh3::FEdgeSplitInfo Info;
+				M.SplitEdge(E, Info, Sa / (Sa - Sb));
+			}
+		};
+		for (const FCurbGap& G : Gaps)
+		{
+			for (const double O : {G.H, -G.H, G.H + G.Ramp, -(G.H + G.Ramp)}) SplitOn(G, G.F, O, true);
+			for (const FVector2D& B : G.Bands)
+			{
+				int32 NK = 0; for (const double K : G.Kerbs) NK += (K >= B.X - 1.0 && K <= B.Y + 1.0);
+				if (NK > 1) continue;   // (an island comes down whole: its own edges are enough)
+				for (const double K : G.Kerbs)
+					if (K >= B.X - 1.0 && K <= B.Y + 1.0)
+					{
+						const double In = (B.X + B.Y) * 0.5 > K ? 1.0 : -1.0;
+						for (const double Dd : {CurbFlushIn, CurbRampIn})
+							if (K + In * Dd > B.X + 1.0 && K + In * Dd < B.Y - 1.0) SplitOn(G, G.R, K + In * Dd, false);
+					}
+			}
+		}
+		// its raised points there brought down (never below the road, nothing taller than a kerb touched)
+		TSet<int32> Moved;
+		for (const int32 Vi : M.VertexIndicesItr())
+		{
+			const FVector P = ToWorld.TransformPosition(M.GetVertex(Vi));
+			double Best = 0.0, ZUnder = 0.0;
+			for (const FCurbGap& G : Gaps) { double Zr = 0.0; const double Fd = CurbDrop(G, P, Zr); if (Fd > Best) { Best = Fd; ZUnder = Zr; } }
+			const double Target = ZUnder + CurbLift;
+			if (Best <= 0.0 || P.Z <= Target + 0.05 || P.Z > ZUnder + 60.0) continue;
+			FVector Pn = P; Pn.Z = FMath::Lerp(P.Z, Target, Best);
+			M.SetVertex(Vi, ToWorld.InverseTransformPosition(Pn));
+			Moved.Add(Vi);
+		}
+		// their shading made again where they and their neighbours moved (the hard edges of the kerb stones kept)
+		if (Moved.Num() && M.HasAttributes() && M.Attributes()->PrimaryNormals())
+		{
+			TSet<int32> Near = Moved;
+			for (const int32 Vi : Moved) for (const int32 Nb : M.VtxVerticesItr(Vi)) Near.Add(Nb);
+			UE::Geometry::FDynamicMeshNormalOverlay* No = M.Attributes()->PrimaryNormals();
+			UE::Geometry::FMeshNormals Nm(&M);
+			Nm.RecomputeOverlayNormals(No);
+			for (const int32 E : No->ElementIndicesItr()) if (Near.Contains(No->GetParentVertex(E))) No->SetElement(E, FVector3f(Nm[E]));
+		}
+		return Moved.Num();
+	}
+
 	/** One finished part of a road as a static mesh, each section on the material it was built with (to-do 248, 304: in a
 	 *  packaged game Unreal finds a section's material by its slot's name, which these meshes don't carry - every section
 	 *  came out without one and was drawn as Unreal's grey squares, whatever the slots held). */
 	bool WritePart(MetaRoad::FRoadLayerMeshResult&& Result, AActor* Target)
 	{
+		if (GCurbGaps.Num() && Target)
+		{
+			const int32 Down = CutKerbs(Result.Mesh, FTransform(FVector(Result.PivotOffset)) * Target->GetActorTransform(), GCurbGaps);
+			if (Down) ADP_LOG(TEXT("Roads: %s - %d points brought down to the dropped kerbs at %d crossings"), *Result.BaseAssetName, Down, GCurbGaps.Num());
+		}
 		TSet<int32> Seen;
 		if (Result.Mesh.HasAttributes() && Result.Mesh.Attributes()->HasMaterialID())
 		{
@@ -576,6 +686,96 @@ bool ARoadNetwork::BuildSome(double Budget)
 		for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(TEXT("left"))) Sec.Left.Add(MakeLane(this, L->AsObject()));
 		for (const TSharedPtr<FJsonValue>& L : Lanes->GetArrayField(TEXT("right"))) Sec.Right.Add(MakeLane(this, L->AsObject()));
 		S->UpdateRoadLayout();
+		// ---- where its zebra crossings meet a pavement or an island: the kerb dropped there (CutKerbs, as its parts are made) ----
+		GCurbGaps.Reset();
+		{
+			const TArray<TSharedPtr<FJsonValue>>* GJ = nullptr;
+			if (R->TryGetArrayField(TEXT("crossings"), GJ) && Pts.Num() > 1)
+			{
+				TArray<double> GAl; GAl.Add(0.0);
+				for (int32 k = 1; k < Pts.Num(); ++k) GAl.Add(GAl.Last() + FVector::Dist2D(Pts[k], Pts[k - 1]));
+				auto GapOn = [&](double Dcm, FVector& GP, FVector& GF)
+				{
+					Dcm = FMath::Clamp(Dcm, 0.0, GAl.Last());
+					int32 Lo = 0, Hi = GAl.Num() - 1;
+					while (Hi - Lo > 1) { const int32 Md = (Lo + Hi) / 2; if (GAl[Md] <= Dcm) Lo = Md; else Hi = Md; }
+					const int32 Sg = FMath::Min(Lo, GAl.Num() - 2);
+					const double T = (Dcm - GAl[Sg]) / FMath::Max(GAl[Sg + 1] - GAl[Sg], 1e-6);
+					GP = Origin + FMath::Lerp(Pts[Sg], Pts[Sg + 1], T);
+					GF = (Pts[Sg + 1] - Pts[Sg]).GetSafeNormal2D();
+				};
+				auto IsWalk = [](const FString& T) { return T == TEXT("Sidewalk") || T == TEXT("Island") || T == TEXT("Apron"); };
+				const TArray<TSharedPtr<FJsonValue>>& GLeft = Lanes->GetArrayField(TEXT("left"));
+				const TArray<TSharedPtr<FJsonValue>>& GRight = Lanes->GetArrayField(TEXT("right"));
+				auto TypeOf = [](const TArray<TSharedPtr<FJsonValue>>& Ls, int32 i) { return Ls.IsValidIndex(i) ? Ls[i]->AsObject()->GetStringField(TEXT("type")) : FString(); };
+				for (const TSharedPtr<FJsonValue>& CV : *GJ)
+				{
+					const TSharedPtr<FJsonObject> O = CV->AsObject();
+					const double At = O->GetNumberField(TEXT("at")) * 100.0; double Wd = 3.0; O->TryGetNumberField(TEXT("w"), Wd);
+					FCurbGap G;
+					FVector Fw;
+					GapOn(At, G.C, Fw);
+					G.F = Fw; G.R = FVector(-Fw.Y, Fw.X, 0.0);
+					{ FVector Pa, Pb, Tmp; GapOn(At - 200.0, Pa, Tmp); GapOn(At + 200.0, Pb, Tmp); const double Run = FVector::DotProduct(Pb - Pa, G.F); G.Slope = FMath::Abs(Run) > 1.0 ? (Pb.Z - Pa.Z) / Run : 0.0; }
+					G.H = (Wd * 0.5 + 0.3) * 100.0;
+					// the pavements and islands across the road there, and their kerbs (the edges toward a carriageway)
+					TArray<FVector2D> AllBands; TArray<TArray<double>> AllKerbs;
+					for (int32 Side = 0; Side < 2; ++Side)
+					{
+						const TArray<FRoadLane>& Ls = Side ? Sec.Right : Sec.Left;
+						const TArray<TSharedPtr<FJsonValue>>& Js = Side ? GRight : GLeft;
+						const TArray<TSharedPtr<FJsonValue>>& Other = Side ? GLeft : GRight;
+						const double Sgn = Side ? 1.0 : -1.0;
+						double Off = 0.0;
+						for (int32 i = 0; i < Ls.Num(); ++i)
+						{
+							const double Wl = Ls[i].Width.Eval(float(At));
+							const FString T = TypeOf(Js, i);
+							if (IsWalk(T) && Wl > 30.0)
+							{
+								TArray<double> Ks;
+								const bool bInner = i > 0 ? !IsWalk(TypeOf(Js, i - 1)) : (Other.Num() && !IsWalk(TypeOf(Other, 0)));
+								const bool bOuter = i + 1 < Ls.Num() && !IsWalk(TypeOf(Js, i + 1));
+								if (bInner) Ks.Add(Sgn * Off);
+								if (bOuter) Ks.Add(Sgn * (Off + Wl));
+								AllBands.Add(FVector2D(FMath::Min(Sgn * Off, Sgn * (Off + Wl)), FMath::Max(Sgn * Off, Sgn * (Off + Wl))));
+								AllKerbs.Add(Ks);
+							}
+							Off += Wl;
+						}
+					}
+					// the crossing's own span (default: kerb to kerb), and the bands it meets
+					double CLo = -1e9, CHi = 1e9;
+					{
+						double A0 = 0.0, A1 = 0.0;
+						const bool b0 = O->TryGetNumberField(TEXT("o0"), A0), b1 = O->TryGetNumberField(TEXT("o1"), A1);
+						if (b0 && b1) { CLo = FMath::Min(A0, A1) * 100.0; CHi = FMath::Max(A0, A1) * 100.0; }
+						else
+						{
+							// kerb to kerb: the nearest kerbs either side of the path
+							CLo = -1e9; CHi = 1e9;
+							double L0 = -1e9, R0 = 1e9;
+							for (const TArray<double>& Ks : AllKerbs) for (const double K : Ks) { if (K <= 1.0) L0 = FMath::Max(L0, K); if (K >= -1.0) R0 = FMath::Min(R0, K); }
+							CLo = L0 > -1e8 ? L0 : -1500.0; CHi = R0 < 1e8 ? R0 : 1500.0;
+							if (b0) CLo = A0 * 100.0; if (b1) CHi = A1 * 100.0;
+							if (CLo > CHi) Swap(CLo, CHi);
+						}
+					}
+					G.ALo = CLo - 50.0; G.AHi = CHi + 50.0;
+					for (int32 b = 0; b < AllBands.Num(); ++b)
+					{
+						const FVector2D& B = AllBands[b];
+						bool bMeets = false;
+						for (const double K : AllKerbs[b]) bMeets |= (K >= CLo - 50.0 && K <= CHi + 50.0);
+						if (!bMeets) continue;
+						G.Bands.Add(B); G.Kerbs.Append(AllKerbs[b]);
+						G.ALo = FMath::Min(G.ALo, B.X - 50.0); G.AHi = FMath::Max(G.AHi, B.Y + 50.0);
+					}
+					if (G.Kerbs.Num()) GCurbGaps.Add(G);
+				}
+				if (GCurbGaps.Num()) { GCurbGapsById.Add(Id, GCurbGaps); ADP_LOG(TEXT("Roads: %s - %d zebra ends with a dropped kerb"), *Id, GCurbGaps.Num()); }
+			}
+		}
 		MakeFine(Road);
 		const double TB = FPlatformTime::Seconds();
 		// saved once already, and its plan unchanged: its finished parts placed, nothing built (ARoadNetwork::BakeAll)
@@ -604,6 +804,7 @@ bool ARoadNetwork::BuildSome(double Budget)
 				}
 		if (!bFromBake && !Host->BuildRoad(Road)) { ADP_ERROR(TEXT("Roads: %s did not build"), *Id); continue; }
 		if (!bFromBake && !GBaking) MakeSolid(Road, Id);
+		GCurbGaps.Reset();
 		ADP_LOG(TEXT("Roads: %s %s in %.2f s (%.0f m)"), *Id, bFromBake ? TEXT("placed from its saved parts") : TEXT("built"), FPlatformTime::Seconds() - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0);
 		++Built; Roads.Add(Road); RoadIds.Add(Id);
 		// ---- along the road: where each point is (m), the way it runs, its right (Unreal: x forward, y right) ----
@@ -1257,7 +1458,10 @@ int32 ARoadNetwork::BakeAll(UObject* WorldContext)
 			UDynamicMeshComponent* C = Comps[k];
 			FMeshDescription MD; FStaticMeshAttributes Attr(MD); Attr.Register();
 			FDynamicMeshToMeshDescription Conv;
-			C->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& Mesh) { Conv.Convert(&Mesh, MD, true); });
+			UE::Geometry::FDynamicMesh3 Cut;
+			C->ProcessMesh([&](const UE::Geometry::FDynamicMesh3& Mesh) { Cut = Mesh; });
+			if (const TArray<FCurbGap>* Gs = GCurbGapsById.Find(Id)) CutKerbs(Cut, C->GetComponentTransform(), *Gs);   // (the dropped kerbs at its zebras, saved with it)
+			Conv.Convert(&Cut, MD, true);
 			const FString Name = FString::Printf(TEXT("SM_%s_%d"), *Id.Replace(TEXT("-"), TEXT("_")), k);
 			const FString PkgName = TEXT("/Game/Roads/Baked/") + Name;
 			UPackage* Pkg = CreatePackage(*PkgName);
