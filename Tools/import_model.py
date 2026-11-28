@@ -71,6 +71,12 @@ def main(blend_script, glb, name):
     if name in TWO_SIDED:
         log = editor_py('%s %s' % ((ROOT / 'Tools/fix_two_sided.py').as_posix(), name), 'two-sided')
         print([l.split('materials made')[0][-60:] + 'made two-sided' for l in log.splitlines() if 'ADP_TWOSIDED' in l][-1:])
+    # 4a2. the A320's house livery as glossy paint: new textures + material instances beside the white ones (which stay
+    #      the backup); which one flies is Data/babylon-a320-livery.json, see Tools/make_a320_livery.py
+    if name == 'A320':
+        run([sys.executable, 'Art/A320/Livery/make_livery_mr.py'], 'livery gloss maps')
+        log = editor_py((ROOT / 'Tools/make_a320_livery.py').as_posix(), 'livery')
+        print([l.split('ADP_LIVERY:')[-1][:200] for l in log.splitlines() if 'ADP_LIVERY' in l][-1:])
     # 4b. its colour pictures as colour pictures, never taken for normal maps (the jetway's poster, 2026-11-23)
     log = editor_py('%s %s %s' % ((ROOT / 'Tools/fix_babylon_textures.py').as_posix(), (ROOT / glb).as_posix(), name), 'pictures')
     print([l for l in log.splitlines() if 'ADP_TEXFIX' in l][-1:])

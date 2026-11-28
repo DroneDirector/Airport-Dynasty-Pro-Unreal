@@ -183,6 +183,10 @@ private:
 	TArray<float> LampBase;
 	float LampScale = -1.f;
 	void LampsByDaylight();
+	/** The model's paint scheme from Data/babylon-<name>-livery.json ("livery": "adp" / "white"; -Livery=<name> on the
+	 *  command line wins): each named material of the import swapped for the livery's material instance (the A320's house
+	 *  livery: Tools/make_a320_livery.py). "white" or no file: the import's own materials. */
+	void ApplyLivery(const FString& Name);
 	/** Whites as real paint, strong non-lamp glows halved (Unreal lights them far more than Babylon did). */
 	void ToneDown();
 	/** The entrance canopies' undersides matte (not lamps), the entrance doors' glass as the facade's. */

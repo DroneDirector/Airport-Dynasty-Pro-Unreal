@@ -1,0 +1,11 @@
+{
+  "about": "The A320's paint scheme (ABabylonModel::ApplyLivery). livery: \"adp\" = the house livery Airport Dynasty Pro, glossy clear-coat paint (Tools/make_a320_livery.py); \"white\" = the plain white import, kept as the backup. -Livery=white on the command line wins. Copy kept in Content/Data (the editor reads that first).",
+  "livery": "adp",
+  "liveries": {
+    "white": {},
+    "adp": {
+      "Fuse-Main_Fuse-Main": "/Game/Babylon/A320/Livery/MI_A320_Livery_ADP_Fuse",
+      "engine-CFM56_engine-CFM56": "/Game/Babylon/A320/Livery/MI_A320_Livery_ADP_Engine"
+    }
+  }
+}

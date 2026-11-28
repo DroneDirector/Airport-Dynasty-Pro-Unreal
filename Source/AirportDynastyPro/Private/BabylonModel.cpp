@@ -357,6 +357,7 @@ bool ABabylonModel::Place(const FString& Name)
 		LightFittings(Nodes, NodeWorld, NodeInst);
 		ReplaceSeats(Nodes, NodeWorld, NodeInst);
 	}
+	ApplyLivery(Name);   // (before ToneDown: the livery's paint is toned as the white was)
 	ToneDown();
 	MatchSurfaces();
 	// (the airport's name on its pictures, the active site's - a few seconds in: drawn at once, the pictures were still white)
@@ -401,6 +402,38 @@ namespace
 		if (!FParse::Param(FCommandLine::Get(), TEXT("OldTerminal"))) return nullptr;
 		return LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/Babylon/Terminal/terminal/Materials/%s.%s"), N, N));
 	}
+}
+
+void ABabylonModel::ApplyLivery(const FString& Name)
+{
+	// the paint scheme by data, so every copy of the model flies it and the white stays one word away (owner 2026-11-28)
+	const FString File = FString::Printf(TEXT("Data/babylon-%s-livery.json"), *Name.ToLower());
+	FString Path = FPaths::Combine(FPaths::ProjectContentDir(), File);
+	if (!FPaths::FileExists(Path)) Path = FPaths::Combine(FPaths::ProjectDir(), File);
+	FString Text;
+	if (!FPaths::FileExists(Path) || !FFileHelper::LoadFileToString(Text, *Path)) return;
+	TSharedPtr<FJsonObject> J;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J) { ADP_WARN(TEXT("Livery: %s unreadable"), *File); return; }
+	FString Want = J->GetStringField(TEXT("livery"));
+	FParse::Value(FCommandLine::Get(), TEXT("Livery="), Want);
+	const TSharedPtr<FJsonObject>* All = nullptr; const TSharedPtr<FJsonObject>* Set = nullptr;
+	if (!J->TryGetObjectField(TEXT("liveries"), All) || !(*All)->TryGetObjectField(Want, Set)) { ADP_LOG(TEXT("Livery %s: %s (the import's own)"), *Name, *Want); return; }
+	TMap<FString, UMaterialInterface*> Swap;
+	for (const TPair<FString, TSharedPtr<FJsonValue>>& E : (*Set)->Values)
+	{
+		FString P = E.Value->AsString();
+		if (!P.Contains(TEXT("."))) P += TEXT(".") + FPackageName::GetShortName(P);
+		if (UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, *P)) Swap.Add(E.Key, M);
+		else ADP_WARN(TEXT("Livery %s/%s: %s missing (Tools/make_a320_livery.py), %s stays as imported"), *Name, *Want, *P, *E.Key);
+	}
+	int32 Slots = 0;
+	TArray<UInstancedStaticMeshComponent*> Parts;
+	GetComponents(Parts);
+	for (UInstancedStaticMeshComponent* K : Parts)
+		for (int32 S = 0; S < K->GetNumMaterials(); ++S)
+			if (const UMaterialInterface* M = K->GetMaterial(S))
+				if (UMaterialInterface** To = Swap.Find(MatName(M))) { K->SetMaterial(S, *To); ++Slots; }
+	ADP_LOG(TEXT("Livery %s: %s, %d materials on %d slots"), *Name, *Want, Swap.Num(), Slots);
 }
 
 void ABabylonModel::ToneDown()
