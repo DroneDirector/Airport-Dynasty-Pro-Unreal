@@ -32,14 +32,14 @@ GUS="$LOCALAPPDATA/AirportDynastyPro/Saved/Config/Windows/GameUserSettings.ini"
 trap '[ -f "$TEMP/GUS-perfwalk.ini" ] && cp "$TEMP/GUS-perfwalk.ini" "$GUS"' EXIT
 if [ "$1" = "editor" ]; then
   L=$R/Saved/Logs
-  "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cd $R && pwd -W)/AirportDynastyPro.uproject" -game -UIShot $ROUTE -StallWatch -windowed -ResX=1920 -ResY=1080 -nosplash > /dev/null 2>&1
+  "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cd $R && pwd -W)/AirportDynastyPro.uproject" -game -UIShot $ROUTE -Site=chablais -LocalTerrain -StallWatch -windowed -ResX=1920 -ResY=1080 -nosplash > /dev/null 2>&1
   STEPS=$L/AirportDynastyPro.log
 else
   # (PKG=<folder> runs a test package instead, e.g. PKG=/f/ADP-Packaged/test-coaches/Windows - built without a release)
   V=${PKG:-$(ls -d /f/ADP-Packaged/0.*/Full 2>/dev/null | sort -V | tail -1)}; [ -n "$V" ] || { echo "STOP: no packaged build"; exit 1; }
   echo "build: $V"
   L="$LOCALAPPDATA/AirportDynastyPro/Saved/Logs"
-  (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -StallWatch $OFF $XTRA ${EXE:+"-ExecCmds=$EXE"} > /dev/null 2>&1)
+  (cd "$V" && ADP_LOG=1 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot $ROUTE -Site=chablais -LocalTerrain -StallWatch $OFF $XTRA ${EXE:+"-ExecCmds=$EXE"} > /dev/null 2>&1)
   STEPS=$L/ADP.log
 fi
 grep -q "Stress walk: STOP - the ground is missing" "$STEPS" && { echo "STOP: the ground is missing (no terrain installed) - fix the ground first, then walk again"; exit 2; }
