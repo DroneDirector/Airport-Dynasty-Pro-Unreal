@@ -16,6 +16,8 @@
 #include "AircraftLights.h"
 #include "TerminalPlan.h"
 #include "WindSocks.h"
+#include "Puddles.h"
+#include "Sim/ADPWeather.h"
 #include "Site.h"
 #include "Sim/ADPSim.h"
 #include "Sim/ADPBoards.h"
@@ -40,8 +42,79 @@ namespace
 {
 	constexpr float KtMs = 0.5144f;
 	constexpr float Wheelbase = 12.64f;        // A320: nose gear to main gear
-	constexpr float MaxTaxi = 25.f * KtMs, TurnTaxi = 10.f * KtMs, StandTaxi = 5.f * KtMs, PushSpeed = 3.f * KtMs;
-	constexpr float Vr = 140.f * KtMs, Vapp = 135.f * KtMs, Glide = 3.f;
+	// THE PERFORMANCE TABLE, one row per aircraft type (owner 11-28: real speeds, real braking, the wind counted; every type
+	// its own real figures) - only speeds, decelerations, timings and the turning radius; the movement itself is the one
+	// below. A type without a row flies on the A320 row, logged once. Speeds are IAS at the reference mass (they go with
+	// the square root of the mass); the groundspeed is the IAS less the headwind.
+	// A320-200 sources: Airbus A320 FCOM DSC-32-30 (autobrake LO 1.7 m/s2, MED 3.0 m/s2; reverse idle by 70 kt), FCOM
+	// PRO-NOR-SOP (taxi about 20 kt straight, about 10 kt in turns; VAPP = VLS + 1/3 of the headwind, at least 5 and at most
+	// 15 kt; idle at about 20 ft, a few kt lost in the flare); Airbus "Getting to Grips with Aircraft Performance" (2002:
+	// VR about 140-150 kt and V2 about VR + 4 kt at mid weight, the take-off distance about with the mass squared; climb at
+	// V2+10, accelerating from 1,500 ft as in the ICAO NADP); ICAO Annex 11 / SERA: 250 kt below FL100; FCOM limitations:
+	// VMO 350 kt, MMO 0.82, cruise about M0.78 (about 450 kt TAS); Airbus Flight Operations Briefing Note "Landing on
+	// Contaminated Runways" and EASA AMC 25.1591: stopping distance about x1.3-1.5 wet, about x2 on snow / compact snow;
+	// Airbus "A320 Aircraft Characteristics - Airport and Maintenance Planning" 4-3: about 22 m turning radius at the wing
+	// tip at full nose-wheel steering (75 deg), a 180 deg turn on about 23 m of pavement.
+	// Mass: typical mid weight 64 t (MTOW 78 t, MLW 66 t, empty about 42.6 t).
+	struct FAcPerf
+	{
+		const TCHAR* Type;
+		float MaxTaxiKt, TurnTaxiKt, StandTaxiKt, PushKt, MinTurnRadiusM;
+		float RefMassT, EmptyT, PaxT, DepFuelT, ArrFuelT, MinMassT, MaxMassT;
+		float VrKt, V2Kt, InitClimbAddKt, AccelHeightM, ClimbKt, CruiseKt, TopKt;   // (V2 + InitClimbAdd to the acceleration height, then ClimbKt below FL100; CruiseKt TAS, TopKt VMO)
+		float VlsKt, VappMinAddKt, VappMaxAddKt, TouchdownKt;   // (VAPP = VLS + the wind addition; TouchdownKt in calm air)
+		float RollAcc, ClimbAcc, FlareDec;   // m/s2: the take-off roll at the reference mass, V2+10 to the climb speed, the flare at idle
+		float SpoilerDelayS, FreeRollDec;    // ground spoilers + autobrake about 2 s after the mains touch; the free roll till then
+		float BrakeLowDry, BrakeMedDry, BrakeWetFactor, BrakeSnowFactor;   // autobrake LOW / MED on dry (m/s2); the stop's length wet, on snow
+		float VacateKt;                      // the autobrake off and the exit reached at taxi speed
+	};
+	const FAcPerf AcPerfTab[] =
+	{
+		//  type        taxi  turn  stand push turnR  ref   empty  pax   fuelD fuelA min   max    Vr     V2     +10   accel  climb  cruise top    VLS    +min +max  TD     roll   climb flare spoil free  LOW   MED  wet   snow vacate
+		{ TEXT("A320"), 20.f, 10.f, 5.f, 3.f, 22.f,   64.f, 42.6f, 0.1f, 8.f, 3.5f, 50.f, 78.f,  143.f, 147.f, 10.f, 457.f, 250.f, 450.f, 350.f, 134.f, 5.f, 15.f, 132.f, 1.75f, 0.5f, 1.4f, 2.f, 0.4f, 1.7f, 3.f, 1.4f, 2.f, 20.f },
+	};
+	const FAcPerf& PerfFor(const FString& Type)
+	{
+		for (const FAcPerf& R : AcPerfTab) if (Type.Equals(R.Type, ESearchCase::IgnoreCase) || Type.StartsWith(FString(R.Type) + TEXT("-"), ESearchCase::IgnoreCase)) return R;
+		static TSet<FString> Told;
+		if (!Told.Contains(Type)) { Told.Add(Type); ADP_WARN(TEXT("Traffic: no performance row for aircraft type '%s' - it uses the A320 figures"), Type.IsEmpty() ? TEXT("(none)") : *Type); }
+		return AcPerfTab[0];
+	}
+	constexpr float Glide = 3.f;
+	// the mass (t) by its load: the empty mass, the passengers with their bags, the fuel on board (more leaving than arriving)
+	float MassFor(const FAcPerf& Pf, int32 Pax, bool bDep) { return FMath::Clamp(Pf.EmptyT + Pax * Pf.PaxT + (bDep ? Pf.DepFuelT : Pf.ArrFuelT), Pf.MinMassT, Pf.MaxMassT); }
+	float MassK(const FAcPerf& Pf, float MassT) { return FMath::Sqrt(FMath::Clamp(MassT, Pf.MinMassT, Pf.MaxMassT) / Pf.RefMassT); }
+	float VrMs(const FAcPerf& Pf, float MassT) { return Pf.VrKt * MassK(Pf, MassT) * KtMs; }
+	float V2Ms(const FAcPerf& Pf, float MassT) { return Pf.V2Kt * MassK(Pf, MassT) * KtMs; }
+	// the headwind along the runway in use (m/s, - a tailwind): groundspeed = IAS - headwind. The surface wind is used aloft too.
+	float HeadMs(bool bToX1)
+	{
+		double Hdg = 336.0; if (TSharedPtr<FJsonObject> A = ADPSite::AirportBlock()) A->TryGetNumberField(TEXT("hdg"), Hdg);
+		if (!bToX1) Hdg += 180.0;
+		return AWindSocks::WindKt * FMath::Cos(FMath::DegreesToRadians(AWindSocks::WindFrom - float(Hdg))) * KtMs;
+	}
+	float VappMs(const FAcPerf& Pf, float MassT, float Head) { return (Pf.VlsKt * MassK(Pf, MassT) + FMath::Clamp(Head / KtMs / 3.f, Pf.VappMinAddKt, Pf.VappMaxAddKt)) * KtMs; }
+	float TouchdownLossMs(const FAcPerf& Pf) { return FMath::Max(0.f, Pf.VlsKt + Pf.VappMinAddKt - Pf.TouchdownKt) * KtMs; }   // (about 7 kt lost in the flare)
+	// the runway's surface: the site's weather (live report, else the built-in climate) and the ground's own wetness; dry by default
+	enum class ERwyCond : uint8 { Dry, Wet, Snow };
+	ERwyCond RunwayCond()
+	{
+		static ERwyCond Cond = ERwyCond::Dry; static double Next = 0.0;
+		const double Now = FPlatformTime::Seconds();
+		if (Now < Next) return Cond;
+		Next = Now + 30.0;
+		ERwyCond C = ERwyCond::Dry;
+		if (const TSharedPtr<FJsonObject> Ap = ADPSite::AirportBlock())
+		{
+			double La = 0, Lo = 0; FString Icao; Ap->TryGetNumberField(TEXT("lat"), La); Ap->TryGetNumberField(TEXT("lon"), Lo); Ap->TryGetStringField(TEXT("icao"), Icao);
+			const FADPWx X = ADPWeather::At(Icao, La, Lo, FDateTime::UtcNow());
+			C = X.bSnow || X.bFreezing ? ERwyCond::Snow : X.bRain ? ERwyCond::Wet : ERwyCond::Dry;
+		}
+		if (C == ERwyCond::Dry) if (const APuddles* P = APuddles::Get()) if (P->GetWetness() > 0.3f) C = ERwyCond::Wet;   // (still wet after the rain)
+		if (C != Cond) ADP_LOG(TEXT("Traffic: the runway is %s now"), C == ERwyCond::Snow ? TEXT("snow-covered") : C == ERwyCond::Wet ? TEXT("wet") : TEXT("dry"));
+		return Cond = C;
+	}
+	float CondFactor(const FAcPerf& Pf, ERwyCond C) { return C == ERwyCond::Snow ? Pf.BrakeSnowFactor : C == ERwyCond::Wet ? Pf.BrakeWetFactor : 1.f; }
 	float Heading(const FVector2f& From, const FVector2f& To) { return FMath::Atan2(To.Y - From.Y, To.X - From.X); }
 	constexpr float TenK = 3048.f, FlareM = 9.f;   // 10,000 ft; the flare from about 30 ft (metres over the runway)
 	// test only (-AirplaneTest, never in normal play): a departure 20 s after lift-off is put at 10,000 ft on its climb track
@@ -228,7 +301,7 @@ static TArray<FVector2f> LineUpPath(float LineUp, float RY, float Dir, float Sid
 		const float Th = HALF_PI * k / 9.f;
 		P.Add(C + FVector2f(-Dir * LineUpR * FMath::Cos(Th), -Side * LineUpR * FMath::Sin(Th)));
 	}
-	P.Add(FVector2f(LineUp + Dir * 1700.f, RY));
+	P.Add(FVector2f(LineUp + Dir * 3000.f, RY));   // (room for the real roll: up to about 2,500 m to lift-off at 78 t with a tailwind)
 	return P;
 }
 
@@ -307,7 +380,7 @@ void ASimTraffic::Sync()
 				}
 			}
 			if (!St) { ADP_WARN(TEXT("Traffic: %s leaves unseen - no stand on record and none free"), *Fl.Reg); continue; }
-			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Push;
+			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Push; M.TypeId = A ? A->TypeId : FString(); M.MassT = MassFor(PerfFor(M.TypeId), Fl.Pax + Fl.PaxJ + Fl.PaxF, true);
 			// at the stand: nose tyre on the stop bar, the body behind it, pushed straight back onto the taxilane
 			M.Nose = St->Frame().P(0.f, 0.f); M.Main = St->Frame().P(0.f, Wheelbase);
 			// pushed back and turned (as a real pushback): straight back from the stand, then the tail swung round a 40 m arc (PushRadius) so the
@@ -332,12 +405,12 @@ void ASimTraffic::Sync()
 		if (Fl.To == Here && Fl.Diverted.IsEmpty() && (OnBlocks - Now).GetTotalMinutes() <= 9.0 && (OnBlocks - Now).GetTotalMinutes() > 0.0)
 		{
 			Seen.Add(Fl.Id);
-			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = false; M.Phase = EPhase::Approach;
+			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = false; M.Phase = EPhase::Approach; M.TypeId = A ? A->TypeId : FString(); M.MassT = MassFor(PerfFor(M.TypeId), Fl.Pax + Fl.PaxJ + Fl.PaxF, false);
 			M.Stand = A ? A->Stand : FString();
 			// a straight-in 3 degree approach to the touchdown zone (500 m past the threshold), 12 km out (630 m: the gear comes down at 600 m)
 			const float Dir = bToX1 ? 1.f : -1.f, Thr = bToX1 ? X0 : X1, TD = Thr + Dir * 500.f, From = 12000.f;
 			M.Nose = FVector2f(TD - Dir * From, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
-			M.Height = From * FMath::Tan(FMath::DegreesToRadians(Glide)); M.Speed = Vapp;
+			M.Height = From * FMath::Tan(FMath::DegreesToRadians(Glide)); { const float Hd = HeadMs(bToX1); M.Speed = VappMs(PerfFor(M.TypeId), M.MassT, Hd) - Hd; }   // (groundspeed)
 			M.Path = {FVector2f(TD, RY)};
 			Moves.Add(M); ADPParked::Coming.Add(Fl.Reg);
 		}
@@ -416,18 +489,18 @@ bool ASimTraffic::TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg)
 	if (!T) { ADP_WARN(TEXT("Traffic: test %s - no traffic here"), bTakeoff ? TEXT("take-off") : TEXT("landing")); return false; }
 	if (RunwayBusy(W)) { ADP_WARN(TEXT("Traffic: test %s - the runway is busy"), bTakeoff ? TEXT("take-off") : TEXT("landing")); return false; }
 	const bool bToX1 = T->RunwayToX1(); const float Dir = bToX1 ? 1.f : -1.f, RY = T->F.RwyY;
-	FMove M; M.Reg = Reg = bTakeoff ? TEXT("HB-TOFF") : TEXT("HB-LAND"); M.FlightId = TEXT("TEST-") + M.Reg; M.bDeparture = bTakeoff;
+	FMove M; M.TypeId = TEXT("A320"); M.Reg = Reg = bTakeoff ? TEXT("HB-TOFF") : TEXT("HB-LAND"); M.FlightId = TEXT("TEST-") + M.Reg; M.bDeparture = bTakeoff;
 	if (bTakeoff)
 	{
 		const float LineUp = bToX1 ? T->F.RwyX0 + 20.f : T->F.RwyX1 - 20.f;
 		M.Phase = EPhase::Roll; M.Nose = FVector2f(LineUp + Dir * LineUpR, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);   // (lined up at the end: LineUpPath)
-		M.Path = {M.Nose, FVector2f(LineUp + Dir * 1700.f, RY)};
+		M.Path = {M.Nose, FVector2f(LineUp + Dir * 3000.f, RY)};
 	}
 	else
 	{
-		const float Thr = bToX1 ? T->F.RwyX0 : T->F.RwyX1, TD = Thr + Dir * 500.f, Out = Vapp * FMath::Max(SecOut, 5.f);
+		const float Thr = bToX1 ? T->F.RwyX0 : T->F.RwyX1, TD = Thr + Dir * 500.f, Hd = HeadMs(bToX1), Out = (VappMs(PerfFor(TEXT("A320")), M.MassT, Hd) - Hd) * FMath::Max(SecOut, 5.f);
 		M.Phase = EPhase::Approach; M.Nose = FVector2f(TD - Dir * Out, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
-		M.Height = Out * FMath::Tan(FMath::DegreesToRadians(Glide)); M.Speed = Vapp; M.Path = {FVector2f(TD, RY)};
+		M.Height = Out * FMath::Tan(FMath::DegreesToRadians(Glide)); M.Speed = VappMs(PerfFor(TEXT("A320")), M.MassT, Hd) - Hd; M.Path = {FVector2f(TD, RY)};
 		M.Stand = T->FreeStand();   // (no flight, no stand from the simulation: a free one to taxi in to)
 	}
 	if (T->Moves.ContainsByPredicate([&](const FMove& O) { return O.Reg == Reg; })) { ADP_WARN(TEXT("Traffic: test %s is still about"), *Reg); return false; }
@@ -454,7 +527,7 @@ bool ASimTraffic::TestTaxiOut(UWorld* W, FString& Reg)
 	if (!St) { ADP_WARN(TEXT("Traffic: test taxi-out - no free passenger stand")); return false; }
 	// on the taxilane by the stand, as the push leaves it: the main gear on T at the stand, the nose towards the connector
 	const float Dx = TaxiOutDir(*St, T->RunwayToX1());
-	FMove M; M.Reg = Reg; M.FlightId = TEXT("TEST-") + Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Taxi;
+	FMove M; M.TypeId = TEXT("A320"); M.Reg = Reg; M.FlightId = TEXT("TEST-") + Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Taxi;
 	M.Main = FVector2f(St->X, T->F.TY); M.Nose = M.Main + FVector2f(Dx * Wheelbase, 0.f);
 	T->TaxiOutPath(M);
 	T->Seen.Add(M.FlightId);
@@ -521,9 +594,9 @@ void ASimTraffic::TaxiOutPath(FMove& M)
 
 // (11-28 owner: gentle smooth taxi turns) each corner of a taxi path becomes an arc of about 40 m radius - the curved
 // centre line a pilot follows - instead of a kink where the nose wheel snapped to the next leg; the ends stay exact
-static void RoundCorners(const FVector2f& From, TArray<FVector2f>& Path)
+static void RoundCorners(const FVector2f& From, TArray<FVector2f>& Path, float MinR = 0.f)
 {
-	constexpr float R = 40.f;
+	const float R = FMath::Max(40.f, MinR);   // (about 40 m, never under the type's minimum turning radius)
 	if (Path.Num() < 2) return;
 	TArray<FVector2f> Out; Out.Reserve(Path.Num() * 4);
 	for (int32 i = 0; i < Path.Num(); ++i)
@@ -548,11 +621,14 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 {
 	if ((M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn || M.Phase == EPhase::Rollout) && M.Step == 0 && M.Path.Num() > 1 && (M.Path.Num() != M.RoundedNum || M.Path.Last() != M.RoundedEnd))
 	{
-		RoundCorners(M.Nose, M.Path);
+		RoundCorners(M.Nose, M.Path, PerfFor(M.TypeId).MinTurnRadiusM);
 		M.RoundedNum = M.Path.Num(); M.RoundedEnd = M.Path.Last();
 	}
 	const bool bToX1 = RunwayToX1();
 	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, X0 = F.RwyX0, X1 = F.RwyX1, Hold = 107.5f;
+	const float Head = HeadMs(bToX1);   // (m/s along the runway in use; - a tailwind)
+	const FAcPerf& Pf = PerfFor(M.TypeId);   // (its type's row of the performance table)
+	const float MaxTaxi = Pf.MaxTaxiKt * KtMs, TurnTaxi = Pf.TurnTaxiKt * KtMs, StandTaxi = Pf.StandTaxiKt * KtMs, PushSpeed = Pf.PushKt * KtMs;
 	const FAirfieldData::FStand* MySt = M.bDeparture ? F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; }) : nullptr;
 	const bool bCargoSt = MySt && MySt->bCargo; const float LaneY = bCargoSt ? F.KY : F.TY;   // (the taxilane it is pushed onto)
 	// the tower (to-do 378, RunwayRadio.h): in the game and in the tests alike nothing goes onto the runway, lands or taxis in
@@ -737,10 +813,11 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		for (int32 i = M.Step + 1; i < M.Path.Num() - 1; ++i) Rem += FVector2f::Distance(M.Path[i - 1], M.Path[i]);
 		Want = FMath::Min(TurnTaxi, 0.3f + FMath::Sqrt(1.2f * Rem));
 	}
-	else if (M.Phase == EPhase::Roll) Want = M.Clock < 4.f ? 0.f : Vr * 1.1f;   // (a moment lined up, then the take-off power)
-	else if (M.Phase == EPhase::Climb) Want = 160.f * KtMs;
-	else if (M.Phase == EPhase::Approach) Want = Vapp;
-	else if (M.Phase == EPhase::Rollout) Want = FMath::Abs(M.Nose.X - 81.f) < 80.f ? TurnTaxi : 20.f * KtMs;   // (about 10 kt for the turn off at the exit)
+	// (on the runway and in the air the table's speeds are IAS: the groundspeed M.Speed is the IAS less the headwind)
+	else if (M.Phase == EPhase::Roll) Want = M.Clock < 4.f ? 0.f : VrMs(Pf, M.MassT) + 20.f * KtMs - Head;   // (a moment lined up, then the take-off power: never reached before lift-off)
+	else if (M.Phase == EPhase::Climb) Want = M.b10k ? M.Speed : M.Height < Pf.AccelHeightM ? V2Ms(Pf, M.MassT) + Pf.InitClimbAddKt * KtMs - Head : FMath::Min(Pf.ClimbKt, Pf.TopKt) * KtMs - Head;   // (V2+10, then 250 kt below FL100; the -AirplaneTest jump keeps its speed for its fixed turn)
+	else if (M.Phase == EPhase::Approach) Want = VappMs(Pf, M.MassT, Head) - (M.Height < FlareM ? TouchdownLossMs(Pf) : 0.f) - Head;   // (VAPP; idle in the flare to touch down about 7 kt slower)
+	else if (M.Phase == EPhase::Rollout) Want = FMath::Abs(M.Nose.X - 81.f) < 80.f ? TurnTaxi : Pf.VacateKt * KtMs;   // (about 10 kt for the turn off at the exit)
 	else if (M.Step < M.Path.Num())
 	{
 		const float H0 = Heading(M.Main, M.Nose);
@@ -762,9 +839,30 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		}
 	}
 	if (bTaxiInHeld) Want = M.Step >= 1 ? 0.f : FMath::Min(Want, FMath::Max(0.4f, FMath::Sqrt(FVector2f::Distance(M.Nose, M.Path[0]))));   // (waits on the exit for its taxi clearance)
-	const float Acc = M.Phase == EPhase::Roll ? 2.2f : M.Phase == EPhase::Rollout ? -2.f : 0.6f;
-	if (M.Phase == EPhase::Rollout) M.Speed = FMath::Max(Want, M.Speed + Acc * Dt);
-	else M.Speed = FMath::FInterpConstantTo(M.Speed, Want, Dt, FMath::Abs(Acc) + 0.4f);
+	// the rates (m/s2, the table): the take-off roll by the mass (thrust over mass), the line-up turn as before, the climb's
+	// acceleration, the flare's idle; the landing roll: a free roll till the spoilers and autobrake come on, then the
+	// autobrake chosen at touchdown on this surface (reversers in to about 70 kt, then the brakes alone - Spoilers()),
+	// harder only if that would carry it past the exit (logged), off at taxi speed
+	float Rate = 1.f;
+	if (M.Phase == EPhase::Roll) Rate = M.Step < M.Path.Num() - 1 ? 2.6f : Pf.RollAcc * Pf.RefMassT / FMath::Clamp(M.MassT, Pf.MinMassT, Pf.MaxMassT);
+	else if (M.Phase == EPhase::Climb && M.Height >= Pf.AccelHeightM) Rate = Pf.ClimbAcc;
+	else if (M.Phase == EPhase::Approach && M.Height < FlareM) Rate = Pf.FlareDec;
+	if (M.Phase == EPhase::Rollout)
+	{
+		float Dec = M.NoseT < Pf.SpoilerDelayS ? Pf.FreeRollDec : M.AbDec;
+		const float VEx = Pf.VacateKt * KtMs, Rem = FMath::Abs(M.Nose.X - 81.f) - 80.f;
+		if (M.NoseT >= Pf.SpoilerDelayS && M.Speed > VEx)
+		{
+			const float Need = (M.Speed * M.Speed - VEx * VEx) / (2.f * FMath::Max(Rem, 1.f));
+			if (Need > Dec * 1.02f)
+			{
+				if (!M.bHardBrake) ADP_LOG(TEXT("Traffic: %s brakes harder (%.1f m/s2, autobrake %.1f) to make the exit at %.0f kt, %.0f m to go"), *M.Reg, Need, M.AbDec, M.Speed / KtMs, Rem);
+				M.bHardBrake = true; Dec = Need;
+			}
+		}
+		M.Speed = FMath::Max(Want, M.Speed - Dec * Dt);
+	}
+	else M.Speed = FMath::FInterpConstantTo(M.Speed, Want, Dt, Rate);
 	// the nose wheel along the waypoints; the main gear trails it at the wheelbase (backwards when pushed)
 	float Left = M.Speed * Dt;
 	if (M.Phase == EPhase::Push && M.YouFwd.Num())
@@ -812,9 +910,9 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	// (about 1 deg/s, slower at the end) until the nose wheel touches softly. The pitch's own rate is eased too (EasePitch):
 	// never a jump in the attitude or in its rate
 	float PitchWant = 0.f, PitchRate = 3.f;
-	if (M.Phase == EPhase::Roll && M.Step >= 1 && (M.RotT >= 0.f || M.Speed >= Vr))
+	if (M.Phase == EPhase::Roll && M.Step >= 1 && (M.RotT >= 0.f || M.Speed + Head >= VrMs(Pf, M.MassT)))
 	{
-		if (M.RotT < 0.f) ADP_LOG(TEXT("Traffic: %s rotates at %.0f kt (about 3 deg/s)"), *M.Reg, M.Speed / KtMs);
+		if (M.RotT < 0.f) ADP_LOG(TEXT("Traffic: %s rotates at %.0f kt IAS (%.0f kt groundspeed, %.0f t, %.0f m rolled; about 3 deg/s)"), *M.Reg, (M.Speed + Head) / KtMs, M.Speed / KtMs, M.MassT, FMath::Abs(M.Nose.X - (bToX1 ? X0 : X1)));
 		M.RotT = FMath::Max(0.f, M.RotT) + Dt; PitchWant = 11.f;
 	}
 	else if (M.Phase == EPhase::Climb) { M.RotT += Dt; PitchWant = M.b10k && M.Height >= TenK ? 6.f : 15.f; PitchRate = 1.5f; }
@@ -919,6 +1017,17 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		// touched down: the roll-out to the exit
 		M.Phase = EPhase::Rollout; M.Height = 0.f; M.Path = {FVector2f(81.f, RY)};
 		M.NoseT = 0.f; M.bNoseDown = false;
+		{
+			// the autobrake as the crew set it: LOW if it stops for the exit on this surface, else MED (FCOM); the surface
+			// lengthens the stop (the table's factors)
+			const ERwyCond Cond = RunwayCond(); const float Fc = CondFactor(Pf, Cond), VEx = Pf.VacateKt * KtMs;
+			const float Avail = FMath::Abs(M.Nose.X - 81.f) - 80.f - M.Speed * Pf.SpoilerDelayS;
+			const float LowD = (M.Speed * M.Speed - VEx * VEx) / (2.f * Pf.BrakeLowDry / Fc);
+			const bool bLow = LowD <= Avail;
+			M.AbDec = (bLow ? Pf.BrakeLowDry : Pf.BrakeMedDry) / Fc; M.bHardBrake = false;
+			ADP_LOG(TEXT("Traffic: %s autobrake %s on a %s runway (%.1f m/s2), %.0f kt IAS, %.0f kt headwind, %.0f t, %.0f m to the exit"), *M.Reg, bLow ? TEXT("LOW") : TEXT("MED"),
+				Cond == ERwyCond::Snow ? TEXT("snow-covered") : Cond == ERwyCond::Wet ? TEXT("wet") : TEXT("dry"), M.AbDec, (M.Speed + HeadMs(bToX1)) / KtMs, HeadMs(bToX1) / KtMs, M.MassT, FMath::Abs(M.Nose.X - 81.f));
+		}
 		ADP_LOG(TEXT("Traffic: %s main gear touches down at %.0f kt, %.1f deg nose up - the struts compress, the wheels spin up"), *M.Reg, M.Speed / KtMs, M.Pitch);
 		TouchSmoke(M);
 		return false;

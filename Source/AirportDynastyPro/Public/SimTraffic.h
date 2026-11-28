@@ -77,6 +77,10 @@ private:
 		//  (-1 on the ground); NoseT seconds since the mains touched; b10k: the test jump to 10,000 ft done (-AirplaneTest only);
 		//  bNoseDown: the nose wheel is on the runway again; bBelt: the 10,000 ft seatbelt announcement asked for)
 		float PitchV = 0.f, LiftT = -1.f, NoseT = -1.f; bool b10k = false, bNoseDown = false, bBelt = false;
+		// (11-28 owner, real speeds and braking - the A320 table in SimTraffic.cpp: MassT its mass by the load (t); AbDec the
+		//  landing roll's deceleration chosen at touchdown (autobrake LOW or MED on this surface, m/s2); bHardBrake: braked
+		//  harder than that to make the exit, logged once)
+		float MassT = 64.f, AbDec = 1.7f; bool bHardBrake = false; FString TypeId;   // (TypeId: its row in the performance table)
 		// a turn in the air flown as a true arc (11-28 owner: the A320 jittered while turning - the nose followed 1 deg chords
 		//  with the main gear trailing it like a taxi, a yaw-rate sawtooth of about 1-6 deg/s three times a second): the leg to
 		//  Path[ArcStep] is flown round centre ArcC (radius ArcR, from ArcD/ArcN at angle ArcA), the heading its exact tangent
