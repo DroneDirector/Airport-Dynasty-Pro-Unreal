@@ -3,10 +3,11 @@
 #include "ADPKeep.h"
 #include "ADPLog.h"
 #include "PerfLog.h"
-#include "Components/StaticMeshComponent.h"
+#include "Components/MaterialBillboardComponent.h"
 #include "Components/DecalComponent.h"
 #include "Components/SpotLightComponent.h"
-#include "Engine/StaticMesh.h"
+#include "Components/PointLightComponent.h"
+#include "Curves/CurveFloat.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -28,6 +29,7 @@ namespace
 		FVector At = FVector::ZeroVector, Dir = FVector::ZeroVector; bool bDir = false; float Cone = 180.f;
 		FLinearColor Col = FLinearColor::White;
 		float Glow = 0.f, Size = 0.f, Skin = 0.f, Reach = 0.f, Lumens = 0.f, Range = 0.f; bool bPool = false;
+		float Cd = 0.f, Radius = 0.f;   // its real light on the nearest aircraft: candela (at night) and where it ends (m)
 		bool bNoseGear = false;   // ("on": "nose-gear": on the nose leg's strut - folds with it, lit only when it is down and locked)
 	};
 	struct FType { FString Name; TArray<FLamp> Lamps; };
@@ -82,6 +84,8 @@ namespace
 				if (O->TryGetNumberField(TEXT("reach"), D)) L.Reach = D;
 				if (O->TryGetNumberField(TEXT("lumens"), D)) L.Lumens = D;
 				if (O->TryGetNumberField(TEXT("range"), D)) L.Range = D;
+				if (O->TryGetNumberField(TEXT("cd"), D)) L.Cd = D;
+				if (O->TryGetNumberField(TEXT("radius"), D)) L.Radius = D;
 				O->TryGetBoolField(TEXT("pool"), L.bPool);
 				FString On; if (O->TryGetStringField(TEXT("on"), On)) L.bNoseGear = On == TEXT("nose-gear");
 				Ty.Lamps.Add(L);
@@ -106,14 +110,30 @@ namespace
 	}
 }
 
-bool ADPAircraftLights::Night(const UWorld* W)
+namespace
 {
-	static TWeakObjectPtr<ADirectionalLight> Sun;
-	static TWeakObjectPtr<const UWorld> SunW;
-	if (!W) return false;
-	if (!Sun.IsValid() || SunW.Get() != W) { Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(W, ADirectionalLight::StaticClass())); SunW = W; }
-	return Sun.IsValid() && -Sun->GetActorRotation().Pitch < 0.f;   // (the sun's height, as BabylonModel's LampsByDaylight reads it)
+	// the sun's height in degrees (as BabylonModel's LampsByDaylight reads it); -90 when there is no sun
+	float SunHeight(const UWorld* W)
+	{
+		static TWeakObjectPtr<ADirectionalLight> Sun;
+		static TWeakObjectPtr<const UWorld> SunW;
+		if (!W) return -90.f;
+		if (!Sun.IsValid() || SunW.Get() != W) { Sun = Cast<ADirectionalLight>(UGameplayStatics::GetActorOfClass(W, ADirectionalLight::StaticClass())); SunW = W; }
+		return Sun.IsValid() ? float(-Sun->GetActorRotation().Pitch) : -90.f;
+	}
+	// The lamps' strength against the light round them (owner 2026-11-28: real strength at sunset, not washed out). The
+	// game's sun is 10 lux (SunClock) and its floodlit night apron about 3 lux, where the real ones are ~50 000 lux by day,
+	// ~1 000 at sunset and ~30 on a lit apron at night: the table holds candela against the game's night, then the real
+	// ratio as the sun rises - 1 at night (sun 6 deg under), 1/20 at sunset (sun 1 deg up), 1/400 by day (15 deg up).
+	float AmbientShare(float El)
+	{
+		const float L20 = FMath::Loge(20.f), L400 = FMath::Loge(400.f);
+		const float Ln = El <= 1.f ? L20 * FMath::Clamp((El + 6.f) / 7.f, 0.f, 1.f) : L20 + (L400 - L20) * FMath::Clamp((El - 1.f) / 14.f, 0.f, 1.f);
+		return FMath::Exp(-Ln);
+	}
 }
+
+bool ADPAircraftLights::Night(const UWorld* W) { return SunHeight(W) < 0.f; }
 
 FADPLightState ADPAircraftLights::Parked(const UWorld* W, bool bPowered) { return ParkedFor(Night(W), bPowered); }
 
@@ -130,12 +150,18 @@ UADPAircraftLights* UADPAircraftLights::Fit(AActor* Plane, const FString& Type)
 	Read();
 	const int32 Ix = GTypes.IndexOfByPredicate([&](const FType& T) { return T.Name == Type; });
 	if (Ix == INDEX_NONE) { ADP_WARN(TEXT("Aircraft lights: no table for %s in Data/aircraft-lights.json - %s stays dark"), *Type, *Plane->GetName()); return nullptr; }
-	static UStaticMesh* Ball = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere")));
+	// the lamp face's size with distance: real size close by, then slowly bigger so a lamp stays a visible point far off
+	static UCurveFloat* Far = nullptr;
+	if (!Far)
+	{
+		Far = ADPKeep(NewObject<UCurveFloat>(GetTransientPackage()));
+		Far->FloatCurve.AddKey(0.f, 1.f); Far->FloatCurve.AddKey(3000.f, 1.f); Far->FloatCurve.AddKey(30000.f, 3.f); Far->FloatCurve.AddKey(300000.f, 15.f);
+	}
 	static UMaterialInterface* Glow = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lamps/M_LampGlow.M_LampGlow")));
 	static UMaterialInterface* Shine = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Lamps/M_AircraftLampLight.M_AircraftLampLight")));
 	static bool bSaid = false;
 	if (!Shine && !bSaid) { bSaid = true; ADP_ERROR(TEXT("Aircraft lights: M_AircraftLampLight is missing (Tools/make_aircraft_lamp_light.py) - the lamps light nothing round them")); }
-	if ((!Ball || !Glow) && !bSaid) { bSaid = true; ADP_ERROR(TEXT("Aircraft lights: the lamp glow (M_LampGlow or the sphere) is missing - no lamp faces")); }
+	if (!Glow && !bSaid) { bSaid = true; ADP_ERROR(TEXT("Aircraft lights: the lamp glow M_LampGlow is missing (Tools/make_lamp_glow.py) - no lamp faces")); }
 	USceneComponent* Root = Plane->GetRootComponent();
 	if (!Root) { ADP_WARN(TEXT("Aircraft lights: %s has no root - no lamps"), *Plane->GetName()); return nullptr; }
 	UADPAircraftLights* C = NewObject<UADPAircraftLights>(Plane);
@@ -146,14 +172,17 @@ UADPAircraftLights* UADPAircraftLights::Fit(AActor* Plane, const FString& Type)
 	{
 		const FLamp& L = Ty.Lamps[i];
 		FLampRt R; R.Lamp = i;
-		if (L.Glow > 0.f && L.Size > 0.f && Ball && Glow)
+		if (L.Glow > 0.f && L.Size > 0.f && Glow)
 		{
-			UStaticMeshComponent* F = NewObject<UStaticMeshComponent>(Plane);
-			F->SetStaticMesh(Ball); F->SetCollisionEnabled(ECollisionEnabled::NoCollision); F->SetCastShadow(false); F->SetReceivesDecals(false);
+			// (was a sphere: M_LampGlow's round gradient is drawn for a disc facing you, so on a sphere's UVs the lens hardly
+			// showed - owner 2026-11-28: flashing lights but no light source to be seen)
+			UMaterialBillboardComponent* F = NewObject<UMaterialBillboardComponent>(Plane);
 			UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Glow, Plane);
 			M->SetVectorParameterValue(TEXT("Color"), L.Col); M->SetScalarParameterValue(TEXT("Brightness"), 0.f);
-			F->SetMaterial(0, M);
-			F->SetupAttachment(Root); F->SetRelativeLocation(L.At); F->SetRelativeScale3D(FVector(L.Size));
+			const float Half = L.Size * 100.f * 1.5f;   // (the halo fades to nothing well inside the disc's edge)
+			F->AddElement(M, nullptr, false, Half, Half, Far);
+			F->SetCastShadow(false); F->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			F->SetupAttachment(Root); F->SetRelativeLocation(L.At);
 			F->SetVisibility(false);
 			F->RegisterComponent();
 			R.Face = F; R.FaceM = M; C->Keep.Add(M);
@@ -221,14 +250,24 @@ void UADPAircraftLights::MakeReal(FLampRt& R)
 {
 	const FLamp& L = GTypes[TypeIx].Lamps[R.Lamp];
 	AActor* O = GetOwner();
-	USpotLightComponent* S = NewObject<USpotLightComponent>(O);
+	// a beam's pool on the ground (lumens, its range) or the lamp's light on the skin round it (candela, a short radius);
+	// inverse-square, so it is strong right at the lamp and gone within its real reach
+	const bool bPoolLight = L.bPool && L.Lumens > 0.f;
+	ULocalLightComponent* S = nullptr;
+	if (L.bDir)
+	{
+		USpotLightComponent* Sp = NewObject<USpotLightComponent>(O);
+		Sp->SetOuterConeAngle(FMath::Clamp(L.Cone, 1.f, 80.f)); Sp->SetInnerConeAngle(FMath::Clamp(L.Cone * 0.5f, 0.5f, 79.f));
+		S = Sp;
+	}
+	else S = NewObject<UPointLightComponent>(O);
 	S->SetMobility(EComponentMobility::Movable);
 	S->SetupAttachment(O->GetRootComponent());
 	const FVector At = L.bNoseGear ? NoseXf.TransformPosition(L.At) : L.At, Dir = L.bNoseGear ? NoseXf.TransformVectorNoScale(L.Dir) : L.Dir;
-	S->SetRelativeLocation(At); S->SetRelativeRotation(Dir.Rotation());
-	S->SetIntensityUnits(ELightUnits::Lumens); S->SetIntensity(0.f); S->SetLightColor(L.Col);
-	S->SetAttenuationRadius(FMath::Max(L.Range, 5.f) * 100.f);
-	S->SetOuterConeAngle(FMath::Clamp(L.Cone, 1.f, 80.f)); S->SetInnerConeAngle(FMath::Clamp(L.Cone * 0.5f, 0.5f, 79.f));
+	S->SetRelativeLocation(At); if (L.bDir) S->SetRelativeRotation(Dir.Rotation());
+	S->SetIntensityUnits(bPoolLight ? ELightUnits::Lumens : ELightUnits::Candelas); S->SetIntensity(0.f); S->SetLightColor(L.Col);
+	if (UPointLightComponent* Pt = Cast<UPointLightComponent>(S)) { Pt->bUseInverseSquaredFalloff = true; Pt->SetSourceRadius(FMath::Min(L.Size * 50.f, 10.f)); }
+	S->SetAttenuationRadius(FMath::Max(bPoolLight ? L.Range : L.Radius, 0.5f) * 100.f);
 	S->SetCastShadows(false);   // (no shadows for now: the frame-rate measurement on the owner's word decides)
 	S->SetVisibility(false);
 	S->RegisterComponent();
@@ -241,7 +280,7 @@ void UADPAircraftLights::TickComponent(float Dt, ELevelTick TickType, FActorComp
 	ADP_PERF_SCOPE("aircraft lights (each frame)", 1.f);
 	AActor* O = GetOwner(); UWorld* W = GetWorld();
 	if (!O || !W || !GTypes.IsValidIndex(TypeIx)) return;
-	if ((NightPoll -= Dt) <= 0.f) { NightPoll = 2.f; bNight = ADPAircraftLights::Night(W); }
+	if ((NightPoll -= Dt) <= 0.f) { NightPoll = 2.f; const float El = SunHeight(W); bNight = El < 0.f; Amb = AmbientShare(El); }
 	if (bParked) State = ParkedFor(bNight, bParkPower);
 	// the flashing (owner 2026-11-21: the real timing): beacons about once a second, each aircraft its own beat; strobes a
 	// double flash every 1.2 s
@@ -285,10 +324,13 @@ void UADPAircraftLights::TickComponent(float Dt, ELevelTick TickType, FActorComp
 			}
 		if (L.bNoseGear && !bNoseDown) b = false;   // (switched off by the gear lever: not down and locked)
 		const float On = b ? 1.f : 0.f;
-		if (R.Face && On != R.Was) { R.FaceM->SetScalarParameterValue(TEXT("Brightness"), L.Glow * On); R.Face->SetVisibility(b); }
-		R.Was = On;
-		// its light on the skin and round it; a beam's pool gives way to the real light on the nearest aircraft
-		const float Dv = On * (L.bPool && L.Lumens > 0.f ? 1.f - Near : 1.f);
+		// the lens: brighter against the dark, yet always a clear bright point (a lens is far brighter than the skin round it)
+		const float FaceV = On * FMath::Pow(Amb, 0.4f);
+		if (R.Face && FaceV != R.Was) { R.FaceM->SetScalarParameterValue(TEXT("Brightness"), L.Glow * FaceV); R.Face->SetVisibility(b); }
+		R.Was = FaceV;
+		// its light on the skin and round it; on the nearest aircraft the decal gives way to the real light
+		const bool bRealLamp = (L.bPool && L.Lumens > 0.f && L.bDir) || L.Cd > 0.f;
+		const float Dv = On * Amb * (bRealLamp ? 1.f - Near : 1.f);
 		if (R.Decal)
 		{
 			if (Dv > 0.001f && (bMoved || R.WasDecal <= 0.001f || (L.bNoseGear && bFolded)))
@@ -302,11 +344,11 @@ void UADPAircraftLights::TickComponent(float Dt, ELevelTick TickType, FActorComp
 			if (Dv != R.WasDecal) { R.DecalM->SetScalarParameterValue(TEXT("Strength"), L.Skin * Dv * (L.bDir ? 1.f : 2.f)); R.Decal->SetVisibility(Dv > 0.001f); }
 			R.WasDecal = Dv;
 		}
-		if (L.bPool && L.Lumens > 0.f && L.bDir)
+		if (bRealLamp)
 		{
-			const float Rv = On * Near;
-			if (Rv > 0.001f && !R.Real) MakeReal(R);
-			if (R.Real && Rv != R.WasReal) { R.Real->SetIntensity(L.Lumens * Rv); R.Real->SetVisibility(Rv > 0.001f); }
+			const float Rv = On * Near * Amb;
+			if (Rv > 0.00001f && !R.Real) MakeReal(R);
+			if (R.Real && Rv != R.WasReal) { R.Real->SetIntensity((L.bPool && L.Lumens > 0.f ? L.Lumens : L.Cd) * Rv); R.Real->SetVisibility(Rv > 0.00001f); }
 			R.WasReal = Rv;
 		}
 	}

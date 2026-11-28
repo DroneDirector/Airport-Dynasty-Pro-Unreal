@@ -2,21 +2,23 @@
 // and this one component for every aircraft - the AI's moving ones (SimTraffic), the parked ones (ParkedAircraft) and,
 // when it exists in 3D, the player's own. Who switches what stays where it was: SimTraffic's Blink works out the real
 // procedure each frame and hands it over as an FADPLightState; a parked aircraft runs ADPAircraftLights::Parked.
-//  - the lamp's face: a glow on the model (M_LampGlow) - lens + housing models are a later 3D step (see the to-do note)
-//  - its light on the aircraft's own skin and what is right round it (beacon sweep over fuselage and apron, strobe flash on
-//    the wingtip, nav tint, logo on the fin, landing / taxi beam on nacelle, nose gear and the ground ahead): a light decal
-//    (M_AircraftLampLight, Tools/make_aircraft_lamp_light.py) from the table - no light source, so every aircraft, at any
-//    distance, lights itself up
-//  - real spot lights only on the nearest aircraft (the beams on the ground, people and vehicles round it): faded in while
-//    the beam's decal fades out, slowly, so the change is not seen. No flares (the lamp rule).
+//  - the lamp's face: a soft glowing disc at the lens that always faces you (M_LampGlow on a billboard, as the trucks'
+//    LensGlow), growing a little with distance so a lamp stays a visible point far away; strobes flash it hot
+//  - its light on the aircraft's own skin and what is right round it, at real reach (owner 2026-11-28: nav lights tint the
+//    skin within about a metre, the beacon a soft red pool near itself, strobes a short sharp flash, landing / taxi lights
+//    the ground ahead): on the nearest aircraft real lights (candela, inverse-square, a short attenuation radius - they
+//    shade by the surface's facing, so nothing behind or round the fuselage is painted); on every other aircraft a light
+//    decal (M_AircraftLampLight, Tools/make_aircraft_lamp_light.py), faded over slowly so the change is not seen
+//  - all of it at the real ratio to the light round it: the game's sun (10 lux) and its lit night apron are not real
+//    lux, so the lamps are scaled by the sun's height (full at night, about 1/20 at sunset, 1/400 by day). No flares.
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "AircraftLights.generated.h"
 
-class UStaticMeshComponent;
+class UMaterialBillboardComponent;
 class UDecalComponent;
-class USpotLightComponent;
+class ULocalLightComponent;
 class UMaterialInstanceDynamic;
 
 /** Which lamp groups are switched on now (the flashing of beacons and strobes is the component's). */
@@ -59,9 +61,9 @@ private:
 	struct FLampRt
 	{
 		int32 Lamp = INDEX_NONE;
-		TObjectPtr<UStaticMeshComponent> Face; TObjectPtr<UMaterialInstanceDynamic> FaceM;
+		TObjectPtr<UMaterialBillboardComponent> Face; TObjectPtr<UMaterialInstanceDynamic> FaceM;
 		TObjectPtr<UDecalComponent> Decal; TObjectPtr<UMaterialInstanceDynamic> DecalM;
-		TObjectPtr<USpotLightComponent> Real;
+		TObjectPtr<ULocalLightComponent> Real;
 		float Was = -1.f, WasDecal = -1.f, WasReal = -1.f;
 	};
 	TArray<FLampRt> Rt;
@@ -71,6 +73,7 @@ private:
 	float Phase = 0.f;        // its own beacon timing (no two aircraft flash together)
 	float Near = 0.f;         // 0..1: how much the real lights have taken over from the decals (the nearest aircraft)
 	float NightPoll = 0.f; bool bNight = false;
+	float Amb = 1.f;          // the lamps' share against the light round them (1 at night, less as the sun rises)
 	FTransform LastXf; bool bPlaced = false;
 	FTransform NoseXf = FTransform::Identity; bool bNoseDown = true, bNoseMoved = false;
 	UPROPERTY() TArray<TObjectPtr<UObject>> Keep;
