@@ -19,6 +19,8 @@ ROOT = Path(__file__).resolve().parent.parent
 BLENDER = r'C:/Program Files/Blender Foundation/Blender 3.3/blender.exe'
 EDITOR = r'C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor-Cmd.exe'
 PROJECT = str(ROOT / 'AirportDynastyPro.uproject')
+# models whose opaque materials are made two-sided after the import (Tools/fix_two_sided.py)
+TWO_SIDED = {'A320'}
 
 
 def run(args, what):
@@ -64,6 +66,11 @@ def main(blend_script, glb, name):
     # 4. its materials usable on instanced parts
     log = editor_py('%s %s' % ((ROOT / 'Tools/fix_babylon_materials.py').as_posix(), name), 'material fix-up')
     print([l for l in log.splitlines() if 'ADP_MATFIX' in l][-1:])
+    # 4a. two-sided materials for models drawn with single open sheets (FlightGear aircraft: the A320's engines, gear
+    #     bays and cavities were see-through, 2026-11-28); geometry unchanged, see Tools/fix_two_sided.py
+    if name in TWO_SIDED:
+        log = editor_py('%s %s' % ((ROOT / 'Tools/fix_two_sided.py').as_posix(), name), 'two-sided')
+        print([l.split('materials made')[0][-60:] + 'made two-sided' for l in log.splitlines() if 'ADP_TWOSIDED' in l][-1:])
     # 4b. its colour pictures as colour pictures, never taken for normal maps (the jetway's poster, 2026-11-23)
     log = editor_py('%s %s %s' % ((ROOT / 'Tools/fix_babylon_textures.py').as_posix(), (ROOT / glb).as_posix(), name), 'pictures')
     print([l for l in log.splitlines() if 'ADP_TEXFIX' in l][-1:])
