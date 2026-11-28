@@ -82,6 +82,12 @@ private:
 		int32 GNoseW = INDEX_NONE, GNoseLeg = INDEX_NONE, GMainW[2] = {INDEX_NONE, INDEX_NONE}, GMainLeg[2] = {INDEX_NONE, INDEX_NONE};
 		bool bGear = false, bGearPrev = false; float Steer = 0.f, RollN = 0.f, RollM = 0.f, Ext = 0.f, ExtV = 0.f;
 		FVector2f PrevNose = FVector2f::ZeroVector, PrevMain = FVector2f::ZeroVector;
+		// the gear's retraction (to-do 380, Art/A320/a320_retract_parts.py): the upper struts, leg doors, side stays and bay
+		// doors, each about its hinge; GearSt 0 down and locked, 1 retracting, 2 up and locked, 3 extending
+		int32 GNoseUp = INDEX_NONE, GMainUp[2] = {INDEX_NONE, INDEX_NONE}, GMainDoor[2] = {INDEX_NONE, INDEX_NONE}, GNoseDoor[2] = {INDEX_NONE, INDEX_NONE},
+			GBayDoor[2] = {INDEX_NONE, INDEX_NONE}, GBraceUp[2] = {INDEX_NONE, INDEX_NONE}, GBraceLo[2] = {INDEX_NONE, INDEX_NONE};
+		FVector HNose = FVector::ZeroVector, HMain[2], HNoseDoor[2], HBayDoor[2], BraceA[2], BraceB[2], BraceK[2];
+		uint8 GearSt = 0; float GearC = 0.f, AirT = 0.f, LegT = 0.f, DoorT = 0.f;
 		// the tower (to-do 378): one exchange at a time (RadFor 1 take-off, 2 landing, 3 taxi-in); what it has been cleared for
 		ADPRunwayRadio::FCall Rad; uint8 RadFor = 0; FString Cs, Voice;
 		bool bTakeoffOk = false, bLandOk = false, bTaxiInOk = false;

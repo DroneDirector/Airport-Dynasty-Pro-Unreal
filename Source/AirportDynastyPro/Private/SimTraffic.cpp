@@ -314,8 +314,8 @@ void ASimTraffic::Sync()
 			Seen.Add(Fl.Id);
 			FMove M; M.FlightId = Fl.Id; M.Reg = Fl.Reg; M.bDeparture = false; M.Phase = EPhase::Approach;
 			M.Stand = A ? A->Stand : FString();
-			// a straight-in 3 degree approach to the touchdown zone (500 m past the threshold), 7 km out
-			const float Dir = bToX1 ? 1.f : -1.f, Thr = bToX1 ? X0 : X1, TD = Thr + Dir * 500.f, From = 7000.f;
+			// a straight-in 3 degree approach to the touchdown zone (500 m past the threshold), 12 km out (630 m: the gear comes down at 600 m)
+			const float Dir = bToX1 ? 1.f : -1.f, Thr = bToX1 ? X0 : X1, TD = Thr + Dir * 500.f, From = 12000.f;
 			M.Nose = FVector2f(TD - Dir * From, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
 			M.Height = From * FMath::Tan(FMath::DegreesToRadians(Glide)); M.Speed = Vapp;
 			M.Path = {FVector2f(TD, RY)};
@@ -1004,6 +1004,15 @@ namespace
 	constexpr float NoseR = 45.4f, MainR = 64.6f;             // (tyre radii, cm)
 	constexpr float SteerSign = 1.f;                          // (the root's turn sense: checked in the pictures)
 	constexpr float ExtMain = 12.f, ExtNose = 8.f;            // (cm the struts hang out in the air - inside their own cylinders)
+	// the retraction (to-do 380), as the A320 flies it: gear up once climbing, 10 m (about 35 ft) and 2.5 s after lift-off,
+	// in about 10 s (bay doors open, the legs fold, the doors close); gear down at 600 m (2,000 ft, about 11 km out), in
+	// about 15 s (doors open, the legs fall and lock, the doors close), so down and locked long before 300 m (1,000 ft)
+	constexpr float GearUpM = 10.f, GearUpAfter = 2.5f, GearDownM = 600.f;
+	constexpr float NoseFold = 95.f, MainFold = 82.f, NoseDoorOpen = 90.f, BayDoorOpen = 90.f;   // (degrees, from the model's hinges)
+	const FVector BraceKnee[2] = {FVector::ZeroVector, FVector::ZeroVector};   // (the side stays' knee, gear down; zero: half way)
+	FTransform About(const FVector& H, const FQuat& Q) { return FTransform(Q, H - Q.RotateVector(H)); }   // (a turn about H)
+	float Ease(float X) { X = FMath::Clamp(X, 0.f, 1.f); return X * X * (3.f - 2.f * X); }
+	float AngXZ(const FVector& V) { return float(FMath::Atan2(V.X, V.Z)); }   // (a turn about +Y adds to it)
 }
 
 void ASimTraffic::Haze(FMove& M, float Dt)
@@ -1066,11 +1075,34 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	{
 		M.bGear = true;
 		M.GNoseW = B->BindGroup({TEXT("NoseWheels")}, true, FTransform(NoseAxle));
-		M.GNoseLeg = B->BindGroup({TEXT("NoseLeg")}, true, FTransform(NoseLegAt));
+		M.GNoseLeg = B->BindGroup({TEXT("NoseLeg")}, false, FTransform(NoseLegAt));   // (exactly: NoseLegUpper is the retraction's)
 		M.GMainW[0] = B->BindGroup({TEXT("MainWheels_L")}, true, FTransform(MainAxle[0])); M.GMainW[1] = B->BindGroup({TEXT("MainWheels_R")}, true, FTransform(MainAxle[1]));
 		M.GMainLeg[0] = B->BindGroup({TEXT("MainLeg_L")}, true, FTransform(MainLegAt[0])); M.GMainLeg[1] = B->BindGroup({TEXT("MainLeg_R")}, true, FTransform(MainLegAt[1]));
 		M.PrevNose = M.Nose; M.PrevMain = M.Main; M.Ext = M.Height > 0.5f ? 1.f : 0.f;
 		ADP_LOG(TEXT("Traffic: %s gear parts - nose wheels %d, nose leg %d, main wheels %d/%d, main legs %d/%d"), *M.Reg, M.GNoseW, M.GNoseLeg, M.GMainW[0], M.GMainW[1], M.GMainLeg[0], M.GMainLeg[1]);
+		// the retraction's parts, each held about its hinge (the node's own origin in the model)
+		auto Hinge = [B](const TCHAR* Name, FVector& At) -> int32
+		{
+			FTransform T; if (!B->NodeBase(Name, T)) return INDEX_NONE;
+			At = T.GetLocation(); return B->BindGroup({Name}, false, FTransform(At));
+		};
+		const TCHAR* Sd[2] = {TEXT("_L"), TEXT("_R")};
+		M.GNoseUp = Hinge(TEXT("NoseLegUpper"), M.HNose);
+		for (int32 s = 0; s < 2; ++s)
+		{
+			M.GMainUp[s] = Hinge(*(FString(TEXT("MainLegUpper")) + Sd[s]), M.HMain[s]);
+			M.GMainDoor[s] = B->BindGroup({FString(TEXT("MainDoor")) + Sd[s]}, false, FTransform(M.HMain[s]));   // (on the leg: turns about the leg's hinge)
+			M.GNoseDoor[s] = Hinge(*(FString(TEXT("NoseDoor")) + Sd[s]), M.HNoseDoor[s]);
+			M.GBayDoor[s] = Hinge(*(FString(TEXT("MainBayDoor")) + Sd[s]), M.HBayDoor[s]);
+			M.GBraceUp[s] = Hinge(*(FString(TEXT("SideBraceUp")) + Sd[s]), M.BraceA[s]);
+			M.GBraceLo[s] = Hinge(*(FString(TEXT("SideBraceLo")) + Sd[s]), M.BraceB[s]);
+			M.BraceK[s] = BraceKnee[s].IsZero() ? (M.BraceA[s] + M.BraceB[s]) * 0.5f : BraceKnee[s];
+		}
+		const bool bUp = (M.Phase == EPhase::Approach && M.Height > GearDownM) || (M.Phase == EPhase::Climb && M.Height > 15.f);
+		M.GearSt = bUp ? 2 : 0; M.LegT = bUp ? 1.f : 0.f; M.DoorT = 0.f;
+		ADP_LOG(TEXT("Traffic: %s retraction parts - nose strut %d, main struts %d/%d, leg doors %d/%d, nose doors %d/%d, bay doors %d/%d, stays %d/%d %d/%d; gear %s"),
+			*M.Reg, M.GNoseUp, M.GMainUp[0], M.GMainUp[1], M.GMainDoor[0], M.GMainDoor[1], M.GNoseDoor[0], M.GNoseDoor[1], M.GBayDoor[0], M.GBayDoor[1],
+			M.GBraceUp[0], M.GBraceLo[0], M.GBraceUp[1], M.GBraceLo[1], bUp ? TEXT("up") : TEXT("down"));
 	}
 	if (M.GNoseW == INDEX_NONE) return;
 	const bool bGround = M.Height < 0.05f;
@@ -1095,14 +1127,78 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	if (bGround && !M.bGearPrev && M.Height < 0.05f && M.Phase == EPhase::Rollout) ADP_LOG(TEXT("Traffic: %s touchdown - the main gear compresses, the wheels spin up"), *M.Reg);
 	M.bGearPrev = bGround;
 	M.PrevNose = M.Nose; M.PrevMain = M.Main;
+	// the retraction and extension (to-do 380): one sequence each way, eased, at the real heights
+	M.AirT = bGround ? 0.f : M.AirT + Dt;
+	const float Ft = M.Height / 0.3048f;
+	switch (M.GearSt)
+	{
+	case 0:   // down and locked: up once climbing away
+		if (M.Phase == EPhase::Climb && M.Height >= GearUpM && M.AirT >= GearUpAfter)
+		{
+			M.GearSt = 1; M.GearC = 0.f;
+			ADP_LOG(TEXT("Traffic: %s positive climb - gear up at %.0f ft, %.1f s after lift-off"), *M.Reg, Ft, M.AirT);
+		}
+		break;
+	case 1:   // retracting: doors open 0-2 s, the legs fold 2-8 s, doors close 8-10 s
+		M.GearC += Dt;
+		M.DoorT = M.GearC < 8.f ? Ease(M.GearC / 2.f) : 1.f - Ease((M.GearC - 8.f) / 2.f);
+		M.LegT = Ease((M.GearC - 2.f) / 6.f);
+		if (M.GearC >= 10.f) { M.GearSt = 2; M.LegT = 1.f; M.DoorT = 0.f; ADP_LOG(TEXT("Traffic: %s gear up and locked, doors closed at %.0f ft"), *M.Reg, Ft); }
+		break;
+	case 2:   // up and locked: down at 2,000 ft on the approach
+		if (M.Phase == EPhase::Approach && M.Height <= GearDownM)
+		{
+			M.GearSt = 3; M.GearC = 0.f;
+			ADP_LOG(TEXT("Traffic: %s gear down at %.0f ft"), *M.Reg, Ft);
+		}
+		break;
+	case 3:   // extending: doors open 0-3 s, the legs fall and lock 3-12 s, doors close 12-15 s (hurried if ever this low)
+		M.GearC += Dt * (M.Height < 150.f ? 3.f : 1.f);
+		M.DoorT = M.GearC < 12.f ? Ease(M.GearC / 3.f) : 1.f - Ease((M.GearC - 12.f) / 3.f);
+		M.LegT = 1.f - Ease((M.GearC - 3.f) / 9.f);
+		if (M.GearC >= 15.f) { M.GearSt = 0; M.LegT = 0.f; M.DoorT = 0.f; ADP_LOG(TEXT("Traffic: %s gear down and locked, three greens at %.0f ft"), *M.Reg, Ft); }
+		break;
+	}
+	if (bGround && M.GearSt != 0)
+	{
+		ADP_WARN(TEXT("Traffic: %s on the ground with the gear %s - locked down"), *M.Reg, M.GearSt == 2 ? TEXT("up") : TEXT("moving"));
+		M.GearSt = 0; M.LegT = 0.f; M.DoorT = 0.f;
+	}
+	const FTransform RetN = About(M.HNose, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-NoseFold * M.LegT)));   // (forwards into the nose)
+	FTransform RetM[2];
+	for (int32 s = 0; s < 2; ++s) RetM[s] = About(M.HMain[s], FQuat(FVector::RightVector, FMath::DegreesToRadians((s == 0 ? -1.f : 1.f) * MainFold * M.LegT)));   // (inwards under the belly)
 	const float S = SteerSign * M.Steer;
 	const FQuat QS(FVector::UpVector, FMath::DegreesToRadians(S));
-	B->MoveGroup(M.GNoseW, FTransform(QS * FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollN)), NoseAxle - FVector(0, 0, ExtNose * M.Ext)));
-	if (M.GNoseLeg != INDEX_NONE) B->MoveGroup(M.GNoseLeg, FTransform(QS, NoseLegAt - FVector(0, 0, ExtNose * M.Ext)));
+	B->MoveGroup(M.GNoseW, FTransform(QS * FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollN)), NoseAxle - FVector(0, 0, ExtNose * M.Ext)) * RetN);
+	if (M.GNoseLeg != INDEX_NONE) B->MoveGroup(M.GNoseLeg, FTransform(QS, NoseLegAt - FVector(0, 0, ExtNose * M.Ext)) * RetN);
+	if (M.GNoseUp != INDEX_NONE) B->MoveGroup(M.GNoseUp, FTransform(M.HNose) * RetN);
 	for (int32 s = 0; s < 2; ++s)
 	{
-		if (M.GMainW[s] != INDEX_NONE) B->MoveGroup(M.GMainW[s], FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollM)), MainAxle[s] - FVector(0, 0, ExtMain * M.Ext)));
-		if (M.GMainLeg[s] != INDEX_NONE) B->MoveGroup(M.GMainLeg[s], FTransform(MainLegAt[s] - FVector(0, 0, ExtMain * M.Ext)));
+		const float Sg = s == 0 ? 1.f : -1.f;   // (left: the doors open by +, right by -)
+		if (M.GMainW[s] != INDEX_NONE) B->MoveGroup(M.GMainW[s], FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollM)), MainAxle[s] - FVector(0, 0, ExtMain * M.Ext)) * RetM[s]);
+		if (M.GMainLeg[s] != INDEX_NONE) B->MoveGroup(M.GMainLeg[s], FTransform(MainLegAt[s] - FVector(0, 0, ExtMain * M.Ext)) * RetM[s]);
+		if (M.GMainUp[s] != INDEX_NONE) B->MoveGroup(M.GMainUp[s], FTransform(M.HMain[s]) * RetM[s]);
+		if (M.GMainDoor[s] != INDEX_NONE) B->MoveGroup(M.GMainDoor[s], FTransform(M.HMain[s]) * RetM[s]);
+		if (M.GNoseDoor[s] != INDEX_NONE) B->MoveGroup(M.GNoseDoor[s], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(Sg * NoseDoorOpen * M.DoorT)), M.HNoseDoor[s]));
+		if (M.GBayDoor[s] != INDEX_NONE) B->MoveGroup(M.GBayDoor[s], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(-Sg * BayDoorOpen * M.DoorT)), M.HBayDoor[s]));
+		// the side stay: two bars from the wing (A) to the leg (B, carried round by the leg), buckling at the knee as the
+		// leg folds (solved in the plane the leg turns in)
+		if (M.GBraceUp[s] != INDEX_NONE && M.GBraceLo[s] != INDEX_NONE)
+		{
+			const FVector A = M.BraceA[s], B0 = M.BraceB[s], K0 = M.BraceK[s], B1 = RetM[s].TransformPosition(B0);
+			const FVector2D a(A.X, A.Z), b(B1.X, B1.Z), k0(K0.X, K0.Z), b0(B0.X, B0.Z);
+			const double L1 = FVector2D::Distance(a, k0), L2 = FVector2D::Distance(b0, k0);
+			const double Cr = (b0 - a) ^ (k0 - a);
+			const double Side = FMath::Abs(Cr) > 1.0 ? FMath::Sign(Cr) : -Sg;   // (straight when down: it buckles upwards, inboard)
+			const double D = FMath::Clamp(FVector2D::Distance(a, b), FMath::Abs(L1 - L2) + 0.01, L1 + L2 - 0.01);
+			const FVector2D U = (b - a).GetSafeNormal(), P = a + U * ((L1 * L1 - L2 * L2 + D * D) / (2.0 * D));
+			const double H = FMath::Sqrt(FMath::Max(0.0, L1 * L1 - FMath::Square((L1 * L1 - L2 * L2 + D * D) / (2.0 * D))));
+			const FVector2D K = P + FVector2D(-U.Y, U.X) * (Side * H);
+			const FVector K1(K.X, K0.Y, K.Y);
+			const float D1 = AngXZ(K1 - A) - AngXZ(K0 - A), D2 = AngXZ(K1 - B1) - AngXZ(K0 - B0);
+			B->MoveGroup(M.GBraceUp[s], FTransform(FQuat(FVector::RightVector, D1), A));
+			B->MoveGroup(M.GBraceLo[s], FTransform(FQuat(FVector::RightVector, D2), B1));
+		}
 	}
 	B->FlushMoves();
 }
