@@ -191,6 +191,14 @@ bool ABabylonModel::Place(const FString& Name)
 			if (!bPiece)
 			{
 				auto Exists = [&](const FString& A) { return FPackageName::DoesPackageExist(FString::Printf(TEXT("/Game/Babylon/%s/%s/StaticMeshes/%s"), *Name, *Name.ToLower(), *A)); };
+				// (Unreal's importer turns every character but letters, digits, '_' and '-' into '_': the office's
+				// "laptop~Screen" is the file laptop_Screen - 2026-11-28, the laptop showed no screen)
+				if (!Exists(Asset))
+				{
+					FString SanitisedAsset = Asset;
+					for (TCHAR& AssetCh : SanitisedAsset) if (!FChar::IsAlnum(AssetCh) && AssetCh != TEXT('_') && AssetCh != TEXT('-')) AssetCh = TEXT('_');
+					if (SanitisedAsset != Asset && Exists(SanitisedAsset)) Asset = SanitisedAsset;
+				}
 				if (!Exists(Asset))
 				{
 					FString Other = FString::Printf(TEXT("%s_mesh_%d"), *Name.ToLower(), Mesh);

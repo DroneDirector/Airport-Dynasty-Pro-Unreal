@@ -35,6 +35,8 @@ if [ "$4" != "--upload" ]; then
   grep -a "Map trace:" Saved/Logs/AirportDynastyPro.log | tail -1 | sed 's/.*Map trace: /   /'
   echo "== web pages and data into Content"
   rm -rf Content/Web && cp -r Airline-Manager-Pro-Babylon/www Content/Web && rm -rf Content/Data && cp -r Data Content/Data
+  # every site's globe grass colour ships with it (2026-11-28: Chablais had none - "Globe: no grass colour tiles")
+  for D in Data/Sites/*/; do [ -f "Content/${D}grass-tiles/tiles.json" ] || { echo "STOP: no grass colour tiles for $D - python Tools/make_grass_area.py --site $(basename $D)"; exit 1; }; done
   # the passengers' walking map ready-made from the terminal as it stands (owner, 2026-11-23: it was made again on every
   # start, a minute and more) - after the data's copy: it is made from exactly what is shipped, and carries that as its key
   echo "== the walking map baked"

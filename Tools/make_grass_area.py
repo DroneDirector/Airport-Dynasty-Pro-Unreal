@@ -10,7 +10,13 @@
 #    colour (its scan Art/Ground/Scans/grass_ground, tinted as MI_ggrass: Tools/set_ground.py), a gentle variation in
 #    it, fading into the satellite picture over FADE m at its edge, clear over water. From afar the land reads as the
 #    same grass where the blades stop.
-#   python Tools/make_grass_area.py
+#   python Tools/make_grass_area.py --site chablais
+# A site (Site.h, Data/Sites/<id>) reads its own land, roads and town and writes everything into its own folder:
+# Data/Sites/<id>/grass-area.* and grass-tiles/, copied to Content/Data/Sites/<id> (where the game reads them;
+# release_pc.sh copies Data into Content/Data, so the tiles ship). Its water is ESA WorldCover's class 80 (10 m, CC BY
+# 4.0, F:/ADP-Terrain/worldcover: the lake and the rivers); the globe's land-cover tiles only reach Iceland.
+# (2026-11-28: the script wrote only Content/Data/grass-tiles for the old default site, never a site's folder, and
+# Content/Data is remade from Data at every release - Chablais had no tiles: "Globe: no grass colour tiles")
 import json, math, shutil, sys
 from pathlib import Path
 import numpy as np
@@ -28,12 +34,39 @@ FADE = 250.0         # m the globe's grass colour fades into the satellite pictu
 STEP = 2.5           # m a pixel of the map (fine enough to keep the far grass off an 8 m road)
 TINT = (0.66, 1.16, 0.50)   # MI_ggrass's Color (Tools/set_ground.py)
 ZMIN, ZMAX = 0, 5    # the colour tiles' levels, one root over the area (5: about 2 m a pixel)
+WORLDCOVER = Path('F:/ADP-Terrain/worldcover')
+
+
+def worldcover_water(lon, lat):
+    """True where ESA WorldCover 2021 says permanent water (class 80) at each point (nearest 10 m pixel)."""
+    import rasterio
+    from rasterio.windows import from_bounds
+    out = np.zeros(len(lon), bool)
+    for la0 in range(int(math.floor(lat.min() / 3) * 3), int(math.floor(lat.max() / 3) * 3) + 1, 3):
+        for lo0 in range(int(math.floor(lon.min() / 3) * 3), int(math.floor(lon.max() / 3) * 3) + 1, 3):
+            f = WORLDCOVER / ('ESA_WorldCover_10m_2021_v200_%s%02d%s%03d_Map.tif' % ('N' if la0 >= 0 else 'S', abs(la0), 'E' if lo0 >= 0 else 'W', abs(lo0)))
+            sel = (lat >= la0) & (lat < la0 + 3) & (lon >= lo0) & (lon < lo0 + 3)
+            if not sel.any(): continue
+            if not f.exists(): sys.exit('no WorldCover tile %s (the water for the grass)' % f)
+            with rasterio.open(f) as r:
+                w, s_, e, n = lon[sel].min(), lat[sel].min(), lon[sel].max(), lat[sel].max()
+                win = from_bounds(w, s_, e, n, r.transform).round_offsets().round_lengths()
+                d = r.read(1, window=win, boundless=True, fill_value=0)
+                T = r.window_transform(win)
+                c = ((lon[sel] - T.c) / T.a).astype(int); rr = ((lat[sel] - T.f) / T.e).astype(int)
+                ok = (c >= 0) & (c < d.shape[1]) & (rr >= 0) & (rr < d.shape[0])
+                v = np.zeros(sel.sum(), bool); v[ok] = d[rr[ok], c[ok]] == 80
+                out[sel] = v
+    return out
 
 
 def main():
     F, H, O, E, N, U = LC.georef()
+    D = LC.site_dir()                                                   # (Data, or Data/Sites/<id>)
+    C = ROOT / 'Content' / 'Data' / ('Sites/' + LC.SITE if LC.SITE else '')
+    print('site', LC.SITE or '(default)', '->', D)
     B = F['boundary']
-    cor = json.loads((ROOT / 'Data' / 'land-corridor.json').read_text(encoding='utf-8'))
+    cor = json.loads((D / 'land-corridor.json').read_text(encoding='utf-8'))
     outline = [np.array(r, float) for r in cor['outline']]
     allx = np.concatenate([o[:, 0] for o in outline] + [np.array([B['x0'] - RING, B['x1'] + RING])])
     ally = np.concatenate([o[:, 1] for o in outline] + [np.array([B['y0'] - RING, B['y1'] + RING])])
@@ -56,9 +89,10 @@ def main():
     area = ((d_air <= RING) & ~inside_air) | (d_land <= MARGIN)
     # water, from the land cover: the sea and lakes and rivers; 30 m kept clear
     lon, lat = LC.plan_to_lonlat(GX.ravel(), GY.ravel(), H, O, E, N)
-    rgb = LC.landcover_rgb(lon, lat).reshape(ny, nx, 3)
+    if LC.SITE: water = worldcover_water(lon, lat).reshape(ny, nx); rgb = None
+    else: rgb = LC.landcover_rgb(lon, lat).reshape(ny, nx, 3)
     # (the game's land-cover palette draws water dark blue, about (28, 52, 78): Tools/MakeLandCover.py)
-    water = (np.abs(rgb[..., 0] - 28) < 22) & (np.abs(rgb[..., 1] - 52) < 22) & (np.abs(rgb[..., 2] - 78) < 26) & (rgb[..., 2] > rgb[..., 0] + 25)
+    if rgb is not None: water = (np.abs(rgb[..., 0] - 28) < 22) & (np.abs(rgb[..., 1] - 52) < 22) & (np.abs(rgb[..., 2] - 78) < 26) & (rgb[..., 2] > rgb[..., 0] + 25)
     water = ndimage.binary_opening(water, iterations=1)       # (single specks are the picture's noise, not water)
     d_water = ndimage.distance_transform_edt(~water) * STEP
     grass = area & (d_water >= WATER_GAP)
@@ -66,7 +100,7 @@ def main():
     # the town's buildings - the far and middle grass measure the ground only every 20 m / 2.5 m and stood on the roads
     # (2026-11-15); the map says where they may not
     built = Image.new('L', (nx, ny), 0); bd = ImageDraw.Draw(built)
-    RJ = json.loads((ROOT / 'Data' / 'roads.json').read_text(encoding='utf-8'))
+    RJ = json.loads((D / 'roads.json').read_text(encoding='utf-8'))
     def px(p): return ((p[0] - x0) / STEP, (p[1] - y0) / STEP)
     def lw(l): return l['w'] if isinstance(l['w'], (int, float)) else max(w for _, w in l['w'])
     for r in RJ['roads']:
@@ -91,7 +125,7 @@ def main():
         if fr: o, u, v = fr['o'], fr['u'], fr['v']; corner = lambda a, b: (o[0] + u[0] * a + v[0] * b, o[1] + u[1] * a + v[1] * b)
         else: corner = lambda a, b: (a, b)
         bd.polygon([px(corner(a, b)) for a, b in ((lot['x0'], lot['y0']), (lot['x1'], lot['y0']), (lot['x1'], lot['y1']), (lot['x0'], lot['y1']))], fill=255)
-    TB = ROOT / 'Data' / 'town-buildings.json'
+    TB = D / 'town-buildings.json'
     if TB.exists():
         for b in json.loads(TB.read_text(encoding='utf-8'))['buildings'].values():
             o, u, v, sz = b['o'], b['u'], b['v'], b['size']
@@ -107,10 +141,11 @@ def main():
     grass_only = grass & ~built
     print('grass %.1f km2, water near it %.2f km2' % (grass.sum() * STEP * STEP / 1e6, (water & (d_land <= MARGIN + 500)).sum() * STEP * STEP / 1e6))
     # the map for the blades (row 0 = y0, the plan's south... as the json says: pixel (i, j) is at x0 + i*step, y0 + j*step)
-    Image.fromarray(area_px).save(ROOT / 'Data' / 'grass-area.png', optimize=True)
-    (ROOT / 'Data' / 'grass-area.json').write_text(json.dumps({'source': 'Tools/make_grass_area.py', 'x0': x0, 'y0': y0, 'step': STEP, 'nx': nx, 'ny': ny,
+    Image.fromarray(area_px).save(D / 'grass-area.png', optimize=True)
+    (D / 'grass-area.json').write_text(json.dumps({'source': 'Tools/make_grass_area.py', 'x0': x0, 'y0': y0, 'step': STEP, 'nx': nx, 'ny': ny,
         'ring': RING, 'margin': MARGIN, 'waterGap': WATER_GAP}, indent=1), encoding='utf-8')
-    for f in ('grass-area.png', 'grass-area.json'): shutil.copyfile(ROOT / 'Data' / f, ROOT / 'Content' / 'Data' / f)
+    C.mkdir(parents=True, exist_ok=True)
+    for f in ('grass-area.png', 'grass-area.json'): shutil.copyfile(D / f, C / f)
     # the colour's strength: full on the grass, fading out over FADE m beyond it; nothing over water (with its gap)
     d_out = ndimage.distance_transform_edt(~(grass | built)) * STEP
     alpha = np.clip(1.0 - d_out / FADE, 0, 1); alpha = alpha * alpha * (3 - 2 * alpha)
@@ -123,11 +158,11 @@ def main():
     srgb = np.where(lin <= 0.0031308, lin * 12.92, 1.055 * np.power(np.clip(lin, 0, None), 1 / 2.4) - 0.055)
     print('grass colour (sRGB)', np.round(srgb * 255).astype(int))
     # tiles: Cesium geographic (2 x 1 roots), y from the south
-    out = ROOT / 'Content' / 'Data' / 'grass-tiles'
+    out = D / 'grass-tiles'                                             # (in Data: release_pc.sh ships it from there)
     if out.exists(): shutil.rmtree(out)
     corners_lon, corners_lat = LC.plan_to_lonlat(np.array([x0, x1, x0, x1]), np.array([y0, y0, y1, y1]), H, O, E, N)
     W_, E_, S_, N_ = corners_lon.min(), corners_lon.max(), corners_lat.min(), corners_lat.max()
-    He = math.radians(F['airport']['hdg'])
+    He = H                                                              # (the site's heading, not airfield.json's)
     rng = np.random.default_rng(3)
     noise_big = ndimage.gaussian_filter(rng.standard_normal((ny // 8 + 2, nx // 8 + 2)), 6)
     noise_big /= max(1e-6, noise_big.std())
@@ -159,8 +194,11 @@ def main():
                 count += 1
         print('  level %d done (%d tiles so far)' % (z, count))
     (out / 'tiles.json').write_text(json.dumps({'west': W_, 'south': S_, 'east': E_, 'north': N_, 'minLevel': ZMIN, 'maxLevel': ZMAX}, indent=1), encoding='utf-8')
+    if (C / 'grass-tiles').exists(): shutil.rmtree(C / 'grass-tiles')
+    shutil.copytree(out, C / 'grass-tiles')
     print('grass colour tiles: %d, %.1f MB' % (count, sum(f.stat().st_size for f in out.rglob('*.png')) / 1e6))
 
 
 if __name__ == '__main__':
+    if '--site' in sys.argv: LC.SITE = sys.argv[sys.argv.index('--site') + 1]
     main()
