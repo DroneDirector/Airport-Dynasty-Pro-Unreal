@@ -82,11 +82,11 @@ def main():
         if not ok: say('FAILED: the window in front is', exe or '?', '- not the game: nothing recorded (never the desktop)'); return 4
     w, hh, main_screen = monitor_of(h)
     idx = os.environ.get('REC_OUTPUT', '0' if main_screen else '1')
-    raw = os.path.splitext(OUT)[0] + '-picture.mp4'
+    raw = os.path.splitext(OUT)[0] + '-picture.mkv'   # (mkv: still readable if the stop is cut short - an mp4 without its end is lost)
     hz = refresh_hz()
-    cmd = [FF, '-y', '-hide_banner', '-loglevel', 'info', '-f', 'lavfi', '-i', 'ddagrab=output_idx=%s:framerate=%d:draw_mouse=0' % (idx, hz),
+    cmd = [FF, '-y', '-hide_banner', '-loglevel', 'info', '-f', 'lavfi', '-i', 'ddagrab=output_idx=%s:framerate=%d:draw_mouse=0:dup_frames=0' % (idx, hz),   # (only frames the screen really changed: at 144 Hz with repeats the encoder fell behind, 0.8x)
            '-c:v', 'h264_nvenc', '-preset', 'p6', '-tune', 'hq', '-rc', 'vbr', '-cq', '19', '-b:v', '60M', '-maxrate', '80M',
-           '-bufsize', '160M', '-profile:v', 'high', '-g', '240', '-bf', '2', '-r', str(hz), '-movflags', '+faststart', raw]
+           '-bufsize', '160M', '-profile:v', 'high', '-g', '240', '-bf', '2', '-fps_mode', 'passthrough', raw]
     say('screen %dx%d at %d Hz (output %s), game %s; ffmpeg:' % (w, hh, hz, idx, exe), ' '.join(cmd[4:]))
     rec = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     v_ms = None; err = []
@@ -111,7 +111,7 @@ def main():
         away = 0.0 if ok else away + 0.25
         if away >= 2.0: why = 'another window (%s) came in front - stopped, never the desktop' % (exe or '?'); break
         time.sleep(0.25)
-    try: rec.communicate('q', timeout=30)
+    try: rec.communicate('q', timeout=180)
     except Exception: rec.kill()
     say('picture stopped by', why, 'after %.0f s;' % (time.time() - r0), last[0][:160])
     for e in err[-6:]:
