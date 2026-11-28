@@ -68,7 +68,11 @@ public:
 struct FVehicleLane
 {
 	TArray<FVector> Pts;
+	/** One lane of a roads.json road (built once, then from the cache). */
 	static bool FromRoad(const FString& Road, bool bRight, int32 Lane, FVehicleLane& Out);
+	static bool FromRoadJson(const TArray<TSharedPtr<class FJsonValue>>& Roads, const FString& Road, bool bRight, int32 Lane, FVehicleLane& Out);
+	/** This site's roads.json, parsed once (again only when the site or the file changes). Null when it cannot be read. */
+	static TSharedPtr<class FJsonObject> Roads();
 	/** Pulling out: from a front axle at At going Dir, into this lane within Length cm, then along it for Run cm more. */
 	TArray<FVector> PullOut(const FVector& At, const FVector& Dir, float Length, float Run) const;
 };
@@ -120,6 +124,10 @@ public:
 	 *  well before a lower one, and only speeds up once past its start. */
 	bool Drive(const TArray<FVector>& Path, float LimitMs, const TArray<float>* CapsMs = nullptr);
 	bool IsDriving() const { return Go.Stage != EGo::Parked; }
+	/** While driving: the same road so far, a new end (a bay given on arrival). Keeps its place and speed. */
+	bool Retarget(const TArray<FVector>& Path, const TArray<float>* CapsMs = nullptr);
+	/** Metres of its way still to drive (0 when parked). */
+	float LeftToDrive() const { return IsDriving() && Go.Len.Num() ? FMath::Max(0.f, Go.Len.Last() - Go.S) / 100.f : 0.f; }
 	bool IsGivingWay() const { return Go.bGiveWay; }
 	float Speed() const { return Go.V; }
 	/** The road's limit where it is now (m/s; 0: parked). */

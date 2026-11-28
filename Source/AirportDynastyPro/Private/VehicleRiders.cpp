@@ -24,6 +24,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
+#include "HAL/FileManager.h"
+#include "PerfLog.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Algo/Reverse.h"
@@ -98,10 +100,46 @@ bool FVehicleSpec::Load(const FString& Name)
 	return P.Num() > 0;
 }
 
+namespace RoadsCache
+{
+	// (2026-11-28: every lane asked for read and parsed the whole roads.json - the coaches' way checks did it ~100 times a
+	// frame, 374 ms. Now parsed once per site and file stamp, each lane built once)
+	FString Path; FDateTime Stamp; TSharedPtr<FJsonObject> Json; double CheckedAt = -1.0; uint32 Gen = 0;
+	TMap<FString, TArray<FVector>> Lanes; uint32 LanesGen = 0;
+}
+
+TSharedPtr<FJsonObject> FVehicleLane::Roads()
+{
+	using namespace RoadsCache;
+	const FString P = ADPSite::File(TEXT("roads.json"));
+	const double Now = FPlatformTime::Seconds();
+	if (Json.IsValid() && P == Path && Now - CheckedAt < 5.0) return Json;
+	CheckedAt = Now;
+	const FDateTime T = IFileManager::Get().GetTimeStamp(*P);
+	if (Json.IsValid() && P == Path && T == Stamp) return Json;
+	FString Text; TSharedPtr<FJsonObject> J;
+	if (!FFileHelper::LoadFileToString(Text, *P) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid())
+	{ ADP_WARN(TEXT("Riders: %s could not be read"), *P); Json.Reset(); Path.Reset(); return nullptr; }
+	Json = J; Path = P; Stamp = T; ++Gen;
+	ADP_LOG(TEXT("Riders: %s read once for the lanes (%d characters)"), *P, Text.Len());
+	return Json;
+}
+
 bool FVehicleLane::FromRoad(const FString& Road, bool bRight, int32 Lane, FVehicleLane& Out)
 {
-	FString Text; TSharedPtr<FJsonObject> J; const TArray<TSharedPtr<FJsonValue>>* Rs = nullptr;
-	if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J || !J->TryGetArrayField(TEXT("roads"), Rs)) return false;
+	const TSharedPtr<FJsonObject> J = Roads(); const TArray<TSharedPtr<FJsonValue>>* Rs = nullptr;
+	if (!J.IsValid() || !J->TryGetArrayField(TEXT("roads"), Rs)) return false;
+	if (RoadsCache::LanesGen != RoadsCache::Gen) { RoadsCache::Lanes.Reset(); RoadsCache::LanesGen = RoadsCache::Gen; }
+	const FString Key = FString::Printf(TEXT("%s|%d|%d"), *Road, int32(bRight), Lane);
+	if (const TArray<FVector>* Have = RoadsCache::Lanes.Find(Key)) { Out.Pts = *Have; return Out.Pts.Num() > 1; }
+	const bool bOk = FromRoadJson(*Rs, Road, bRight, Lane, Out);
+	RoadsCache::Lanes.Add(Key, bOk ? Out.Pts : TArray<FVector>());
+	return bOk;
+}
+
+bool FVehicleLane::FromRoadJson(const TArray<TSharedPtr<FJsonValue>>& RsIn, const FString& Road, bool bRight, int32 Lane, FVehicleLane& Out)
+{
+	const TArray<TSharedPtr<FJsonValue>>* Rs = &RsIn;
 	for (const auto& V : *Rs)
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
@@ -1025,6 +1063,37 @@ bool UVehicleRiders::YouAboard() const
 	return FMath::Abs(L.X) < 680.f && FMath::Abs(L.Y) < 165.f && L.Z > 0.f && L.Z < 450.f;
 }
 
+bool UVehicleRiders::Retarget(const TArray<FVector>& Path, const TArray<float>* CapsMs)
+{
+	if (!IsDriving() || Path.Num() < 2 || Go.Pts.Num() < 2) return false;
+	// where the front axle is now, found again on the new path (the same road so far: only the end is new)
+	const FVector At = OnPath(Go.S);
+	TArray<float> Len; Len.SetNum(Path.Num()); Len[0] = 0.f;
+	for (int32 i = 1; i < Path.Num(); ++i) Len[i] = Len[i - 1] + float(FVector::Dist2D(Path[i], Path[i - 1]));
+	float BestS = -1.f; double Bd = 1e18;
+	for (int32 i = 1; i < Path.Num(); ++i)
+	{
+		const FVector P0(Path[i - 1].X, Path[i - 1].Y, 0.), P1(Path[i].X, Path[i].Y, 0.), Q(At.X, At.Y, 0.);
+		const FVector Seg = P1 - P0; const double L2 = FMath::Max(1., Seg.SizeSquared());
+		const double T = FMath::Clamp(FVector::DotProduct(Q - P0, Seg) / L2, 0., 1.);
+		const double D2 = FVector::DistSquared(Q, P0 + Seg * T);
+		if (D2 < Bd) { Bd = D2; BestS = Len[i - 1] + float(T * FMath::Sqrt(L2)); }
+	}
+	if (BestS < 0.f || Bd > FMath::Square(150.)) { ADP_WARN(TEXT("Riders: a new way that does not start where it is (%.1f m off) - kept the old one"), FMath::Sqrt(Bd) / 100.); return false; }
+	Go.Pts = Path; Go.Len = MoveTemp(Len); Go.S = BestS; Go.Lim.Reset(); Go.Cap2.Reset();
+	if (CapsMs && CapsMs->Num() == Path.Num())
+	{
+		const float Gentle = 50.f;
+		Go.Lim.SetNum(Path.Num()); Go.Cap2.SetNum(Path.Num());
+		for (int32 i = 0; i < Path.Num(); ++i) Go.Lim[i] = FMath::Max(1.f, (*CapsMs)[i]) * 100.f;
+		Go.Cap2[Path.Num() - 1] = FMath::Square(Go.Lim.Last());
+		for (int32 i = Path.Num() - 2; i >= 0; --i) Go.Cap2[i] = FMath::Min(FMath::Square(Go.Lim[i]), Go.Cap2[i + 1] + 2.f * Gentle * (Go.Len[i + 1] - Go.Len[i]));
+	}
+	Go.LookIn = 0.f;
+	ADP_LOG(TEXT("Riders: a new end to its way - %.0f m left"), (Go.Len.Last() - Go.S) / 100.f);
+	return true;
+}
+
 bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs, const TArray<float>* CapsMs)
 {
 	if (!LineOn() || !bAtWheel || IsDriving() || Path.Num() < 2) return false;
@@ -1054,6 +1123,7 @@ bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs, const TAr
 
 void UVehicleRiders::LookAround(float Since)
 {
+	ADP_PERF_SCOPE("a vehicle's riders: who is about (8 a second)", 0.5f);
 	// who is round about: gathered twice a second (all the people known, whoever they belong to), their places and motion every look
 	AADPPeople* P = AADPPeople::Get(GetWorld());
 	const FVector Me = Body->Road().GetLocation();
@@ -1062,11 +1132,15 @@ void UVehicleRiders::LookAround(float Since)
 		Go.SeenIn = 0.5f;
 		const TArray<FGo::FSeen> Was = MoveTemp(Go.Seen); Go.Seen.Reset();
 		const APlayerController* PC = GetWorld()->GetFirstPlayerController(); AActor* You = PC ? PC->GetPawn() : nullptr;
-		for (TActorIterator<AActor> It(GetWorld()); It; ++It)
+		// (the people's own list and you - not every actor in the world: 7 coaches walking all actors twice a second was slow)
+		TArray<AActor*> Round;
+		if (P) for (const AADPPeople::FWho& Wh : P->Everyone()) if (AActor* A = Wh.A.Get()) Round.Add(A);
+		if (You && !Round.Contains(You)) Round.Add(You);
+		for (AActor* A : Round)
 		{
-			AActor* A = *It; const FVector L = A->GetActorLocation();
+			const FVector L = A->GetActorLocation();
 			if (FMath::Abs(L.X - Me.X) > 9000.f || FMath::Abs(L.Y - Me.Y) > 9000.f || FMath::Abs(L.Z - Me.Z) > 400.f) continue;
-			if (A == You ? !A->GetActorEnableCollision() : (!P || !P->Find(A))) continue;
+			if (A == You && !A->GetActorEnableCollision()) continue;
 			const FGo::FSeen* W = Was.FindByPredicate([A](const FGo::FSeen& X) { return X.A.Get() == A; });
 			FGo::FSeen S; if (W) S = *W; else { S.A = A; S.At = L; }
 			Go.Seen.Add(S);
@@ -1077,6 +1151,7 @@ void UVehicleRiders::LookAround(float Since)
 
 float UVehicleRiders::Clear(float Need)
 {
+	ADP_PERF_SCOPE("a vehicle's riders: its way ahead (8 a second)", 0.5f);
 	// how far it may go (cm of its own way): people its body would come to, people on or stepping onto a zebra it crosses, vehicles
 	Go.Why.Reset();
 	const float Nose = float(Spec.At(TEXT("front_bumper")).X), Axle = float(Spec.At(TEXT("front_axle")).X), Wb = Axle - float(Spec.At(TEXT("rear_axle")).X), Tail = -645.f;
@@ -1160,7 +1235,7 @@ float UVehicleRiders::Clear(float Need)
 		TArray<FOverlapResult> Hit;
 		if (bHit || GetWorld()->OverlapMultiByObjectType(Hit, At + VrZ * 120.f, FQuat::Identity, Ob, FCollisionShape::MakeSphere(95.f), Q))
 		{
-			if (d - 60.f < Best) { Best = d - 60.f; Go.Why = TEXT("a vehicle in its way"); }
+			if (d - 140.f < Best) { Best = FMath::Max(0.f, d - 140.f); Go.Why = TEXT("a vehicle in its way"); }   // (0.8 m more than for people: it stops 2 m short of the one ahead)
 			break;
 		}
 	}
@@ -1215,6 +1290,7 @@ void UVehicleRiders::OnUnregister()
 
 void UVehicleRiders::TickDrive(float Dt)
 {
+	ADP_PERF_SCOPE("a vehicle's riders: driving (each frame)", 0.5f);
 	if (Go.Stage == EGo::Parked)
 	{
 		Go.V = 0.f; AccelK = FMath::FInterpTo(AccelK, 0.f, Dt, 5.f); BrakeK = FMath::FInterpTo(BrakeK, bAtWheel ? 0.6f : 0.f, Dt, 4.f);
@@ -1272,7 +1348,6 @@ void UVehicleRiders::TickDrive(float Dt)
 		const bool bGive = Go.Free < 1e8f;
 		if (bGive != Go.bGiveWay) { Go.bGiveWay = bGive; ADP_LOG(TEXT("Riders: %s%s (%.1f m ahead, at %.1f km/h)"), bGive ? TEXT("giving way - ") : TEXT("the way is clear"), *Go.Why, bGive ? Go.Free / 100.f : 0.f, Go.V * 0.036f); }
 	}
-	else if (Go.Free < 1e8f) Go.Free -= Go.V * Dt;
 	float Hard = Brk;
 	if (Go.Free < 1e8f) { const float Room = Go.Free - 120.f; Want = FMath::Min(Want, Room > 0.f ? FMath::Sqrt(2.f * Brk * 0.7f * Room) : 0.f); if (Go.V * Go.V > 2.f * Brk * FMath::Max(Room, 1.f)) Hard = 380.f; }
 	const float WantA = FMath::Clamp((Want - Go.V) / FMath::Max(Dt, 0.05f), -Hard, Acc);
@@ -1282,7 +1357,9 @@ void UVehicleRiders::TickDrive(float Dt)
 	// (it waits for as long as they are there: said once a minute, by name - never a time after which it drives on)
 	if (Go.V < 1.f && Go.bGiveWay) { if ((Go.Still += Dt) > Go.SayAt) { Go.SayAt += 60.f; ADP_LOG(TEXT("Riders: waiting for %.0f s - %s"), Go.Still, *Go.Why); } }
 	else if (!Go.bGiveWay) { Go.Still = 0.f; Go.SayAt = 60.f; }
-	const float Ds = FMath::Min(Go.V * Dt, FMath::Max(0.f, Left));
+	float Ds = FMath::Min(Go.V * Dt, FMath::Max(0.f, Left));
+	// (never past what it last saw free: a long frame must not carry it into the one ahead)
+	if (Go.Free < 1e8f) { Ds = FMath::Min(Ds, FMath::Max(0.f, Go.Free - 100.f)); if (Ds <= 0.f && Go.V > 0.f) { Go.V = 0.f; Go.A = 0.f; } Go.Free -= Ds; }
 	Go.S += Ds; Go.Roll += Ds / (Spec.Num(TEXT("tyre_radius"), 0.52f) * 100.f);
 	// the front axle on the path, the rear one trailing after it
 	FVector Dir; FVector F = OnPath(Go.S, &Dir);

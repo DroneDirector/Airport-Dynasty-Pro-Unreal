@@ -100,7 +100,7 @@ public:
 	/** Views test: could it set off along the loop now without touching another coach? */
 	bool RouteFree(int32 Coach, bool bToTown, FString* Why = nullptr) const;
 	/** The road's limit at each point of a loop path (m/s): the open road 85 km/h, the town hub's streets and the airport
-	 *  (inside the airfield's boundary) TownMs, at most 50 km/h. */
+	 *  (inside the airfield's boundary) TownMs, at most 50 km/h; the road through the town (CHABLAIS-LINK) 50 km/h. */
 	TArray<float> RouteCaps(const TArray<FVector>& Path, float TownMs) const;
 
 private:
@@ -146,11 +146,27 @@ private:
 	void ReachTick(float Dt);
 	void ReachEnd();
 	// the loop (to-do 373)
-	struct FRouteGo { TArray<FVector> Path; float BackLeft = 0.f, Backed = 0.f; UAudioComponent* Beep = nullptr; bool bToTown = false; bool bDriving = false; int32 Bay = INDEX_NONE; float LimitMs = 13.9f; TArray<float> Caps; float SayIn = 0.f; };
+	struct FRouteGo { TArray<FVector> Path; float BackLeft = 0.f, Backed = 0.f; UAudioComponent* Beep = nullptr; bool bToTown = false; bool bDriving = false; int32 Bay = INDEX_NONE; float LimitMs = 13.9f; TArray<float> Caps; float SayIn = 0.f; bool bBayGiven = false; };
 	TMap<int32, FRouteGo> RouteGo;
 	TMap<int32, FTransform> HomeStand;     // a coach's terminal stand (world root): where it was when first sent to town
 	TMap<int32, int32> HubBayOf;           // the hub bay a coach went to
 	TMap<int32, TWeakObjectPtr<AActor>> TestDriverOf;   // views test drivers
+	// the terminal's coach bays (world roots, nose in, as it stands parked), farthest along the forecourt first
+	mutable TArray<FTransform> TermBays; mutable bool bTermBaysMade = false;
+	mutable TArray<FVector> TermLane; mutable TArray<float> TermLaneS; mutable float TermInS0 = 0.f, TermInS1 = 0.f;   // the lane in past the bays; its stretch where a coach is given one
+	FTransform StandRel = FTransform::Identity; bool bStandRel = false;   // a parked coach's root seen from its actor (its stand)
+	TMap<int32, int32> TermBayOf;          // the terminal bay a coach was given on arrival
+	struct FFreeMemo { double At = -1e9; bool bFree = false; FString Why; };
+	mutable TMap<int32, FFreeMemo> FreeMemo;   // RouteFree, worked out at most every half second
+	void MakeTermBays() const;
+	/** The farthest-along terminal bay nobody stands in or was given (INDEX_NONE: all taken). */
+	int32 FreeTermBay(int32 Coach) const;
+	/** It stands square in one of the terminal bays now. */
+	bool InTermBay(int32 Coach) const;
+	/** Its driver shuts the front door when it stands on the road (not in a bay). */
+	void ShutOnRoad(int32 Coach, class UVehicleRiders* R);
+	/** On the way in: each coach reaching the lane before the bays given the farthest-along free one, its way swapped to it. */
+	void GiveTermBays();
 	USoundBase* SndBeep = nullptr;
 	void RouteTick(float Dt);
 	/** The first other coach the body touches driving the first stretch of Path from From (INDEX_NONE: none). */

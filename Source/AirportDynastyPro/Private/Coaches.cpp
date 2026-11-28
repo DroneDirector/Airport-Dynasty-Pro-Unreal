@@ -9,6 +9,8 @@
 #include "Unseen.h"
 #include "Airfield.h"
 #include "ADPLog.h"
+#include "PerfLog.h"
+#include "RoadNetwork.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
@@ -87,6 +89,7 @@ void ACoaches::Setup(FCoach& C)
 	ABabylonModel* M = C.M.Get();
 	if (!M || !M->GetModelRoot()) return;
 	C.RootBase = M->GetModelRoot()->GetRelativeTransform();
+	if (!bStandRel) { bStandRel = true; StandRel = RootW(C).GetRelativeTransform(M->GetActorTransform()); }   // (as parked in its stand: each terminal bay root from it)
 	// the doors: each leaf swings out on its outer edge (the frame's side), a few cm out first, a quarter turn
 	for (int32 i = 0; i < 2; ++i)
 		for (int32 k = 0; k < 2; ++k)
@@ -576,6 +579,8 @@ namespace CoachLoop
 	constexpr float LoopTownLimit = 13.9f;                // m/s: 50 km/h
 	constexpr float LoopOpenLimit = 23.6f;                // m/s: 85 km/h on the open road (owner 2026-11-28)
 	constexpr float LoopTownReach = 6000.f;               // cm: the town hub's own streets, this near their lanes
+	constexpr float LoopLinkReach = 1200.f;               // cm: the road through the town (CHABLAIS-LINK), this near its lanes
+	constexpr float LoopBayJoin = 700.f;                  // cm: the turn off the lane into a terminal bay, cut back each side
 
 	FVector LoopPlan(const TArray<TSharedPtr<FJsonValue>>& A) { return A.Num() >= 2 ? FVector(A[0]->AsNumber() * 100.0, -A[1]->AsNumber() * 100.0, 0.0) : FVector::ZeroVector; }
 	int32 LoopNearest(const TArray<FVector>& P, const FVector& Q)
@@ -631,10 +636,10 @@ namespace CoachLoop
 TArray<FVector> ACoaches::RoutePath(int32 Ci, bool bToTown, int32 Bay, const FTransform& From, FString& Why) const
 {
 	using namespace CoachLoop;
+	ADP_PERF_SCOPE("coaches: a loop path", 2.f);
 	TArray<FVector> Path;
-	FString Text; TSharedPtr<FJsonObject> J; const TSharedPtr<FJsonObject>* Rt = nullptr; const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
-	if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()
-		|| !J->TryGetObjectField(TEXT("routes"), Rt) || !(*Rt)->TryGetArrayField(bToTown ? TEXT("coach-to-town") : TEXT("coach-to-terminal"), Steps))
+	const TSharedPtr<FJsonObject> J = FVehicleLane::Roads(); const TSharedPtr<FJsonObject>* Rt = nullptr; const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+	if (!J.IsValid() || !J->TryGetObjectField(TEXT("routes"), Rt) || !(*Rt)->TryGetArrayField(bToTown ? TEXT("coach-to-town") : TEXT("coach-to-terminal"), Steps))
 	{ Why = TEXT("this site's roads.json has no coach loop"); return Path; }
 	TMap<FString, TSharedPtr<FJsonObject>> Road;
 	for (const TSharedPtr<FJsonValue>& V : J->GetArrayField(TEXT("roads"))) if (const TSharedPtr<FJsonObject> O = V->AsObject()) Road.Add(O->GetStringField(TEXT("id")), O);
@@ -652,6 +657,12 @@ TArray<FVector> ACoaches::RoutePath(int32 Ci, bool bToTown, int32 Bay, const FTr
 		if (!H) { Why = TEXT("it has no stand at the terminal (never sent from one)"); return Path; }
 		Bump = H->TransformPosition(FVector(CoachDim::XF * 100.f, 0, 0));
 	}
+	// at the terminal it turns off the lane beside the bays straight into its own (never along the bays' own lane, across the others)
+	const bool bLeg = !bToTown;
+	const FVector LegEnd = bLeg ? HomeStand[Ci].TransformPosition(FVector(LoopAxleF, 0, 0)) : FVector::ZeroVector;
+	const FVector LegDir = bLeg ? HomeStand[Ci].GetUnitAxis(EAxis::X).GetSafeNormal2D() : FVector::ForwardVector;
+	auto Tok = [&](int32 s, const TCHAR* Key) { FString T; (*Steps)[s]->AsObject()->TryGetStringField(Key, T); return T; };
+	auto Skip = [&](int32 s) { return bLeg && Tok(s, TEXT("from")).StartsWith(TEXT("bay")); };
 	const FVector Axle = From.TransformPosition(FVector(LoopAxleF, 0, 0)), Fwd = From.GetUnitAxis(EAxis::X).GetSafeNormal2D();
 	// one step's lane and its run (lane point indices); bFromCoach: it starts where the coach stands
 	auto StepRun = [&](int32 s, bool bFromCoach, FVehicleLane& L, int32& I0, int32& I1, bool& bPull, bool& bClosed, double& Jm) -> bool
@@ -688,6 +699,7 @@ TArray<FVector> ACoaches::RoutePath(int32 Ci, bool bToTown, int32 Bay, const FTr
 		double JoinD = 1e30, HubD = 1e30;
 		for (int32 s = 0; s < Steps->Num(); ++s)
 		{
+			if (Skip(s)) continue;
 			FVehicleLane L; int32 A0 = INDEX_NONE, A1 = INDEX_NONE; bool bP = false, bC = false; double Jj = 0.0;
 			if (!StepRun(s, s == 0, L, A0, A1, bP, bC, Jj) || A0 == INDEX_NONE || A1 == INDEX_NONE || !L.Pts.Num()) continue;
 			double Near = 1e30;
@@ -701,8 +713,23 @@ TArray<FVector> ACoaches::RoutePath(int32 Ci, bool bToTown, int32 Bay, const FTr
 	for (int32 s = JoinStep; s < Steps->Num(); ++s)
 	{
 		FVehicleLane L; int32 I0 = INDEX_NONE, I1 = INDEX_NONE; bool bPull = false, bClosed = false; double Jm = 8.0;
+		if (Skip(s)) continue;
 		if (!StepRun(s, s == JoinStep && JoinStep > 0, L, I0, I1, bPull, bClosed, Jm)) { Path.Reset(); return Path; }
 		const FString Id = (*Steps)[s]->AsObject()->GetStringField(TEXT("road"));
+		// the lane's point where the bay's own line crosses it (at least 8 m before where the front axle stops)
+		bool bLegHere = bLeg && Tok(s, TEXT("to")).StartsWith(TEXT("bay")) && I0 != INDEX_NONE;
+		double LegAlong = 0.0;
+		if (bLegHere)
+		{
+			int32 Bi = INDEX_NONE; double Bl = 400.0;
+			for (int32 i = I0; i < L.Pts.Num(); ++i)
+			{
+				const FVector Rel = (L.Pts[i] - LegEnd) * FVector(1, 1, 0); const double Along = FVector::DotProduct(Rel, LegDir);
+				const double Lat = FMath::Abs(Rel.X * LegDir.Y - Rel.Y * LegDir.X);
+				if (Along < -800.0 && Lat < Bl) { Bl = Lat; Bi = i; LegAlong = Along; }
+			}
+			if (Bi != INDEX_NONE && Bi > I0) I1 = Bi; else { bLegHere = false; ADP_WARN(TEXT("Coaches: coach %d's bay is not beside its lane - it drives the old way in"), Ci); }
+		}
 		if (I0 == INDEX_NONE || I1 == INDEX_NONE || (I1 <= I0 && !bClosed)) { Why = FString::Printf(TEXT("step %d (%s) runs nowhere or backwards (%d -> %d)"), s, *Id, I0, I1); Path.Reset(); return Path; }
 		TArray<FVector> Seg;
 		for (int32 i = I0; i != I1; i = (i + 1) % L.Pts.Num()) Seg.Add(L.Pts[i]);
@@ -710,6 +737,13 @@ TArray<FVector> ACoaches::RoutePath(int32 Ci, bool bToTown, int32 Bay, const FTr
 		if (Seg.Num() < 2) Seg.Add(L.Pts[(I1 + 1) % L.Pts.Num()]);
 		if (Path.Num() == 0) { Path.Add(Axle); LoopJoin(Path, Seg, bPull ? 0.f : float(Jm) * 100.f, Fwd); }
 		else LoopJoin(Path, Seg, float(Jm) * 100.f, Fwd);
+		if (bLegHere)
+		{
+			TArray<FVector> Leg; const int32 N = FMath::Max(2, FMath::CeilToInt(-LegAlong / 100.0));
+			for (int32 k = 0; k <= N; ++k) Leg.Add(LegEnd + LegDir * (LegAlong * (1.0 - double(k) / N)));
+			LoopJoin(Path, Leg, LoopBayJoin, Fwd);
+			break;
+		}
 	}
 	for (FVector& P : Path) P.Z = From.GetLocation().Z;   // (the riders put each wheel on the ground)
 	return Path;
@@ -770,7 +804,7 @@ bool ACoaches::SendOnRoute(int32 Ci, bool bToTown, int32 Bay, float LimitMs)
 	if (Hit != INDEX_NONE) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - still touches coach %d after backing %.1f m"), Ci, Way, Hit, LoopMaxBack / 100.f); return false; }
 	float Len = 0.f; for (int32 i = 1; i < Path.Num(); ++i) Len += float(FVector::Dist2D(Path[i], Path[i - 1]));
 	FRouteGo& G = RouteGo.Add(Ci); G.LimitMs = FMath::Clamp(LimitMs, 5.f, LoopTownLimit); G.Caps = RouteCaps(Path, G.LimitMs); G.Path = MoveTemp(Path); G.BackLeft = Backed; G.bToTown = bToTown; G.Bay = Bay;
-	if (bToTown) HubBayOf.Add(Ci, Bay); else HubBayOf.Remove(Ci);
+	if (bToTown) { HubBayOf.Add(Ci, Bay); TermBayOf.Remove(Ci); } else HubBayOf.Remove(Ci);
 	const FString BayS = bToTown ? FString::Printf(TEXT(" (hub bay %d)"), Bay) : FString();
 	const FString BackS = Backed > 0.f ? FString::Printf(TEXT(", backing up %.2f m first (coach %d in front)"), Backed / 100.f, FirstHit) : FString(TEXT(", straight out"));
 	ADP_LOG(TEXT("Coaches: coach %d sent %s%s - %.2f km%s"), Ci, Way, *BayS, Len / 100000.f, *BackS);
@@ -802,9 +836,8 @@ int32 ACoaches::TestOut(float Metres, float GapM)
 	using namespace CoachLoop;
 	UWorld* W = GetWorld(); if (!W) return 0;
 	// the loop's way in starts at the hub: step 0's lane, its first point facing its second
-	FString Text; TSharedPtr<FJsonObject> J; const TSharedPtr<FJsonObject>* Rt = nullptr; const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
-	if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid()
-		|| !J->TryGetObjectField(TEXT("routes"), Rt) || !(*Rt)->TryGetArrayField(TEXT("coach-to-terminal"), Steps) || !Steps->Num())
+	const TSharedPtr<FJsonObject> J = FVehicleLane::Roads(); const TSharedPtr<FJsonObject>* Rt = nullptr; const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+	if (!J.IsValid() || !J->TryGetObjectField(TEXT("routes"), Rt) || !(*Rt)->TryGetArrayField(TEXT("coach-to-terminal"), Steps) || !Steps->Num())
 	{ ADP_WARN(TEXT("Coaches: test - no coach loop in roads.json")); return 0; }
 	const TSharedPtr<FJsonObject> S0 = (*Steps)[0]->AsObject();
 	FVehicleLane L0;
@@ -859,7 +892,7 @@ bool ACoaches::TestDriver(int32 Ci, FString* Why)
 {
 	UVehicleRiders* R = Riders(Ci);
 	if (!R) { if (Why) *Why = TEXT("no riders (its driving parts missing?)"); return false; }
-	if (R->DriverAtWheel()) return true;
+	if (R->DriverAtWheel()) { ShutOnRoad(Ci, R); return true; }
 	if (!TestDriverOf.Contains(Ci))
 	{
 		AADPPeople* P = AADPPeople::Get(GetWorld()); if (!P) return false;
@@ -876,23 +909,36 @@ bool ACoaches::TestDriver(int32 Ci, FString* Why)
 	}
 	if (!R->IsBusy(TestDriverOf[Ci].Get())) R->DriverGetIn();
 	if (!R->DriverAtWheel() && Why) *Why = TEXT("its driver is getting in");
+	if (R->DriverAtWheel()) ShutOnRoad(Ci, R);
 	return R->DriverAtWheel();
 }
 
 bool ACoaches::RouteFree(int32 Ci, bool bToTown, FString* WhyNot) const
 {
 	if (!Coaches.IsValidIndex(Ci)) return false;
+	ADP_PERF_SCOPE("coaches: is its way free", 1.f);
+	// (asked each frame by the views test for every waiting coach: worked out at most twice a second)
+	const double Now = FPlatformTime::Seconds();
+	FFreeMemo& Mo = FreeMemo.FindOrAdd(Ci);
+	if (Now - Mo.At < 0.5) { if (WhyNot) *WhyNot = Mo.Why; return Mo.bFree; }
+	Mo.At = Now; Mo.Why.Reset();
 	FString Why; const FTransform From = RootW(Coaches[Ci]);
 	const TArray<FVector> P = RoutePath(Ci, bToTown, INDEX_NONE, From, Why);
-	if (P.Num() < 2) { if (WhyNot) *WhyNot = FString::Printf(TEXT("no way (%s)"), *Why); return false; }
-	const int32 Hit = RouteHits(Ci, From, P);
-	if (Hit != INDEX_NONE && WhyNot) *WhyNot = FString::Printf(TEXT("coach %d in its way"), Hit);
-	return Hit == INDEX_NONE;
+	if (P.Num() < 2) { Mo.bFree = false; Mo.Why = FString::Printf(TEXT("no way (%s)"), *Why); }
+	else
+	{
+		const int32 Hit = RouteHits(Ci, From, P);
+		Mo.bFree = Hit == INDEX_NONE;
+		if (!Mo.bFree) Mo.Why = FString::Printf(TEXT("coach %d in its way"), Hit);
+	}
+	if (WhyNot) *WhyNot = Mo.Why;
+	return Mo.bFree;
 }
 
 TArray<float> ACoaches::RouteCaps(const TArray<FVector>& Path, float TownMs) const
 {
 	using namespace CoachLoop;
+	ADP_PERF_SCOPE("coaches: a loop's limits", 3.f);
 	TArray<float> Caps; Caps.Init(LoopOpenLimit, Path.Num());
 	const float Town = FMath::Min(TownMs, LoopTownLimit);
 	// the town hub's own streets (its loop and the street out of it): town speed near their lanes
@@ -901,22 +947,30 @@ TArray<float> ACoaches::RouteCaps(const TArray<FVector>& Path, float TownMs) con
 		for (int32 Side = 0; Side < 2; ++Side) { FVehicleLane L; if (FVehicleLane::FromRoad(Id, Side == 1, 0, L)) TownPts.Append(L.Pts); }
 	// the airport: inside the airfield's boundary (plan metres; plan y is -world y)
 	const FAirfieldData::FRect& B = AAirfield::Shared().Boundary;
-	int32 InAir = 0, InTown = 0;
+	// the road through the town (owner 2026-11-28): 50 km/h, not the open road's 85
+	TArray<FVector> LinkPts;
+	for (int32 Side = 0; Side < 2; ++Side) { FVehicleLane L; if (FVehicleLane::FromRoad(TEXT("CHABLAIS-LINK"), Side == 1, 0, L)) LinkPts.Append(L.Pts); }
+	int32 InAir = 0, InTown = 0, InLink = 0;
 	for (int32 i = 0; i < Path.Num(); ++i)
 	{
 		const float X = float(Path[i].X / 100.0), Y = float(-Path[i].Y / 100.0);
 		bool bTown = X >= B.X0 && X <= B.X1 && Y >= B.Y0 && Y <= B.Y1;
 		if (bTown) ++InAir;
 		else for (int32 k = 0; k < TownPts.Num() && !bTown; k += 2) bTown = FVector::DistSquared2D(TownPts[k], Path[i]) < FMath::Square(LoopTownReach);
-		if (bTown) { Caps[i] = Town; ++InTown; }
+		if (bTown) { Caps[i] = Town; ++InTown; continue; }
+		bool bLink = false;
+		for (int32 k = 0; k < LinkPts.Num() && !bLink; ++k) bLink = FVector::DistSquared2D(LinkPts[k], Path[i]) < FMath::Square(LoopLinkReach);
+		if (bLink) { Caps[i] = FMath::Min(LoopTownLimit, Caps[i]); ++InLink; }
 	}
-	ADP_LOG(TEXT("Coaches: the loop's limits - %d of %d points at %.0f km/h (%d inside the airport), the rest open road at %.0f km/h"), InTown, Path.Num(), Town * 3.6f, InAir, LoopOpenLimit * 3.6f);
+	ADP_LOG(TEXT("Coaches: the loop's limits - %d of %d points at %.0f km/h (%d inside the airport), %d on the road through the town at %.0f km/h, the rest open road at %.0f km/h"), InTown, Path.Num(), Town * 3.6f, InAir, InLink, LoopTownLimit * 3.6f, LoopOpenLimit * 3.6f);
 	return Caps;
 }
 
 void ACoaches::RouteTick(float Dt)
 {
 	using namespace CoachLoop;
+	ADP_PERF_SCOPE("coaches: the loop (each frame)", 0.5f);
+	GiveTermBays();
 	for (auto It = RouteGo.CreateIterator(); It; ++It)
 	{
 		const int32 Ci = It.Key(); FRouteGo& G = It.Value();
@@ -930,7 +984,15 @@ void ACoaches::RouteTick(float Dt)
 				const FVector At = RootW(Coaches[Ci]).GetLocation();
 				ADP_LOG(TEXT("Coaches: coach %d at %.0f km/h (limit here %.0f km/h%s) at %.0f %.0f"), Ci, R->Speed() * 0.036f, R->LimitHere() * 3.6f, R->IsGivingWay() ? TEXT(", giving way") : TEXT(""), At.X / 100.0, -At.Y / 100.0);
 			}
-			if (!R->IsDriving()) { ADP_LOG(TEXT("Coaches: coach %d %s"), Ci, G.bToTown ? *FString::Printf(TEXT("in hub bay %d"), G.Bay) : TEXT("back on its stand")); It.RemoveCurrent(); }
+			if (!R->IsDriving())
+			{
+				const int32* Tb = TermBayOf.Find(Ci);
+				const FString Where = G.bToTown ? FString::Printf(TEXT("in hub bay %d"), G.Bay)
+					: Tb ? FString::Printf(TEXT("parked in terminal bay %d of %d (farthest along first)%s"), *Tb + 1, TermBays.Num(), InTermBay(Ci) ? TEXT("") : TEXT(" - NOT square in it"))
+					: FString(TEXT("back on its stand"));
+				ADP_LOG(TEXT("Coaches: coach %d %s"), Ci, *Where);
+				It.RemoveCurrent();
+			}
 			continue;
 		}
 		FCoach& C = Coaches[Ci];
@@ -958,6 +1020,129 @@ void ACoaches::RouteTick(float Dt)
 		for (const FVector& P : G.Path) Local.Add(Parent.InverseTransformPosition(P));
 		if (!R->Drive(Local, G.LimitMs, G.Caps.Num() == Local.Num() ? &G.Caps : nullptr)) { ADP_WARN(TEXT("Coaches: coach %d's riders won't drive the loop (someone not seated, or you aboard)"), Ci); It.RemoveCurrent(); continue; }
 		G.bDriving = true;
+	}
+}
+void ACoaches::MakeTermBays() const
+{
+	using namespace CoachLoop;
+	if (bTermBaysMade || !bStandRel || !ARoadNetwork::BusStands.Num()) return;
+	bTermBaysMade = true;
+	// the lane the coaches come in along: the terminal way's step that ends at a bay and does not start at one
+	const TSharedPtr<FJsonObject> J = FVehicleLane::Roads(); const TSharedPtr<FJsonObject>* Rt = nullptr; const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+	if (!J.IsValid() || !J->TryGetObjectField(TEXT("routes"), Rt) || !(*Rt)->TryGetArrayField(TEXT("coach-to-terminal"), Steps)) { ADP_WARN(TEXT("Coaches: no terminal bays - no coach loop in roads.json")); return; }
+	FVehicleLane L; FVector From = FVector::ZeroVector; bool bLane = false;
+	for (const TSharedPtr<FJsonValue>& V : *Steps)
+	{
+		const TSharedPtr<FJsonObject> St = V->AsObject(); if (!St) continue;
+		FString Fs, Ts; St->TryGetStringField(TEXT("from"), Fs); St->TryGetStringField(TEXT("to"), Ts);
+		if (!Ts.StartsWith(TEXT("bay")) || Fs.StartsWith(TEXT("bay"))) continue;
+		const TArray<TSharedPtr<FJsonValue>>* Fa = nullptr; if (St->TryGetArrayField(TEXT("from"), Fa)) From = LoopPlan(*Fa);
+		bLane = FVehicleLane::FromRoad(St->GetStringField(TEXT("road")), St->GetStringField(TEXT("side")) == TEXT("right"), int32(St->GetNumberField(TEXT("lane"))), L);
+		break;
+	}
+	if (!bLane || L.Pts.Num() < 2) { ADP_WARN(TEXT("Coaches: no terminal bays - the lane in beside them is missing")); return; }
+	TermLane = L.Pts; TermLaneS.SetNum(L.Pts.Num()); TermLaneS[0] = 0.f;
+	for (int32 i = 1; i < L.Pts.Num(); ++i) TermLaneS[i] = TermLaneS[i - 1] + float(FVector::Dist2D(L.Pts[i], L.Pts[i - 1]));
+	// each stand as a parked coach stands in it (its actor turned as the roads park them), nose in: the way a coach drives in
+	struct FB { FTransform T; float S; };
+	TArray<FB> Bs; int32 Flipped = 0;
+	const float Mid = (CoachDim::XF * 100.f + LoopBackX) / 2.f;
+	for (const FTransform& Sd : ARoadNetwork::BusStands)
+	{
+		FTransform Rb = StandRel * FTransform(FRotator(0.0, Sd.Rotator().Yaw + 180.0, 0.0), Sd.GetLocation());
+		const FVector In = Sd.GetRotation().GetForwardVector().GetSafeNormal2D();
+		if (FVector::DotProduct(Rb.GetUnitAxis(EAxis::X).GetSafeNormal2D(), In) < 0.f)
+		{
+			const FVector C = Rb.TransformPosition(FVector(Mid, 0, 0)); const FQuat Half(FVector::UpVector, PI);
+			Rb.SetRotation(Half * Rb.GetRotation()); Rb.SetLocation(C + Half.RotateVector(Rb.GetLocation() - C)); ++Flipped;
+		}
+		const int32 K = LoopNearest(L.Pts, Sd.GetLocation());
+		if (FVector::Dist2D(L.Pts[K], Sd.GetLocation()) > 1500.0) continue;   // (not a bay beside this lane)
+		Bs.Add({Rb, TermLaneS[K]});
+	}
+	Bs.Sort([](const FB& A, const FB& B) { return A.S > B.S; });
+	for (const FB& B : Bs) TermBays.Add(B.T);
+	// where a coach is given its bay: from 15 m into the lane's stretch up to 30 m before the first bay
+	TermInS0 = TermLaneS[LoopNearest(L.Pts, From)] + 1500.f;
+	TermInS1 = Bs.Num() ? Bs.Last().S - 3000.f : 0.f;
+	ADP_LOG(TEXT("Coaches: %d terminal bays beside the lane in (%d turned nose in), given on arrival from %.0f m to %.0f m along it"), TermBays.Num(), Flipped, TermInS0 / 100.f, TermInS1 / 100.f);
+}
+
+int32 ACoaches::FreeTermBay(int32 Ci) const
+{
+	using namespace CoachLoop;
+	MakeTermBays();
+	for (int32 k = 0; k < TermBays.Num(); ++k)
+	{
+		bool bTaken = false;
+		for (const TPair<int32, int32>& P : TermBayOf) bTaken |= P.Key != Ci && P.Value == k;
+		for (int32 j = 0; j < Coaches.Num() && !bTaken; ++j)
+		{
+			const FRouteGo* Gj = RouteGo.Find(j);
+			if (j == Ci || !Coaches[j].M.IsValid() || (Gj && Gj->bDriving)) continue;   // (one driving past is not in it)
+			bTaken = LoopTouch(TermBays[k], RootW(Coaches[j]), 0.f);
+		}
+		if (!bTaken) return k;
+	}
+	return INDEX_NONE;
+}
+
+bool ACoaches::InTermBay(int32 Ci) const
+{
+	MakeTermBays();
+	if (!Coaches.IsValidIndex(Ci) || !Coaches[Ci].M.IsValid()) return false;
+	const FTransform R = RootW(Coaches[Ci]);
+	for (const FTransform& B : TermBays)
+		if (FVector::Dist2D(B.GetLocation(), R.GetLocation()) < 150.0 && FVector::DotProduct(B.GetUnitAxis(EAxis::X), R.GetUnitAxis(EAxis::X)) > 0.95f) return true;
+	return false;
+}
+
+void ACoaches::ShutOnRoad(int32 Ci, UVehicleRiders* R)
+{
+	// (doors open only parked in a bay: on the road, queuing or driving, they are shut)
+	if (!R || R->IsDriving() || DoorKOf(Ci, 0) <= 0.f || InTermBay(Ci)) return;
+	if (R->DriverDoor(false)) ADP_LOG(TEXT("Coaches: coach %d on the road - its driver shuts the front door"), Ci);
+}
+
+void ACoaches::GiveTermBays()
+{
+	using namespace CoachLoop;
+	MakeTermBays();
+	if (!TermBays.Num() || TermLane.Num() < 2) return;
+	// those on their way in now in the lane's stretch before the bays, the one farthest along first: first in, farthest bay
+	TArray<TPair<float, int32>> In;
+	for (const TPair<int32, FRouteGo>& P : RouteGo)
+	{
+		if (!P.Value.bDriving || P.Value.bToTown || P.Value.bBayGiven || !Coaches.IsValidIndex(P.Key) || !Coaches[P.Key].M.IsValid()) continue;
+		const FVector Ax = RootW(Coaches[P.Key]).TransformPosition(FVector(LoopAxleF, 0, 0));
+		const int32 K = LoopNearest(TermLane, Ax);
+		if (FVector::Dist2D(TermLane[K], Ax) > 300.0 || TermLaneS[K] < TermInS0 || TermLaneS[K] > TermInS1) continue;
+		In.Add({TermLaneS[K], P.Key});
+	}
+	In.Sort([](const TPair<float, int32>& A, const TPair<float, int32>& B) { return A.Key > B.Key; });
+	for (const TPair<float, int32>& E : In)
+	{
+		const int32 Ci = E.Value; FRouteGo& G = RouteGo[Ci]; G.bBayGiven = true;
+		UVehicleRiders* R = Riders(Ci);
+		if (!R || !R->IsDriving()) continue;
+		const int32 B = FreeTermBay(Ci);
+		if (B == INDEX_NONE) { ADP_WARN(TEXT("Coaches: coach %d at the terminal - every bay taken, it keeps to its way in"), Ci); continue; }
+		const FTransform* Was = HomeStand.Find(Ci); const FTransform Prev = Was ? *Was : FTransform::Identity; const bool bHad = Was != nullptr;
+		HomeStand.Add(Ci, TermBays[B]);
+		FCoach& C = Coaches[Ci]; const FTransform From = RootW(C);
+		FString Why; TArray<FVector> P = RoutePath(Ci, false, INDEX_NONE, From, Why);
+		TArray<float> Caps = P.Num() >= 2 ? RouteCaps(P, G.LimitMs) : TArray<float>();
+		const FTransform Parent = C.RootBase.Inverse() * From;
+		TArray<FVector> Local; Local.Reserve(P.Num());
+		for (const FVector& Q : P) Local.Add(Parent.InverseTransformPosition(Q));
+		if (P.Num() < 2 || !R->Retarget(Local, &Caps))
+		{
+			if (bHad) HomeStand.Add(Ci, Prev); else HomeStand.Remove(Ci);
+			ADP_WARN(TEXT("Coaches: coach %d could not be given terminal bay %d (%s) - keeps its way in"), Ci, B + 1, P.Num() < 2 ? *Why : TEXT("not on its new way"));
+			continue;
+		}
+		TermBayOf.Add(Ci, B); G.Path = MoveTemp(P); G.Caps = MoveTemp(Caps);
+		ADP_LOG(TEXT("Coaches: coach %d at the terminal - given bay %d of %d (the farthest along still free), %.0f m to go"), Ci, B + 1, TermBays.Num(), R->LeftToDrive());
 	}
 }
 #pragma endregion
