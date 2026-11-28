@@ -85,6 +85,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "RHI.h"
 #include "RenderCore.h"
+#include "RenderTargetPool.h"
+#include "RenderingThread.h"
 #include "UnrealClient.h"
 #include "ADPFrameGen.h"
 #include "SunClock.h"
@@ -996,6 +998,11 @@ namespace ADPPerfViewsInternal
 				ADP_LOG(TEXT("Views: picture %s (%s; %s)"), *Png, Vs.X >= 3840 && Vs.Y >= 2160 ? TEXT("from the screen") : TEXT("drawn again at 4K"), *ADPGraphicsMemory::Line());
 				ShotAt = 2; Until = FPlatformTime::Seconds() + 2.0; return true;
 			}
+			// (the 4K redraw's buffers stay in Unreal's render-target pool; with the next scene on top the 8 GB card ran out at
+			//  the following camera cut - 11-28, five runs. Freed here, before the next shot.)
+			ENQUEUE_RENDER_COMMAND(ADPViewsFreeShotTargets)([](FRHICommandListImmediate&) { GRenderTargetPool.FreeUnusedResources(); });
+			FlushRenderingCommands();
+			ADP_LOG(TEXT("Views: the picture's buffers freed (%s)"), *ADPGraphicsMemory::Line());
 			ShotAt = 0; if (!bSub) FreeFov(PC);
 			if (!IFileManager::Get().FileExists(*Png)) ADP_WARN(TEXT("Views: the picture %s is not written yet"), *Shot);
 		}
