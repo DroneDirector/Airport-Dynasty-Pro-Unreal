@@ -773,6 +773,17 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	}
 	while (Left > 0.f && M.Step < M.Path.Num())
 	{
+		if (M.Step == M.ArcStep && M.ArcR > 1.f)
+		{
+			// (the arc: the nose on the circle, the main gear one wheelbase back along its tangent - constant yaw rate)
+			const float Go = FMath::Min(Left, (M.ArcEnd - M.ArcA) * M.ArcR);
+			M.ArcA += Go / M.ArcR; Left -= Go;
+			const float Sa = FMath::Sin(M.ArcA), Ca = FMath::Cos(M.ArcA);
+			M.Nose = M.ArcC - M.ArcN * (M.ArcR * Ca) + M.ArcD * (M.ArcR * Sa);
+			M.Main = M.Nose - (M.ArcD * Ca + M.ArcN * Sa) * Wheelbase;
+			if (M.ArcA >= M.ArcEnd - 1e-5f) { M.Nose = M.Path[M.Step]; ++M.Step; M.ArcR = 0.f; M.ArcStep = -1; }
+			continue;
+		}
 		const FVector2f To = M.Path[M.Step] - (M.Phase == EPhase::Push ? M.Main : M.Nose);
 		const float D = To.Size();
 		const FVector2f U = D > 1e-3f ? To / D : FVector2f::ZeroVector;
@@ -835,11 +846,12 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 				const float Ahead = FMath::Max(0.f, TenK - 30.f - M.Height) / FMath::Tan(FMath::DegreesToRadians(FMath::Max(M.Gamma, 1.f)));
 				M.Nose += D * Ahead; M.Main += D * Ahead; M.Height = TenK - 30.f; M.b10k = true;
 				// (about 8 s straight, then a 180 deg standard-rate turn to the right - 3 deg/s, some 24 deg of bank at 160 kt,
-				//  the wings seen to dip and level again - and on straight; the nose wheel follows the arc in 1 deg steps)
+				//  the wings seen to dip and level again - and on straight)
 				const FVector2f N(-D.Y, D.X); const float R = M.Speed / FMath::DegreesToRadians(3.f);
 				const FVector2f P0 = M.Nose + D * (M.Speed * 8.f), C = P0 + N * R;
 				M.Path.Reset(); M.Path.Add(P0);
-				for (int32 a = 1; a <= 180; ++a) { const float Ar = FMath::DegreesToRadians(float(a)); M.Path.Add(C - N * (R * FMath::Cos(Ar)) + D * (R * FMath::Sin(Ar))); }
+				// (flown as one true arc, not the old 1 deg chords: Path[1] is the arc's end, reached round C at a constant 3 deg/s)
+				M.Path.Add(C + N * R); M.ArcC = C; M.ArcD = D; M.ArcN = N; M.ArcR = R; M.ArcA = 0.f; M.ArcEnd = PI; M.ArcStep = 1;
 				M.Path.Add(M.Path.Last() - D * 80000.f); M.Step = 0;
 				ADP_LOG(TEXT("Traffic: %s test jump - %.0f m on along its climb track to %.0f m (10,000 ft is %.0f m), flying on there"), *M.Reg, Ahead, M.Height, TenK);
 			}
@@ -1350,6 +1362,14 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 		M.BankPeak = 0.f;
 	}
 	else if (FMath::Abs(M.BankPeak) <= 3.f && FMath::Abs(M.Bank) < 1.f) M.BankPeak = 0.f;
+	// (one line a second while banked or on the arc: heading, yaw rate, bank - the next run shows the turn is smooth)
+	if (bAir && (FMath::Abs(M.Bank) > 1.f || (M.ArcStep >= 0 && M.Step == M.ArcStep)) && (M.TurnLogT += Dt) >= 1.f)
+	{
+		M.TurnLogT = 0.f;
+		ADP_LOG(TEXT("Traffic: %s turning - track %.1f deg (plan), yaw rate %.2f deg/s (this frame %.2f), bank %.1f deg (want %.1f), %.0f m, dt %.1f ms"),
+			*M.Reg, Trk, M.TurnRate, -dTrk / Dt, M.Bank, BankWant, M.Height, Dt * 1000.f);
+	}
+	else if (!bAir || (FMath::Abs(M.Bank) <= 1.f && M.Step != M.ArcStep)) M.TurnLogT = 1.f;
 	float RollCmd = FMath::Clamp((M.Bank - BankWas) / Dt * 2.f, -15.f, 15.f);   // (+ rolls right: left aileron down, right up)
 	uint8 ASt = FMath::Abs(BankWant) > 3.f ? 3 : 0;
 	if (M.Phase == EPhase::Approach && M.Height < 15.f) { RollCmd += FMath::Clamp(Xw * 0.3f, -6.f, 6.f); if (FMath::Abs(Xw) > 2.f) ASt = 4; }

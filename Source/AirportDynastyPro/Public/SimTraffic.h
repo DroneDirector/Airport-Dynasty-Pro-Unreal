@@ -77,6 +77,11 @@ private:
 		//  (-1 on the ground); NoseT seconds since the mains touched; b10k: the test jump to 10,000 ft done (-AirplaneTest only);
 		//  bNoseDown: the nose wheel is on the runway again; bBelt: the 10,000 ft seatbelt announcement asked for)
 		float PitchV = 0.f, LiftT = -1.f, NoseT = -1.f; bool b10k = false, bNoseDown = false, bBelt = false;
+		// a turn in the air flown as a true arc (11-28 owner: the A320 jittered while turning - the nose followed 1 deg chords
+		//  with the main gear trailing it like a taxi, a yaw-rate sawtooth of about 1-6 deg/s three times a second): the leg to
+		//  Path[ArcStep] is flown round centre ArcC (radius ArcR, from ArcD/ArcN at angle ArcA), the heading its exact tangent
+		FVector2f ArcC = FVector2f::ZeroVector, ArcD = FVector2f::ZeroVector, ArcN = FVector2f::ZeroVector;
+		float ArcR = 0.f, ArcA = 0.f, ArcEnd = 0.f, TurnLogT = 0.f; int32 ArcStep = -1;
 		float BankPeak = 0.f;   // (the turn's steepest bank so far: logged once it is level again)   // (nose-up degrees as drawn; seconds since rotation began (-1 not yet); the climb's path angle - all eased, never jumping)
 		bool bYou = false, bYouOff = false; int32 YouRe = INDEX_NONE; float YouBar = 0.f; TArray<FVector2f> YouFwd;   // (pushed by you: off blocks, where the crew's path goes on, the bar's angle)
 		TWeakObjectPtr<ABabylonModel> Model;
