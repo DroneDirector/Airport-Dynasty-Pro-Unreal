@@ -65,6 +65,7 @@ namespace ADPPerfLogInternal
 	// the watchdog (-StallWatch): a thread of its own that sees when the game thread hasn't moved on for 60 ms and writes
 	// where it is stuck at that moment (its call stack, by name where the build has its symbols)
 	void PerfLine(const FString& L);
+	void StallLine(const FString& T);   // (with the part running then: a Views step, a stress walk part)
 	std::atomic<uint64> PerfBeat{0};
 	uint32 PerfGameThreadId = 0;
 	uint64 PerfExeBase = 0;
@@ -95,7 +96,7 @@ namespace ADPPerfLogInternal
 						const uint64 Off = Stack[i] - PerfExeBase;
 						T += TEXT("\n    ") + FString(ANSI_TO_TCHAR(Name)) + (Off < 0x20000000ull ? FString::Printf(TEXT("  +0x%llx"), Off) : FString());
 					}
-					AsyncTask(ENamedThreads::GameThread, [T]() { PerfLine(T); });
+					AsyncTask(ENamedThreads::GameThread, [T]() { StallLine(T); });
 				}
 			}
 			return 0;
@@ -103,6 +104,7 @@ namespace ADPPerfLogInternal
 	};
 	FPerfWatch* PerfWatch = nullptr; FRunnableThread* PerfWatchThread = nullptr;
 	bool bPerfSection = false; FString PerfSectionName, PerfCurPart; TArray<float> PerfSectionFrames; TArray<FPerfFinding> PerfFindings; TArray<FString> PerfNotes;
+	void StallLine(const FString& T) { PerfLine(PerfCurPart.IsEmpty() ? T : T.Replace(TEXT("STALL:"), *(TEXT("STALL (at ") + PerfCurPart + TEXT("):")))); }
 
 	void PerfLine(const FString& Ln)
 	{

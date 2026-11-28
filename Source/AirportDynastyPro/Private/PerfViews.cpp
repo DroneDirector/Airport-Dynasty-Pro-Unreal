@@ -41,6 +41,17 @@
 //   coach town|terminal                   every coach sent to the town hub / back to its own stand (Coaches::SendOnRoute)
 //   coachwait <seconds> hub|home|near <m> waits until no coach is on its way / one is that near its stand
 //   quit
+// Save points (owner 2026-11-28): "# ===== <tag> <name>" lines divide the file into sections (tag: 1, 5b, coaches, end).
+//   -UIPerfViewsFrom=<tag or a word of the name, _ for a space> starts at that section (perf_views.sh --from <..>);
+//   -UIPerfViewsResume starts at the one after the last finished, from Saved/Logs/Views-Progress.txt (--resume), which
+//   is written each time a section ends ("finished <section>", "next <tag>"; "next end" once all are done).
+//   What the later sections need is kept the simple way: the lines before the first section always run; of the skipped
+//   sections only the setup lines are run, the last of each kind (cmd <var>, framegen, speed, day, hour, weather, eat,
+//   shots, park/parkoff, jetway <gate> park|dock, jetway beacons, fire doors|lights, hangar <x>, coach), no cameras,
+//   waits, measures, pictures, people, flights or fire drives. A last "coach terminal" is dropped (the coaches start on
+//   their stands); a hangar door is sent at 60x so it stands as the full run leaves it.
+// The player's own character (its body, clothes, shadow and anything attached) is hidden for the whole run, put back at
+//   the end. Each step is named in ADP-Perf.log (---- lines), so a STALL there (-StallWatch) says which step it was in.
 #include "PerfViews.h"
 #include "PeopleLayers.h"
 #include "RoadNetwork.h"
@@ -98,6 +109,9 @@
 #include "SimTraffic.h"
 #include "Coaches.h"
 #include "VehicleRiders.h"
+#include "PerfLog.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace ADPPerfViewsInternal
 {
@@ -110,6 +124,97 @@ namespace ADPPerfViewsInternal
 
 	TArray<TStrongObjectPtr<UTextureRenderTarget2D>> Eaten;
 	TArray<TWeakObjectPtr<ABabylonModel>> ForPicture;   // (park)
+
+	// ---- save points: the sections ("# ===== <tag> <name>"), the one running written down as each ends
+	FString CurSec;
+	bool IsSec(const FString& L) { return L.TrimStart().StartsWith(TEXT("# =====")); }
+	FString SecId(const FString& L) { FString T = L.TrimStartAndEnd(); T.RemoveFromStart(TEXT("#")); T.TrimStartInline(); while (T.RemoveFromStart(TEXT("="))) {} return T.TrimStartAndEnd(); }
+	FString SecTag(const FString& Id) { FString F, R; return Id.Split(TEXT(" "), &F, &R) ? F : Id; }
+	FString ProgressFile() { return FPaths::ProjectSavedDir() / TEXT("Logs/Views-Progress.txt"); }
+	void Progress(const FString& Done, const FString& Next)
+	{
+		FFileHelper::SaveStringToFile(FString::Printf(TEXT("finished %s\nnext %s\nat %s\n"), *Done, *Next, *FDateTime::Now().ToString(TEXT("%Y-%m-%d %H:%M:%S"))), *ProgressFile());
+		ADP_LOG(TEXT("Views: section %s finished (next %s)"), *Done, *Next);
+	}
+	/** The kind of setup a line is (the last of each kind is kept from skipped sections); "" if it is no setup. */
+	FString SetupKey(const FString& L)
+	{
+		FString K, A; if (!L.Split(TEXT(" "), &K, &A)) K = L;
+		TArray<FString> V; A.ParseIntoArrayWS(V);
+		if (K == TEXT("framegen") || K == TEXT("speed") || K == TEXT("day") || K == TEXT("hour") || K == TEXT("weather") || K == TEXT("eat")) return K;
+		if (K == TEXT("park") || K == TEXT("parkoff")) return TEXT("park");
+		if (K == TEXT("cmd") && V.Num()) return K + TEXT(" ") + V[0];
+		if (K == TEXT("shots") && V.Num()) return K + TEXT(" ") + V[0];
+		if (K == TEXT("jetway") && V.Num() && V[0] == TEXT("beacons")) return TEXT("jetway beacons");
+		if (K == TEXT("jetway") && V.Num() > 1 && (V[1] == TEXT("park") || V[1] == TEXT("dock"))) return K + TEXT(" ") + V[0];
+		if (K == TEXT("fire") && V.Num() && (V[0] == TEXT("doors") || V[0] == TEXT("lights"))) return K + TEXT(" ") + V[0];
+		if (K == TEXT("hangar") && V.Num() > 1) return K + TEXT(" ") + V[0];
+		if (K == TEXT("coach") && V.Num()) return K;
+		return FString();
+	}
+	/** The steps from that section on, after the lines before the first section and the skipped sections' setup. */
+	bool SkipTo(const FString& StartAt)
+	{
+		int32 First = INDEX_NONE, Go = INDEX_NONE;
+		for (int32 i = 0; i < Steps.Num(); ++i) if (IsSec(Steps[i]))
+		{
+			if (First == INDEX_NONE) First = i;
+			if (Go == INDEX_NONE && SecTag(SecId(Steps[i])).Equals(StartAt, ESearchCase::IgnoreCase)) Go = i;
+		}
+		if (Go == INDEX_NONE) for (int32 i = 0; i < Steps.Num(); ++i) if (IsSec(Steps[i]) && SecId(Steps[i]).Contains(StartAt)) { Go = i; break; }
+		if (Go == INDEX_NONE) { ADP_ERROR(TEXT("Views: FAILED - no section \"%s\" in the steps"), *StartAt); return false; }
+		TArray<FString> Keys, Lines;
+		for (int32 i = First; i < Go; ++i)
+		{
+			const FString L = Steps[i].TrimStartAndEnd(), Ky = SetupKey(L);
+			if (Ky.IsEmpty()) continue;
+			const int32 Ix = Keys.Find(Ky);
+			if (Ix == INDEX_NONE) { Keys.Add(Ky); Lines.Add(L); } else Lines[Ix] = L;
+		}
+		TArray<FString> Out; for (int32 i = 0; i < First; ++i) Out.Add(Steps[i]);
+		int32 Kept = 0;
+		for (int32 i = 0; i < Keys.Num(); ++i)
+		{
+			FString L = Lines[i];
+			if (Keys[i] == TEXT("coach") && L.EndsWith(TEXT(" terminal"))) continue;   // (they start on their own stands)
+			if (Keys[i].StartsWith(TEXT("hangar "))) { TArray<FString> V; L.ParseIntoArrayWS(V); L = FString::Printf(TEXT("hangar %s %s 60"), *V[1], *V[2]); }
+			Out.Add(L); ++Kept; ADP_LOG(TEXT("Views: setup kept from the skipped sections: %s"), *L);
+		}
+		ADP_LOG(TEXT("Views: starting at section %s (%d setup steps of the skipped sections run first)"), *SecId(Steps[Go]), Kept);
+		for (int32 i = Go; i < Steps.Num(); ++i) Out.Add(Steps[i]);
+		Steps = MoveTemp(Out); return true;
+	}
+
+	// ---- the player's own character hidden for the run (body, clothes, its shadow, anything attached), put back at the end
+	TWeakObjectPtr<APawn> ViewsMe; TMap<TWeakObjectPtr<UPrimitiveComponent>, uint8> ViewsMeWas;
+	void HideMe(APlayerController* PC)
+	{
+		if (!ViewsMe.IsValid())
+		{
+			ACharacter* C = Cast<ACharacter>(PC->GetPawn()); if (!C) return;
+			ViewsMe = C; ADP_LOG(TEXT("Views: the player's own %s hidden for the run"), *C->GetName());
+		}
+		TArray<AActor*> All; ViewsMe->GetAttachedActors(All, true, true); All.Add(ViewsMe.Get());
+		for (AActor* A : All)
+		{
+			if (!A || (A == PC->GetPawn() && A != ViewsMe.Get())) continue;   // (never the vehicle it drives)
+			TArray<UPrimitiveComponent*> Ps; A->GetComponents<UPrimitiveComponent>(Ps);
+			for (UPrimitiveComponent* P : Ps)
+			{
+				if (!ViewsMeWas.Contains(P)) ViewsMeWas.Add(P, uint8(P->bHiddenInGame ? 1 : 0) | uint8(P->CastShadow ? 2 : 0));
+				if (!P->bHiddenInGame) P->SetHiddenInGame(true);
+				if (P->CastShadow) P->SetCastShadow(false);   // (hidden parts cast none either; some keep bCastHiddenShadow)
+			}
+		}
+	}
+	void ShowMe()
+	{
+		for (const TPair<TWeakObjectPtr<UPrimitiveComponent>, uint8>& E : ViewsMeWas) if (UPrimitiveComponent* P = E.Key.Get()) { P->SetHiddenInGame((E.Value & 1) != 0); P->SetCastShadow((E.Value & 2) != 0); }
+		if (ViewsMe.IsValid()) ADP_LOG(TEXT("Views: the player's own character shown again (%d parts)"), ViewsMeWas.Num());
+		ViewsMeWas.Reset(); ViewsMe.Reset();
+	}
+	/** The run's end, every way: the character back, the save point "end" if all was run. */
+	void Finish(bool bAll) { ShowMe(); if (bAll) Progress(CurSec.IsEmpty() ? FString(TEXT("all")) : CurSec, TEXT("end")); }
 
 	UWorld* ViewsWorld()
 	{
@@ -684,6 +789,7 @@ namespace ADPPerfViewsInternal
 	{
 		UWorld* W = ViewsWorld(); APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
 		if (!PC || !PC->PlayerCameraManager) return true;
+		HideMe(PC);
 		LookAtPeople(W);
 		if (bFollow) FollowAt(W, PC->GetPawn(), Dt);
 		else if (bSub && bHeld) KeepSub(W, PC->GetPawn());
@@ -694,7 +800,7 @@ namespace ADPPerfViewsInternal
 		if (Need > 0)
 		{
 			if (Was.Num() >= Need) { ADP_LOG(TEXT("Views: %d people are about"), Was.Num()); Need = 0; Until = 0.0; }
-			else if (FPlatformTime::Seconds() >= Until) { ADP_ERROR(TEXT("Views: FAILED - %d people about instead of %d, the run ends here"), Was.Num(), Need); FPlatformMisc::RequestExit(false); return false; }
+			else if (FPlatformTime::Seconds() >= Until) { ADP_ERROR(TEXT("Views: FAILED - %d people about instead of %d, the run ends here"), Was.Num(), Need); Finish(false); FPlatformMisc::RequestExit(false); return false; }
 		}
 		if (!Waits.IsEmpty())   // (until)
 		{
@@ -728,8 +834,16 @@ namespace ADPPerfViewsInternal
 			bMissing = true; ADP_WARN(TEXT("Views: subject missing: the talk did not open (%s)"), bHit && H.GetActor() ? *H.GetActor()->GetName() : TEXT("nobody before you"));
 		}
 		if (!Name.IsEmpty()) { Report(*Name); Name.Reset(); bFollow = false; }
-		if (At >= Steps.Num()) return false;
+		if (At >= Steps.Num()) { Finish(true); return false; }
 		const FString L = Steps[At++].TrimStartAndEnd();
+		if (IsSec(L))   // (a section begins: the one before is finished)
+		{
+			const FString Id = SecId(L);
+			if (!CurSec.IsEmpty()) Progress(CurSec, SecTag(Id));
+			CurSec = Id; ADPPerfLog::Mark(TEXT("Views section ") + Id);
+			return true;
+		}
+		if (!L.IsEmpty() && !L.StartsWith(TEXT("#")) && !L.StartsWith(TEXT("wait"))) ADPPerfLog::Mark(TEXT("Views: ") + L);   // (a STALL then is named by it)
 		FString K, A; if (!L.Split(TEXT(" "), &K, &A)) K = L;
 		TArray<FString> V; A.ParseIntoArrayWS(V);
 		if (Cast<AFireTruck>(PC->GetPawn()) && (K == TEXT("view") || K == TEXT("fly") || K == TEXT("look") || K == TEXT("rel") || K == TEXT("shotcam") || (K == TEXT("jetway") && A.Contains(TEXT(" cam")))))
@@ -1013,7 +1127,7 @@ namespace ADPPerfViewsInternal
 			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
 			CoachEnd = FPlatformTime::Seconds() + FCString::Atof(*V[0]); ADP_LOG(TEXT("Views: waiting for the coaches (%s)"), *A);
 		}
-		else if (K == TEXT("quit")) { ADP_LOG(TEXT("Views: done")); FPlatformMisc::RequestExit(false); return false; }
+		else if (K == TEXT("quit")) { ADP_LOG(TEXT("Views: done")); Finish(true); FPlatformMisc::RequestExit(false); return false; }
 		else if (!L.IsEmpty() && !L.StartsWith(TEXT("#"))) ADP_WARN(TEXT("Views: not understood: %s"), *L);
 		return true;
 	}
@@ -1023,7 +1137,18 @@ void ADPPerfViews::Begin(const FString& File)
 {
 	using namespace ADPPerfViewsInternal;
 	if (!FFileHelper::LoadFileToStringArray(Steps, *File)) { ADP_ERROR(TEXT("Views: no file %s"), *File); return; }
-	At = 0; Until = 0.0; Name.Reset();
+	At = 0; Until = 0.0; Name.Reset(); CurSec.Reset(); ViewsMeWas.Reset(); ViewsMe.Reset();
+	FString StartAt; const TCHAR* Cl = FCommandLine::Get();
+	if (FParse::Param(Cl, TEXT("UIPerfViewsResume")))
+	{
+		TArray<FString> Pl; FFileHelper::LoadFileToStringArray(Pl, *ProgressFile());
+		for (const FString& X : Pl) if (X.StartsWith(TEXT("next "))) StartAt = X.Mid(5).TrimStartAndEnd();
+		if (StartAt.IsEmpty()) ADP_WARN(TEXT("Views: no save point in %s - from the start"), *ProgressFile());
+	}
+	else FParse::Value(Cl, TEXT("UIPerfViewsFrom="), StartAt);
+	StartAt.ReplaceInline(TEXT("_"), TEXT(" "));
+	if (StartAt == TEXT("end")) { ADP_LOG(TEXT("Views: done - the save point says every section was finished")); FPlatformMisc::RequestExit(false); return; }
+	if (!StartAt.IsEmpty() && !SkipTo(StartAt)) { FPlatformMisc::RequestExit(false); return; }
 	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&Tick));
 	ADP_LOG(TEXT("Views: %d steps from %s"), Steps.Num(), *File);
 }
