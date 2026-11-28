@@ -28,12 +28,13 @@ namespace ADPStressWalkInternal
 	// (Points: the terminal plan's x, h, z - or world points when bWorld: the coaches' walk, laid out from where the coaches and
 	// the crossings are; FaceAt: look at Points[0]; Direct: straight to each point, the body's own collision only - a coach's
 	// aisle is narrower than the planner's squares; CoachDoor: E at the coach door you stand by)
-	struct FWalkPart { const TCHAR* What; EWalkKind Kind; TArray<FVector> Points; float Seconds; float Yaw; bool bWorld = false; };
+	struct FWalkPart { const TCHAR* What; EWalkKind Kind; TArray<FVector> Points; float Seconds; float Yaw; bool bWorld = false; uint8 Live = 0; };   // (Live: laid out from the jetway as it stands - 1 to its cab, 2 back to the rotunda, 3 its service stair, 4 in its cab)
 
 	TArray<FWalkPart> WalkRoute()
 	{
 		auto P = [](float X, float H, float Z) { return FVector(X, H, Z); };
-		// the jetway's middle line from its rotunda round to the cab (the sleeve runs from (-50.3, 96.5) to (-58.3, 109.5))
+		// the jetway's middle line from its rotunda round to the cab - only if the rig cannot be read: the legs in it are laid out
+		// from the jetway as it stands when they start (LayJetwayLeg)
 		TArray<FVector> Sleeve, SleeveBack;
 		for (int32 i = 1; i <= 6; ++i) { const float T = i / 6.f; Sleeve.Add(P(-50.3f - 8.f * T, 4.7f - 1.7f * T, 96.5f + 13.f * T)); }
 		for (int32 i = 5; i >= 0; --i) { const float T = i / 6.f; SleeveBack.Add(P(-50.3f - 8.f * T, 4.7f - 1.7f * T, 96.5f + 13.f * T)); }
@@ -59,10 +60,10 @@ namespace ADPStressWalkInternal
 			{TEXT("looking round gate 1"), EWalkKind::Look, {}, 10.f, 0.f},
 			{TEXT("through the jetway door"), EWalkKind::Go, {P(-50.6f, 6.f, 83.6f)}, 0.f, 0.f},
 			{TEXT("down the jetway corridor"), EWalkKind::Walk, {P(-50.6f, 5.4f, 88.f), P(-50.6f, 4.8f, 93.5f), P(-50.4f, 4.7f, 96.3f)}, 25.f, 0.f},
-			{TEXT("along the jetway to its cab"), EWalkKind::Walk, Sleeve, 30.f, 0.f},
+			{TEXT("along the jetway to its cab"), EWalkKind::Walk, Sleeve, 30.f, 0.f, false, 1},
 			{TEXT("looking round in the jetway's cab"), EWalkKind::Look, {}, 8.f, 0.f},
-			{TEXT("back to the rotunda"), EWalkKind::Walk, SleeveBack, 30.f, 0.f},
-			{TEXT("down the jetway's service stair"), EWalkKind::Walk, {P(-51.5f, 4.7f, 98.6f), P(-51.5f, 4.3f, 100.0f), P(-51.5f, 0.3f, 105.8f), P(-51.5f, 0.f, 107.6f)}, 30.f, 0.f},
+			{TEXT("back to the rotunda"), EWalkKind::Walk, SleeveBack, 30.f, 0.f, false, 2},
+			{TEXT("down the jetway's service stair"), EWalkKind::Walk, {P(-51.5f, 4.7f, 98.6f), P(-51.5f, 4.3f, 100.0f), P(-51.5f, 0.3f, 105.8f), P(-51.5f, 0.f, 107.6f)}, 30.f, 0.f, false, 3},
 			{TEXT("out onto the apron"), EWalkKind::Walk, {P(-47.f, 0.f, 115.f), P(-42.f, 0.f, 128.f)}, 30.f, 0.f},
 			{TEXT("looking at the terminal from the apron"), EWalkKind::Face, {}, 8.f, 90.f},
 			{TEXT("looking round on the apron"), EWalkKind::Look, {}, 12.f, 0.f},
@@ -82,13 +83,15 @@ namespace ADPStressWalkInternal
 			{TEXT("in the baggage claim hall"), EWalkKind::Go, {P(-75.f, 0.f, 20.f)}, 0.f, 0.f},
 			{TEXT("walking the baggage claim hall past the belts"), EWalkKind::Walk, {P(-55.f, 0.f, 20.f), P(-30.f, 0.f, 20.f), P(-5.f, 0.f, 22.f)}, 40.f, 0.f},
 			{TEXT("looking round the baggage claim"), EWalkKind::Look, {}, 12.f, 0.f},
-			{TEXT("in the crew side's baggage hall"), EWalkKind::Go, {P(-5.f, 0.f, 60.f)}, 0.f, 0.f},
-			{TEXT("walking the baggage hall past the belts' inputs"), EWalkKind::Walk, {P(-30.f, 0.f, 60.f), P(-60.f, 0.f, 60.f), P(-75.f, 0.f, 60.f)}, 35.f, 0.f},
+			// (2026-11-28: the hall's aisle between the belt rows, z 57.05 to 62.95, has its baggage carts on z 60 (BAGGAGE-CART-001 at
+			//  x -60, -002 at -28, each 2.6 x 1.4 m): the walk keeps to the free strip south of them, 1.1 m from the belts and from the carts)
+			{TEXT("in the crew side's baggage hall"), EWalkKind::Go, {P(-5.f, 0.f, 58.2f)}, 0.f, 0.f},
+			{TEXT("walking the baggage hall past the belts' inputs"), EWalkKind::Walk, {P(-30.f, 0.f, 58.2f), P(-60.f, 0.f, 58.2f), P(-75.f, 0.f, 58.2f)}, 35.f, 0.f},
 			{TEXT("looking round the baggage hall"), EWalkKind::Look, {}, 10.f, 0.f},
 			// the night part (owner, 2026-11-16: every stress walk - inside a jetway and outside it in the dark, the jetway
 			// moving to dock, its lights inside and out, you carried with it, also while walking in it)
 			{TEXT("night falls (21:00)"), EWalkKind::Night, {}, 4.f, 0.f},
-			{TEXT("in the jetway's cab at night"), EWalkKind::Go, {P(-58.f, 3.1f, 109.f)}, 0.f, 0.f},
+			{TEXT("in the jetway's cab at night"), EWalkKind::Go, {P(-58.f, 3.1f, 109.f)}, 0.f, 0.f, false, 4},
 			{TEXT("the jetway pulls back with you inside, walking in it as it moves"), EWalkKind::JetwayRide, {}, 220.f, 0.f},
 			{TEXT("out on the apron at night"), EWalkKind::Go, {P(-40.f, 0.f, 124.f)}, 0.f, 0.f},
 			{TEXT("watching the jetway drive out and dock in the dark"), EWalkKind::JetwayWatch, {}, 220.f, 0.f},
@@ -104,6 +107,45 @@ namespace ADPStressWalkInternal
 
 	FVector WalkWorld(const FVector& PlanP) { return FTerminalPlan::ToWorld(PlanP.X, PlanP.Y, PlanP.Z); }
 	FVector PartPoint(const FWalkPart& Pt, int32 I) { return Pt.bWorld ? Pt.Points[I] : WalkWorld(Pt.Points[I]); }
+
+	// (2026-11-28) the legs in the jetway, laid out from the rig as it stands when they start: with no aircraft at its stand the
+	//  jetway rests half way back, and the plan points of 11-16 lay outside its tunnel - the walk found no way and set the walker
+	//  down on them (once on the apron under the rotunda). Floor heights are traced from chest height, never a roof.
+	bool LayJetwayLeg(UWorld* W, const AActor* Ch, FWalkPart& Pt)
+	{
+		AJetwayRigs* JR = AJetwayRigs::Get(W); if (!JR) return false;
+		const FVector Near = WalkWorld(FVector(-50.3f, 4.7f, 96.5f));   // (gate 1's rotunda)
+		int32 Jb = INDEX_NONE; float Db = 3000.f; FVector Ro, Dr, Mid, Fr;
+		for (int32 j = 0; j < JR->Num(); ++j) if (JR->Frame(j, Ro, Dr)) { const float D = FVector::Dist2D(Ro, Near); if (D < Db) { Db = D; Jb = j; } }
+		if (Jb == INDEX_NONE || !JR->Frame(Jb, Ro, Dr) || !JR->CabView(Jb, Mid, Fr)) return false;
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(StressWalkLay), true); if (Ch) Q.AddIgnoredActor(Ch);
+		auto Floor = [W, &Q](FVector At, float FromZ)
+		{
+			FHitResult H; const FVector A(At.X, At.Y, FromZ);
+			At.Z = W->LineTraceSingleByChannel(H, A, A - FVector(0, 0, 260.f), ECC_Visibility, Q) && H.ImpactNormal.Z > 0.6f ? H.ImpactPoint.Z : FromZ - 120.f;
+			return At;
+		};
+		const FVector RoF = Floor(Ro, Near.Z + 90.f), CabF = Floor(Mid, Mid.Z + 10.f);   // (the cab's middle is at chest height)
+		TArray<FVector> Line; float Zr = RoF.Z;
+		for (int32 i = 1; i <= 6; ++i) { const FVector At = Floor(FMath::Lerp(RoF, CabF, i / 6.f), Zr + 90.f); Zr = At.Z; Line.Add(At); }
+		TArray<FVector> Out;
+		if (Pt.Live == 1) Out = Line;
+		else if (Pt.Live == 2) { for (int32 i = Line.Num() - 2; i >= 0; --i) Out.Add(Line[i]); Out.Add(RoF); }
+		else if (Pt.Live == 4) Out.Add(CabF);
+		else if (Pt.Live == 3)
+		{
+			FVector SMid, SOut; TArray<FVector> St; float Hw = 40.f;
+			if (!JR->ServiceDoorFrame(Jb, SMid, SOut) || !JR->ServiceSteps(Jb, St, Hw) || St.Num() < 2) return false;
+			JR->SetServiceDoor(Jb, true);   // (a person opens the door before going through it)
+			const FVector Dn = (St[0] - St.Last()).GetSafeNormal2D();   // (down the stair)
+			Out = {SMid - SOut * 60.f, SMid + SOut * 45.f, St.Last(), St[St.Num() / 2], St[0], Floor(St[0] + Dn * 120.f, St[0].Z + 90.f)};
+		}
+		if (Out.Num() == 0) return false;
+		Pt.Points = Out; Pt.bWorld = true;
+		FString S; for (const FVector& V : Out) S += FString::Printf(TEXT(" (%.0f, %.0f, %.0f)"), V.X, V.Y, V.Z);
+		ADP_LOG(TEXT("Stress walk: \"%s\" laid out on jetway %d (state %d) as it stands:%s"), Pt.What, Jb, int32(JR->State(Jb)), *S);
+		return true;
+	}
 
 	// the coaches' walk, laid out from the parked coaches and the zebra crossing next to them (world points)
 	TArray<FWalkPart> CoachRoute(UWorld* W)
@@ -463,6 +505,8 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		if (bWalkQuit) FGenericPlatformMisc::RequestExit(false);
 		return;
 	}
+	if (WalkPartT == 0.f && WalkParts[WalkPart].Live && !LayJetwayLeg(W, Ch, WalkParts[WalkPart]))
+		ADP_WARN(TEXT("Stress walk: jetway not readable for \"%s\" - its plan points kept"), WalkParts[WalkPart].What);
 	const FWalkPart& Pt = WalkParts[WalkPart];
 	if (WalkPartT == 0.f)
 	{

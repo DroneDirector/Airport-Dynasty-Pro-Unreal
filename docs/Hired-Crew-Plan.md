@@ -1144,3 +1144,14 @@ Nothing stands in the aircraft's way when it is towed in or out of a hall. Befor
 - Fix 3: Retime moves runs that have not boarded yet with the flight's DepT (PaxFlow::DepOf). EarliestSpawn keeps passengers of a run that moved later from appearing early.
 - Fix 4: Rate comes from UADPSim::Speed() (no frame-time measuring). Runs that have not left are re-timed when the speed changes (the drive is real time).
 - Not verified: navmesh at the hub and coach stand (off the mesh, Follow walks straight and logs it), behaviour at 5x/10x, coach reuse.
+
+## Stress walk pathing: jetway and baggage hall (2026-11-28, compiled, NOT run)
+- Cause, jetway to its cab and back: every jetway stood at rest (no aircraft), but the walk's sleeve points were fixed plan
+  points of 11-16; past the first they lay outside the tunnel, the walk found no way and set the walker down, once on the
+  apron under the rotunda, where "back to the rotunda" was blocked at (-5030, -9696, 100) by J-1's rotunda column (Jetways model).
+- Fix: the to-cab, back, service stair and night-cab legs are laid out from the rig as it stands when they start
+  (Frame, CabView, ServiceDoorFrame, ServiceSteps; floors traced from chest height); the service door is opened first.
+- Cause, baggage hall: the route ran on z 60, over the baggage carts (CART-002 at x -28, CART-001 at x -60). Now on z 58.2,
+  the free strip between the belts (z 57.05) and the carts (z 59.3).
+- Only a game run can prove: no "no way found" at these parts, the tunnel floor traced right at rest, the stair walk,
+  the night cab spot; the A380 gate and the gate walkway east retries were not looked at.
