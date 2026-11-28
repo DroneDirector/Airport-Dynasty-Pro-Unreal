@@ -1487,7 +1487,14 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 	const float BankWant = bAir ? FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(M.Speed * FMath::DegreesToRadians(RateWant) / 9.81f)), -25.f, 25.f) : 0.f;
 	const float BankWas = M.Bank;
 	// (eased: the roll starts and ends softly, at most 6 deg/s - about the airliner's autopilot roll)
-	M.Bank += FMath::Clamp((BankWant - M.Bank) * 1.2f, -6.f, 6.f) * Dt;
+	// (owner 11-28, standing for every type: the wings never snap level - a softly sprung roll, a little under-damped, so on
+	//  levelling out they tip ~10 % past level to the other side first and then settle; roll rate a gentle 6 deg/s at most)
+	{
+		constexpr float Wn = 1.0f, Zeta = 0.6f;
+		M.BankV += (Wn * Wn * (BankWant - M.Bank) - 2.f * Zeta * Wn * M.BankV) * Dt;
+		M.BankV = FMath::Clamp(M.BankV, -6.f, 6.f);
+		M.Bank += M.BankV * Dt;
+	}
 	if (FMath::Abs(M.Bank) > FMath::Abs(M.BankPeak)) M.BankPeak = M.Bank;
 	if (FMath::Abs(M.BankPeak) > 3.f && FMath::Abs(M.Bank) < 1.f)
 	{

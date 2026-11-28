@@ -114,7 +114,7 @@ private:
 		// real A320 moves them. Conf 0, 1, 1+F, 2, 3, FULL (0..5); degrees + = trailing edge down (slats: leading edge down,
 		// rudder: trailing edge left); Bank + = right wing down
 		TArray<int32> GSurf; bool bSurf = false; int8 Conf = -1; uint8 ElevSt = 255, AilSt = 255, RudSt = 255;
-		float FlapDeg = 0.f, SlatDeg = 0.f, Elev = 0.f, AilL = 0.f, AilR = 0.f, Rud = 0.f, Bank = 0.f, Track = 0.f, TurnRate = 0.f, SurfT = 0.f;
+		float FlapDeg = 0.f, SlatDeg = 0.f, Elev = 0.f, AilL = 0.f, AilR = 0.f, Rud = 0.f, Bank = 0.f, BankV = 0.f, Track = 0.f, TurnRate = 0.f, SurfT = 0.f;
 		float SurfShown[6] = {-99.f, -99.f, -99.f, -99.f, -99.f, -99.f};
 		// spoilers and reversers (Spoilers(), FlightGear's hinges, Art/A320/a320_surfaces.py SPOIL lines): ground spoilers 1-5
 		// at 50 deg on touchdown, roll spoilers 2-5 on the down-going wing; the CFM56's four pivot doors per engine (RevPos 0..1)
