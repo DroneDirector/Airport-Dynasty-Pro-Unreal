@@ -71,3 +71,9 @@ rwy-side view 80 3 540 -90 2
 rwy-takeoff-track look 80 90 6 HB-TOFF
 rwy-land-side view 80 12 470 -90 2
 rwy-land-track look 90 90 8 HB-LAND
+# --- 9b taxiing (the test A320s on the taxiway centre lines; the camera follows each, terrain-safe)
+vacate-side look 70 60 5 HB-LAND
+taxi-in-track look 70 130 6 HB-LAND
+taxi-out-track look 70 120 6 HB-TAXI
+hold-short-side look 60 60 4 HB-TAXI
+lineup-side look 90 90 5 HB-TAXI

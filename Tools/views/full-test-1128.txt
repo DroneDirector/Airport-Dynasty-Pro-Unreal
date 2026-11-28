@@ -265,7 +265,8 @@ shot4k rwy-takeoff-roll
 shotcam rwy-takeoff-track
 wait 10
 shot4k rwy-takeoff-track
-wait 40
+flightwait 90 HB-TOFF away
+wait 5
 shotcam rwy-land-side
 flight land a320 20
 wait 8
@@ -274,6 +275,35 @@ shotcam rwy-land-track
 wait 10
 measure 8 rwy-land
 shot4k rwy-land-track
+# (it slows to about 10 kt, turns off at A2 and taxis in on A and T to a free stand)
+flightwait 120 HB-LAND vacate
+shotcam vacate-side
+measure 5 vacate
+shot4k vacate
+flightwait 120 HB-LAND taxiin
+shotcam taxi-in-track
+wait 15
+measure 6 taxi-in
+shot4k taxi-in
+flightwait 240 HB-LAND stand
+# ===== 9b an A320 taxiing out from the apron on T and A, holding short at the runway, lining up and taking off
+flight taxiout a320
+shotcam taxi-out-track
+wait 8
+measure 8 taxi-out
+shot4k taxi-out
+flightwait 300 HB-TAXI hold
+shotcam hold-short-side
+wait 2
+measure 5 hold-short
+shot4k hold-short
+flightwait 60 HB-TAXI lineup
+shotcam lineup-side
+wait 2
+shot4k lineup
+flightwait 60 HB-TAXI roll
+wait 6
+shot4k taxi-takeoff-roll
 # ===== end
 lives
 parkoff

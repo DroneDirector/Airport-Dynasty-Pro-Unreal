@@ -302,14 +302,38 @@ void ASimTraffic::Sync()
 		}
 	}
 	// models for new movements
-	for (FMove& M : Moves)
-		if (!M.Model.IsValid())
-		{
-			FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			ABabylonModel* B = GetWorld()->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P);
-			if (B && B->Place(TEXT("A320"))) { B->Tags.Add(FName(*(TEXT("MOVE/") + M.Reg))); M.Model = B; AddLights(M); Pose(M); ADP_LOG(TEXT("Traffic: %s %s in 3D (%s)"), *M.Reg, M.bDeparture ? TEXT("departing") : TEXT("arriving"), *M.Stand); }
-			else if (B) B->Destroy();
-		}
+	for (FMove& M : Moves) if (!M.Model.IsValid()) ModelFor(M);
+}
+
+void ASimTraffic::ModelFor(FMove& M)
+{
+	ADP_PERF_SCOPE("traffic: an aircraft model made", 5.f);
+	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ABabylonModel* B = GetWorld()->SpawnActor<ABabylonModel>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	if (B && B->Place(TEXT("A320"))) { B->Tags.Add(FName(*(TEXT("MOVE/") + M.Reg))); M.Model = B; AddLights(M); Pose(M); ADP_LOG(TEXT("Traffic: %s %s in 3D (%s)"), *M.Reg, M.bDeparture ? TEXT("departing") : TEXT("arriving"), *M.Stand); }
+	else { ADP_WARN(TEXT("Traffic: %s - no A320 model could be placed"), *M.Reg); if (B) B->Destroy(); }
+}
+
+FString ASimTraffic::FreeStand() const
+{
+	// (once, when a test asks: the parked aircraft's noses - a walk over the models, never in a frame's work)
+	TArray<FVector2f> Noses;
+	for (TActorIterator<ABabylonModel> It(GetWorld()); It; ++It)
+	{
+		if (It->IsHidden()) continue;
+		const FVector L = It->GetActorLocation(); Noses.Add(FVector2f(L.X / 100.f, -L.Y / 100.f));   // (world -> plan)
+	}
+	const FAirfieldData::FStand* Best = nullptr;
+	for (const FAirfieldData::FStand& S : F.Stands)
+	{
+		if (S.bCargo || S.bRemote || Moves.ContainsByPredicate([&](const FMove& O) { return O.Stand == S.Id; })) continue;
+		const FVector2f At = S.Frame().P(0.f, 0.f);
+		if (Noses.ContainsByPredicate([&](const FVector2f& N) { return FVector2f::Distance(N, At) < 30.f; })) continue;
+		// (the one nearest the taxi-out's connector, 60 m or more from it: a straight run on the taxilane first)
+		const float D = FMath::Abs(FMath::Abs(S.X - TaxiOutX(RunwayToX1())) - 120.f);
+		if (!Best || D < FMath::Abs(FMath::Abs(Best->X - TaxiOutX(RunwayToX1())) - 120.f)) Best = &S;
+	}
+	return Best ? Best->Id : FString();
 }
 
 void ASimTraffic::Pose(FMove& M)
@@ -348,12 +372,93 @@ bool ASimTraffic::TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg)
 		const float Thr = bToX1 ? T->F.RwyX0 : T->F.RwyX1, TD = Thr + Dir * 500.f, Out = Vapp * FMath::Max(SecOut, 5.f);
 		M.Phase = EPhase::Approach; M.Nose = FVector2f(TD - Dir * Out, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
 		M.Height = Out * FMath::Tan(FMath::DegreesToRadians(Glide)); M.Speed = Vapp; M.Path = {FVector2f(TD, RY)};
+		M.Stand = T->FreeStand();   // (no flight, no stand from the simulation: a free one to taxi in to)
 	}
 	if (T->Moves.ContainsByPredicate([&](const FMove& O) { return O.Reg == Reg; })) { ADP_WARN(TEXT("Traffic: test %s is still about"), *Reg); return false; }
 	T->Seen.Add(M.FlightId);
 	T->Moves.Add(M);
-	ADP_LOG(TEXT("Traffic: test %s %s on runway %s, nose at %.0f %.0f, %.0f m up"), *Reg, bTakeoff ? TEXT("takes off") : TEXT("lands"), bToX1 ? TEXT("towards x1") : TEXT("towards x0"), M.Nose.X, M.Nose.Y, M.Height);
-	return true;
+	// (2026-11-28: its model was made only in Sync, which waits for a running simulation - a views run has no career, so
+	//  HB-TOFF stood in the list unseen and unmoving, kept the runway "busy" and HB-LAND was refused: made here, now)
+	T->ModelFor(T->Moves.Last());
+	ADP_LOG(TEXT("Traffic: test %s %s on runway %s, nose at %.0f %.0f, %.0f m up%s%s"), *Reg, bTakeoff ? TEXT("takes off") : TEXT("lands"), bToX1 ? TEXT("towards x1") : TEXT("towards x0"), M.Nose.X, M.Nose.Y, M.Height, M.Stand.IsEmpty() ? TEXT("") : TEXT(", stand "), *M.Stand);
+	return T->Moves.Last().Model.IsValid();
+}
+
+bool ASimTraffic::TestTaxiOut(UWorld* W, FString& Reg)
+{
+	ASimTraffic* T = nullptr;
+	if (W) for (TActorIterator<ASimTraffic> It(W); It; ++It) { T = *It; break; }
+	if (!T) { ADP_WARN(TEXT("Traffic: test taxi-out - no traffic here")); return false; }
+	Reg = TEXT("HB-TAXI");
+	if (T->Moves.ContainsByPredicate([&](const FMove& O) { return O.Reg == Reg; })) { ADP_WARN(TEXT("Traffic: test %s is still about"), *Reg); return false; }
+	const FString Id = T->FreeStand();
+	const FAirfieldData::FStand* St = T->F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == Id; });
+	if (!St) { ADP_WARN(TEXT("Traffic: test taxi-out - no free passenger stand")); return false; }
+	// on the taxilane by the stand, as the push leaves it: the main gear on T at the stand, the nose towards the connector
+	const float Dx = TaxiOutDir(*St, T->RunwayToX1());
+	FMove M; M.Reg = Reg; M.FlightId = TEXT("TEST-") + Reg; M.bDeparture = true; M.Stand = St->Id; M.Phase = EPhase::Taxi;
+	M.Main = FVector2f(St->X, T->F.TY); M.Nose = M.Main + FVector2f(Dx * Wheelbase, 0.f);
+	T->TaxiOutPath(M);
+	T->Seen.Add(M.FlightId);
+	T->Moves.Add(M);
+	T->ModelFor(T->Moves.Last());
+	ADP_LOG(TEXT("Traffic: test %s taxis out from stand %s (%d waypoints to the holding point, runway %s)"), *Reg, *St->Id, M.Path.Num(), T->RunwayToX1() ? TEXT("towards x1") : TEXT("towards x0"));
+	return T->Moves.Last().Model.IsValid();
+}
+
+FString ASimTraffic::TestPhase(const UWorld* W, const FString& Reg)
+{
+	if (!W) return TEXT("gone");
+	for (TActorIterator<ASimTraffic> It(const_cast<UWorld*>(W)); It; ++It)
+		for (const FMove& M : It->Moves)
+		{
+			if (M.Reg != Reg) continue;
+			switch (M.Phase)
+			{
+			case EPhase::Push: return TEXT("push");
+			case EPhase::Taxi: return M.Path.Num() == 1 && FVector2f::Distance(M.Path[0], M.Nose) < 0.5f ? TEXT("hold") : TEXT("taxi");
+			case EPhase::Roll: return M.Step == 0 || M.Clock < 4.f ? TEXT("lineup") : TEXT("roll");
+			case EPhase::Climb: return M.Height < 100.f ? TEXT("climb") : TEXT("away");
+			case EPhase::Approach: return TEXT("final");
+			case EPhase::Rollout: return TEXT("rollout");
+			case EPhase::TaxiIn: return FMath::Abs(M.Nose.Y - It->F.RwyY) < 140.f && FMath::Abs(M.Nose.X - 81.f) < 30.f ? TEXT("vacate") : TEXT("taxiin");
+			default: return TEXT("stand");
+			}
+		}
+	return TEXT("gone");
+}
+
+void ASimTraffic::TaxiOutPath(FMove& M)
+{
+	// the tug has let go; taxi along T to the connector, up to A, along A to the holding point of the runway end in use
+	const bool bToX1 = RunwayToX1();
+	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, Hold = 107.5f, LineUp = bToX1 ? F.RwyX0 + 20.f : F.RwyX1 - 20.f;
+	const FAirfieldData::FStand* MySt = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; });
+	const bool bCargoSt = MySt && MySt->bCargo;
+	M.Step = 0; M.Path.Reset();
+	if (bCargoSt)
+	{
+		// the cargo apron: along K to its end towards the runway end in use, down to B, along B and round its curve to the holding point
+		const FAirfieldData::FTwy* Lk = F.Find(bToX1 ? TEXT("Q0") : TEXT("Q2"));
+		const float Lx = Lk && Lk->Pts.Num() ? Lk->Pts[0].X : bToX1 ? -530.f : 620.f;
+		M.Path = {FVector2f(M.Nose.X - Dir * 40.f, F.KY), FVector2f(Lx, F.KY), FVector2f(Lx, F.BY)};
+		if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-B-B1") : TEXT("CURVE-B-B3")))
+			for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
+		else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.BY));
+		M.Path.Add(FVector2f(LineUp, RY + Hold));
+		return;
+	}
+	{
+		// (straight on first, onto the line, before the turn up the connector; never past it and back)
+		const float Px = TaxiOutX(bToX1), Ahead = Px - M.Nose.X, Face = M.Nose.X >= M.Main.X ? 1.f : -1.f;
+		if (Ahead * Face < 0.f) ADP_WARN(TEXT("Traffic: %s faces away from its connector after the push"), *M.Reg);
+		M.Path = {FVector2f(M.Nose.X + FMath::Sign(Ahead) * FMath::Min(40.f, FMath::Abs(Ahead) * 0.5f), F.TY), FVector2f(Px, F.TY), FVector2f(Px, F.AY)};
+	}
+	// along A to its end, round the link curve onto A1 (or A3) and down to the holding point - every centre line
+	if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-A-A1") : TEXT("CURVE-A-A3")))
+		for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
+	else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.AY));
+	M.Path.Add(FVector2f(LineUp, RY - Hold));
 }
 
 bool ASimTraffic::Advance(FMove& M, float Dt)
@@ -474,10 +579,10 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	// the target speed: by the phase, the turn coming (the heading change over the next 60 m) and the stand
 	float Want = MaxTaxi;
 	if (M.Phase == EPhase::Push) Want = PushSpeed;
-	else if (M.Phase == EPhase::Roll) Want = Vr * 1.1f;
+	else if (M.Phase == EPhase::Roll) Want = M.Step == 0 && M.Path.Num() ? FMath::Min(TurnTaxi, 0.3f + FMath::Sqrt(1.2f * FVector2f::Distance(M.Nose, M.Path[0]))) : M.Clock < 4.f ? 0.f : Vr * 1.1f;   // (onto the centre line at turn speed, a moment lined up, then the take-off power)
 	else if (M.Phase == EPhase::Climb) Want = 160.f * KtMs;
 	else if (M.Phase == EPhase::Approach) Want = Vapp;
-	else if (M.Phase == EPhase::Rollout) Want = 20.f * KtMs;
+	else if (M.Phase == EPhase::Rollout) Want = FMath::Abs(M.Nose.X - 81.f) < 80.f ? TurnTaxi : 20.f * KtMs;   // (about 10 kt for the turn off at the exit)
 	else if (M.Step < M.Path.Num())
 	{
 		const float H0 = Heading(M.Main, M.Nose);
@@ -490,6 +595,13 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		}
 		if (Turn > FMath::DegreesToRadians(20.f)) Want = TurnTaxi;
 		if (M.Phase == EPhase::TaxiIn && M.Step == M.Path.Num() - 1 && FVector2f::Distance(M.Nose, M.Path.Last()) < 60.f) Want = StandTaxi;
+		// gentle braking to the leg's end - the hold-short line, the stand's stop mark (0.5 m/s2, never a dead stop from taxi speed)
+		if (M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn)
+		{
+			float Rem = FVector2f::Distance(M.Nose, M.Path[M.Step]);
+			for (int32 i = M.Step + 1; i < M.Path.Num() && Rem < 200.f; ++i) Rem += FVector2f::Distance(M.Path[i - 1], M.Path[i]);
+			if (Rem < 200.f) Want = FMath::Min(Want, FMath::Max(0.4f, FMath::Sqrt(2.f * 0.5f * Rem)));
+		}
 	}
 	const float Acc = M.Phase == EPhase::Roll ? 2.2f : M.Phase == EPhase::Rollout ? -2.f : 0.6f;
 	if (M.Phase == EPhase::Rollout) M.Speed = FMath::Max(Want, M.Speed + Acc * Dt);
@@ -523,6 +635,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		Left -= Go;
 		if (D <= Go + 1e-3f) ++M.Step;
 	}
+	if (M.Phase == EPhase::Roll && M.Step >= 1) M.Clock += Dt;
 	if (M.Phase == EPhase::Climb || M.Phase == EPhase::Approach)
 	{
 		// the climb (about 8 degrees) and the 3 degree approach down to the touchdown zone
@@ -545,29 +658,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		if (ATugs* T = ATugs::Get(GetWorld())) T->Release(M.FlightId);
 		// the tug lets go; taxi along T to the connector, up to A, along A to the holding point of the runway end in use
 		M.Phase = EPhase::Taxi;
-		if (bCargoSt)
-		{
-			// the cargo apron: along K to its end towards the runway end in use, down to B, along B and round its curve to the holding point
-			const FAirfieldData::FTwy* Lk = F.Find(bToX1 ? TEXT("Q0") : TEXT("Q2"));
-			const float Lx = Lk && Lk->Pts.Num() ? Lk->Pts[0].X : bToX1 ? -530.f : 620.f;
-			M.Path = {FVector2f(M.Nose.X - Dir * 40.f, F.KY), FVector2f(Lx, F.KY), FVector2f(Lx, F.BY)};
-			if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-B-B1") : TEXT("CURVE-B-B3")))
-				for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
-			else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.BY));
-			M.Path.Add(FVector2f(LineUp, RY + Hold));
-			return false;
-		}
-		{
-			// (straight on first, onto the line, before the turn up the connector; never past it and back)
-			const float Px = TaxiOutX(bToX1), Ahead = Px - M.Nose.X, Face = M.Nose.X >= M.Main.X ? 1.f : -1.f;
-			if (Ahead * Face < 0.f) ADP_WARN(TEXT("Traffic: %s faces away from its connector after the push"), *M.Reg);
-			M.Path = {FVector2f(M.Nose.X + FMath::Sign(Ahead) * FMath::Min(40.f, FMath::Abs(Ahead) * 0.5f), F.TY), FVector2f(Px, F.TY), FVector2f(Px, F.AY)};
-		}
-		// along A to its end, round the link curve onto A1 (or A3) and down to the holding point - every centre line
-		if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-A-A1") : TEXT("CURVE-A-A3")))
-			for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
-		else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.AY));
-		M.Path.Add(FVector2f(LineUp, RY - Hold));
+		TaxiOutPath(M);
 		return false;
 	case EPhase::Taxi:
 	{

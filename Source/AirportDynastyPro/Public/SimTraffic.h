@@ -45,6 +45,13 @@ public:
 	/** Views test: an A320 of no flight (tag MOVE/<Reg>): lined up on the runway in use and rolling now (bTakeoff), or on a
 	 *  3 degree final SecOut seconds before touchdown. False (logged) without traffic or with the runway busy. */
 	static bool TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg);
+	/** Views test: an A320 of no flight (HB-TAXI) on the taxilane by a free stand, as just pushed back, taxiing out on the
+	 *  centre lines to the holding point of the runway in use, holding short, lining up and taking off. A test landing
+	 *  (HB-LAND) gets a free stand the same way and taxis in to it. Its model is made at once (no career needed). */
+	static bool TestTaxiOut(UWorld* W, FString& Reg);
+	/** Views test: where a test aircraft is now - taxi, hold, lineup, roll, climb, away, final, rollout, vacate, taxiin,
+	 *  stand; "gone" when it is not about. */
+	static FString TestPhase(const UWorld* W, const FString& Reg);
 	/** For the tower's words (RunwayRadio.h): what keeps the runway busy now ("traffic landing", "traffic departing",
 	 *  "traffic on the runway"; empty: none of ours) and the runway in use, spoken ("two six"). */
 	static FString RunwayTraffic(const UWorld* W);
@@ -85,6 +92,9 @@ private:
 	void Sync();
 	double FleetAt = 0.0;   // (when the late world was in: the ground fleet is placed 5 s later, 2026-11-24)
 	bool Advance(FMove& M, float Dt);
+	void ModelFor(FMove& M);           // its A320 in 3D (tag MOVE/<Reg>), lights and pose
+	void TaxiOutPath(FMove& M);        // the taxi-out's centre-line waypoints from the taxilane to the holding point in use
+	FString FreeStand() const;         // (tests) a passenger stand no movement uses and no aircraft stands on
 	void Pose(FMove& M);
 	void AddLights(FMove& M);
 	void Blink(FMove& M);

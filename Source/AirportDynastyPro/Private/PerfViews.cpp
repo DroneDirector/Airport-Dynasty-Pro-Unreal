@@ -19,6 +19,10 @@
 //      upstairs), person@<name> (beside it), aboard@<name> (on or in it), mast, jetway, tower, an actor's, or a mesh's (its nearest instance)
 //   rel <forward> <left> <up> <yaw, + left> <pitch> <name>   the camera in its frame (inside the bus), held
 //   until <seconds> <name>                waits until it is there
+//   flight takeoff|land|taxiout a320 [s]  a test A320 (HB-TOFF lined up / HB-LAND s seconds before touchdown / HB-TAXI on the
+//                                         taxilane by a free stand, taxiing out to the holding point); SimTraffic::TestMove
+//   flightwait <seconds> <reg> <phase>[|..]  waits until it is at that phase: taxi hold lineup roll climb away final rollout
+//                                         vacate taxiin stand (SimTraffic::TestPhase)
 //   shot4k <name>                         3840 x 2160 into Saved/Screenshots/run/<name>.png, left out if the subject was missing
 //   talk / talkend                        a talk with the nearest person, by E as the player's
 //   lives                                 what is true now, into the log
@@ -435,6 +439,7 @@ namespace ADPPerfViewsInternal
 	FSub Sub; bool bSub = false, bMissing = false, bRel = false, bFovLook = false;
 	FVector RelAt = FVector::ZeroVector, LookOff = FVector::ZeroVector; FRotator RelRot = FRotator::ZeroRotator;
 	FString Waits, Shot; int32 ShotAt = 0, TalkAt = 0; double NextLook = 0.0;
+	FString FlightReg; TArray<FString> FlightWords; double FlightEnd = 0.0;   // (flightwait: the test aircraft, the phases waited for, the latest time)
 
 	FBox PersonBox(const AActor* Pa) { const FVector Foot = Pa->GetActorLocation(); return FBox(Foot - FVector(38, 38, 0), Foot + FVector(38, 38, 182)); }
 	void Bodies(UWorld* W, TArray<AActor*>& Out)
@@ -820,6 +825,19 @@ namespace ADPPerfViewsInternal
 			if (Was.Num() >= Need) { ADP_LOG(TEXT("Views: %d people are about"), Was.Num()); Need = 0; Until = 0.0; }
 			else if (FPlatformTime::Seconds() >= Until) { ADP_ERROR(TEXT("Views: FAILED - %d people about instead of %d, the run ends here"), Was.Num(), Need); Finish(false); FPlatformMisc::RequestExit(false); return false; }
 		}
+		if (!FlightReg.IsEmpty())   // (flightwait: a cheap look at the test aircraft's phase twice a second)
+		{
+			ADP_PERF_SCOPE("views: flightwait", 1.f);
+			const double Now = FPlatformTime::Seconds();
+			if (Now < NextLook && Now < FlightEnd) return true;
+			NextLook = Now + 0.5;
+			const FString Ph = ASimTraffic::TestPhase(W, FlightReg);
+			if (FlightWords.Contains(Ph)) ADP_LOG(TEXT("Views: %s is at %s"), *FlightReg, *Ph);
+			else if (Ph == TEXT("gone")) ADP_WARN(TEXT("Views: subject missing: %s is not there (waited for %s)"), *FlightReg, *FString::Join(FlightWords, TEXT("|")));
+			else if (Now < FlightEnd) return true;
+			else ADP_WARN(TEXT("Views: %s did not reach %s in time - it is at %s"), *FlightReg, *FString::Join(FlightWords, TEXT("|")), *Ph);
+			FlightReg.Reset(); NextLook = 0.0;
+		}
 		if (!Waits.IsEmpty())   // (until)
 		{
 			FSub S; const double Now = FPlatformTime::Seconds();
@@ -1141,11 +1159,16 @@ namespace ADPPerfViewsInternal
 			bCoachSendTown = bTown; CoachSendEnd = FPlatformTime::Seconds() + 180.0; CoachSent = 0; bCoachLed = false; CoachWhy.Reset();
 			ADP_LOG(TEXT("Views: %d coaches get their drivers, then go %s"), CoachSend.Num(), bTown ? TEXT("to the town hub") : TEXT("to their stands"));
 		}
-		else if (K == TEXT("flight") && V.Num() > 1)   // flight takeoff a320 | flight land a320 <seconds before touchdown>
+		else if (K == TEXT("flight") && V.Num() > 1)   // flight takeoff a320 | flight land a320 <seconds before touchdown> | flight taxiout a320
 		{
-			FString Reg; const bool bOff = V[0] == TEXT("takeoff");
-			if (ASimTraffic::TestMove(W, bOff, V.Num() > 2 ? FCString::Atof(*V[2]) : 20.f, Reg)) ADP_LOG(TEXT("Views: %s %s (look at it by %s)"), *Reg, bOff ? TEXT("takes off") : TEXT("on final"), *Reg);
-			else ADP_WARN(TEXT("Views: %s left out"), *L);
+			FString Reg; const bool bOff = V[0] == TEXT("takeoff"), bTaxi = V[0] == TEXT("taxiout");
+			if (bTaxi ? ASimTraffic::TestTaxiOut(W, Reg) : ASimTraffic::TestMove(W, bOff, V.Num() > 2 ? FCString::Atof(*V[2]) : 20.f, Reg)) ADP_LOG(TEXT("Views: %s %s (look at it by %s)"), *Reg, bTaxi ? TEXT("taxis out") : bOff ? TEXT("takes off") : TEXT("on final"), *Reg);
+			else { ADP_WARN(TEXT("Views: %s left out"), *L); bMissing = true; }
+		}
+		else if (K == TEXT("flightwait") && V.Num() > 2)   // flightwait <seconds> <reg> <phase>[|<phase>...]
+		{
+			FlightReg = V[1]; V[2].ParseIntoArray(FlightWords, TEXT("|")); FlightEnd = FPlatformTime::Seconds() + FCString::Atof(*V[0]); NextLook = 0.0;
+			ADP_LOG(TEXT("Views: waiting up to %s s for %s to be at %s"), *V[0], *V[1], *V[2]);
 		}
 		else if (K == TEXT("coachdoor"))   // (beside the unloading coach's front door, 2.5 m up, the door and its steps in the middle)
 		{
