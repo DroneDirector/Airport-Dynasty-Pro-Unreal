@@ -284,6 +284,11 @@ int32 ALandCorridor::Build()
 	// are there, they are drawn instead of the mesh built here
 	const bool bDump = FParse::Param(FCommandLine::Get(), TEXT("DumpLand"));
 	const bool bNanite = !bDump && ADPSite::IsDefault() && FPackageName::DoesPackageExist(TEXT("/Game/Land/Corridor/LC_Ready"));   // (baked for the Iceland site)
+	// one grass everywhere: where the globe shows the airfield's grass colour (the site has grass-tiles: Globe.cpp
+	// AddGrassColour), the band wears the same grass - not the aerial photo, whose pale fields and roofs showed as white
+	// patches beside the roads between the globe's green triangles (owner, 11-28: the coaches' 2.5 km test start)
+	const bool bSiteGrass = ADPSite::IsDefault() || FPaths::FileExists(FPaths::ConvertRelativePathToFull(ADPSite::File(TEXT("grass-tiles"))) / TEXT("tiles.json"));
+	ADP_LOG(TEXT("Land corridor: %s"), bSiteGrass ? TEXT("the airfield grass (as the globe)") : TEXT("the site photo"));
 	TArray<uint8> DumpBuf;
 	auto Put = [&](const void* D, int32 N) { DumpBuf.Append(static_cast<const uint8*>(D), N); };
 	for (TPair<int32, TArray<int32>>& It : ByBlk)
@@ -342,7 +347,7 @@ int32 ALandCorridor::Build()
 			Mesh->CreateMeshSection_LinearColor(Sct, V, I, N, T, TArray<FLinearColor>(), TArray<FProcMeshTangent>(), true);
 			// (a site with its own aerial photo - Chablais: the land as the photo shows it, its real fields; the Iceland site:
 			// the airfield's own grass, owner 2026-11-15)
-			UMaterialInterface* Gm = ADPSite::IsDefault() ? ATerminalBuilder::KitMaterial(this, TEXT("ggrass")) : nullptr;
+			UMaterialInterface* Gm = bSiteGrass ? ATerminalBuilder::KitMaterial(this, TEXT("ggrass")) : nullptr;
 			if (Gm) Mesh->SetMaterial(Sct, Gm); else if (Mat) Mesh->SetMaterial(Sct, Mat);
 		}
 		++Sct; Tris += I.Num() / 3;

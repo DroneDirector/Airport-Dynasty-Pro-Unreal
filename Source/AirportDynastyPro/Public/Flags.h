@@ -4,7 +4,7 @@
 // particles held together by stretch, shear and bend springs - position-based dynamics), hanging from its rope on the
 // pole: limp in calm air, streaming out and snapping in strong wind, its direction and gusts from the REAL wind of the
 // live weather (the windsocks' wind, to-do 193). Never a flat picture, never switched near/far; it only pauses while
-// nobody can see it and picks up from where it was. The fabric: M_FlagCloth (light through it, sheen, weave, wet in rain).
+// nobody can see it is its mesh redrawn less often (the cloth itself is always simulated). The fabric: M_FlagCloth (light through it, sheen, weave, wet in rain).
 #pragma once
 
 #include "CoreMinimal.h"
@@ -32,7 +32,8 @@ private:
 		FVector Top;                        // the top of the hoist (where the rope holds the flag), world cm
 		TArray<FVector> P, Prev;            // particles, world cm
 		UProceduralMeshComponent* Mesh = nullptr;   // (owned by the actor: AddInstanceComponent)
-		float Pause = 0.f;
+		TArray<FVector> Nrm;                // the face normals (scratch, each step)
+		float Pause = 0.f;                  // seconds since its mesh was last redrawn
 	};
 	TArray<FCloth> Cloths;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> Mat;

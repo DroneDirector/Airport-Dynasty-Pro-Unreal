@@ -81,22 +81,39 @@ void AFlags::Add(const FVector& Foot, float PoleM)
 
 void AFlags::Step(FCloth& C, float H)
 {
-	// the wind: the windsocks' (the live weather's), blowing TOWARDS where it goes; a light turbulence on top
+	// the wind: the windsocks' (the live weather's), blowing TOWARDS where it goes; gusts and eddies on top
 	const float From = FMath::DegreesToRadians(AWindSocks::WindFrom), Ms = AWindSocks::WindKt * 0.5144f;
-	// (plan north is the runway's frame turned; the world axes here: x along the plan, -y; the flags stream with the wind)
 	// (a bearing b in the world: plan x points along the runway's true heading; world = (plan x, -plan y))
 	const float Ang = From + PI - FMath::DegreesToRadians(RunwayHdg);
-	const FVector Wind = FVector(FMath::Cos(Ang), FMath::Sin(Ang), 0.f) * Ms * 100.f;
+	const FVector Dir(FMath::Cos(Ang), FMath::Sin(Ang), 0.f);
+	const FVector Wind = Dir * Ms * 100.f;
 	const FVector G(0, 0, -980.f);
-	for (int32 k = 0; k < C.P.Num(); ++k)
+	// the air pushes on the cloth's FACE (pressure along its normal, quadratic in the speed across it - like real cloth,
+	// which is what makes a flag ripple and snap: a face turned edge-on feels nothing, one turned across it a lot);
+	// along the face only a light skin friction. In calm air only gravity and the still air's drag: it hangs limp.
+	TArray<FVector>& Nrm = C.Nrm; Nrm.SetNumUninitialized(C.P.Num());
+	for (int32 j = 0; j < FlN; ++j) for (int32 i = 0; i < FlN; ++i)
 	{
-		if (k % FlN == 0) continue;   // (the hoist edge: on the rope)
+		const FVector Dx = C.P[FlId(FMath::Min(i + 1, FlN - 1), j)] - C.P[FlId(FMath::Max(i - 1, 0), j)];
+		const FVector Dy = C.P[FlId(i, FMath::Min(j + 1, FlN - 1))] - C.P[FlId(i, FMath::Max(j - 1, 0))];
+		Nrm[FlId(i, j)] = FVector::CrossProduct(Dy, Dx).GetSafeNormal();
+	}
+	const float Gust = Ms > 0.2f ? 1.f : Ms / 0.2f;   // (eddies only where there is wind)
+	for (int32 j = 0; j < FlN; ++j) for (int32 i = 1; i < FlN; ++i)   // (i = 0: the hoist edge, on the rope)
+	{
+		const int32 k = FlId(i, j);
 		const FVector V = (C.P[k] - C.Prev[k]);
-		const FVector Turb(FMath::PerlinNoise1D(Clock * 1.7f + k * 0.031f), FMath::PerlinNoise1D(Clock * 1.3f + k * 0.017f + 7.f), FMath::PerlinNoise1D(Clock * 2.1f + k * 0.023f + 3.f));
-		// air drag towards the wind's speed (cloth is light: a strong pull), gravity
-		const FVector Rel = Wind * (1.f + 0.35f * Turb.X) + Turb * Ms * 25.f - V / H;
-		const FVector Acc = G + Rel * 2.2f;
-		const FVector Nw = C.P[k] + V * 0.992f + Acc * H * H;
+		// eddies travel down the flag with the wind (coherent across it, not per particle noise)
+		const float Tw = Clock * (0.9f + Ms * 0.35f) - i * 0.09f;
+		const FVector Turb(FMath::PerlinNoise1D(Tw + j * 0.02f), FMath::PerlinNoise1D(Tw * 1.3f + j * 0.03f + 7.f), FMath::PerlinNoise1D(Tw * 1.7f + 3.f));
+		const FVector Air = Wind * (1.f + 0.3f * Turb.X) + Turb * Ms * 35.f * Gust;
+		const FVector Rel = Air - V / H;
+		const FVector& N = Nrm[k];
+		const float Rn = FVector::DotProduct(Rel, N);
+		// 0.5 rho Cd / (cloth 0.15 kg/m2) = 4 /m: in cm units 0.04 |Rn| Rn; held below what the step can take
+		const float Kn = FMath::Min(0.04f * FMath::Abs(Rn) + 1.5f, 0.45f / H);
+		const FVector Acc = G + N * (Rn * Kn) + (Rel - N * Rn) * 0.6f;
+		const FVector Nw = C.P[k] + V * 0.998f + Acc * H * H;
 		C.Prev[k] = C.P[k]; C.P[k] = Nw;
 	}
 	// the hoist: pinned to the rope beside the pole
@@ -159,11 +176,11 @@ void AFlags::Tick(float Dt)
 	Accum -= Steps * FlSubDt;
 	for (FCloth& C : Cloths)
 	{
-		// (always simulated; only while nobody has seen it for a while does it rest - and it carries on from where it was)
-		const bool bSeen = C.Mesh && C.Mesh->WasRecentlyRendered(2.f);
-		if (!bSeen && (C.Pause += Dt) > 5.f) continue;
-		if (bSeen) C.Pause = 0.f;
+		// always simulated (it never freezes: the old rest-while-unseen left it stuck where it stopped); only its mesh
+		// is redrawn less often while nobody sees it (every half second, so the bounds stay right and it is seen again)
 		for (int32 s = 0; s < Steps; ++s) Step(C, FlSubDt);
-		if (Steps > 0) Draw(C, false);
+		const bool bSeen = C.Mesh && C.Mesh->WasRecentlyRendered(1.f);
+		C.Pause += Dt;
+		if (Steps > 0 && (bSeen || C.Pause > 0.5f)) { Draw(C, false); C.Pause = 0.f; }
 	}
 }
