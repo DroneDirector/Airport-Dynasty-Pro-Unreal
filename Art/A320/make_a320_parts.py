@@ -5,6 +5,8 @@
 #   NoseLeg        - the lower nose gear leg, torque links and axle (turns with the steering)
 #   NoseWheels     - the two nose tyres and hubs (turn with the steering and roll)
 #   MainWheels_L/R - each main gear's tyres and hubs (roll)
+#   (to-do 380 A) NoseLegUpper, MainLegUpper_L/R, SideBraceUp/Lo_L/R, NoseDoor_L/R, MainDoor_L/R, MainBayDoor_L/R and the
+#   dark bays: made by Art/A320/a320_retract_parts.py (run from here, at the end) - pivots at the hinges, see its header.
 # Everything else stays the A320 part. Prints the pivots (Blender metres) for SimTraffic.cpp.
 #   "C:/Program Files/Blender Foundation/Blender 3.3/blender.exe" -b --python Art/A320/make_a320_parts.py
 import bpy, bmesh, os, shutil
@@ -83,6 +85,8 @@ redo(lambda lo, hi: hi[1] < -11.9 and lo[1] > -14.0 and hi[2] <= 1.3 and lo[0] >
 # the struts compress on touchdown (the cylinders above stay in the wing)
 redo(lambda lo, hi: hi[1] < -11.9 and lo[1] > -14.0 and lo[2] > 0.4 and hi[2] <= 2.4 and hi[0] < -2.6 and lo[0] > -5.2, 'MainLeg_L')
 redo(lambda lo, hi: hi[1] < -11.9 and lo[1] > -14.0 and lo[2] > 0.5 and hi[2] <= 2.0 and lo[0] > 2.9 and hi[0] < 4.9, 'MainLeg_R')
+if os.path.basename(globals().get('__file__', '')) == 'make_a320_parts.py':     # (not when make_a320_clean/_panels run it)
+    exec(compile(open(os.path.join(HERE, 'a320_retract_parts.py')).read(), 'a320_retract_parts.py', 'exec'))
 for x in bpy.data.objects:
     if x.type == 'MESH': assert all(s.material for s in x.material_slots), 'empty material slot on ' + x.name
 bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, 'A320.glb'), export_format='GLB', use_selection=False,
