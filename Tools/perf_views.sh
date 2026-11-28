@@ -11,10 +11,10 @@ for d in Saved/Config/WindowsEditor Saved/Config/Windows "$S/Config/Windows"; do
 if [ "$W" = editor ]; then
   # (his own game settings, so the run draws what he sees)
   [ -f "$S/Config/Windows/GameUserSettings.ini" ] && mkdir -p Saved/Config/WindowsEditor && cp "$S/Config/Windows/GameUserSettings.ini" Saved/Config/WindowsEditor/GameUserSettings.ini
-  timeout 2400 "/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game -fullscreen -ResX=3840 -ResY=1080 -ForceRes -Site=chablais -LocalTerrain -UIShot -UIChablais "-UIPerfViews=$F" "$@" -nosplash -log=Views.log > /dev/null 2>&1
+  timeout 3600 "/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game -fullscreen -ResX=3840 -ResY=1080 -ForceRes -Site=chablais -LocalTerrain -UIShot -UIChablais "-UIPerfViews=$F" "$@" -nosplash -log=Views.log > /dev/null 2>&1
   L=Saved/Logs/Views.log
 else
-  (cd "$W" && ADP_LOG=1 timeout 2400 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot -UIChablais -fullscreen "-UIPerfViews=$F" "$@" > /dev/null 2>&1)
+  (cd "$W" && ADP_LOG=1 timeout 3600 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot -UIChablais -fullscreen "-UIPerfViews=$F" "$@" > /dev/null 2>&1)
   L="$S/Logs/ADP.log"
 fi
 kill $SM 2>/dev/null
