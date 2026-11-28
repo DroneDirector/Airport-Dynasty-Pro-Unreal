@@ -1,0 +1,93 @@
+# THE AIRPLANE TEST (owner 2026-11-28): the A320 at the gate, the take-off roll, 10,000 ft (the -AirplaneTest jump 20 s after
+# lift-off, 8 s straight, a 180 deg right turn at about 24 deg of bank), the landing. At sunset, a few clouds.
+#   bash Tools/airplane_test.sh video    the whole run recorded (60 fps, the game's own sound), no pictures (-ViewsNoShots)
+#   bash Tools/airplane_test.sh photos   the same run, a 4K / screen-size PNG at every shot4k (Saved/Screenshots/run)
+# Every camera follows the aircraft (orbit / look: PerfViews.cpp header); the holds are the same in both runs.
+# Sunset: day 172 (21 June) at Chablais (46.36 N 6.91 E, UTC+2): the sun 4.6 deg up at 20:48 (SunClock::SunAt), 1.1 deg at 21:15.
+cmd r.VSync 0
+framegen on
+speed 1 1
+day 172
+hour 20.8
+weather 1
+wait 25
+lives
+park
+jetway 4 dock
+wait 45
+jetway 4 cam wide
+# ===== 1 gate: the A320 at gate 4, its right side (the jetway is on its left), orbit then low and close
+orbit 38 60 60 g2.5 0 A320
+wait 2
+sound record airplane-test
+orbit 38 60 165 g2.5 22 A320
+wait 4
+shot4k gate-orbit-front
+wait 9
+shot4k gate-orbit-rear
+orbit 24 120 95 g1.6 10 A320
+wait 6
+shot4k gate-low-mains
+wait 3
+# ===== 2 take-off: lined up, the roll low beside the wheels, rotation, lift-off, the gear going up
+flight takeoff a320
+orbit 30 60 60 g1.6 0 HB-TOFF
+wait 2
+shot4k toff-lineup
+flightwait 60 HB-TOFF roll
+orbit 28 60 105 g1.6 12 HB-TOFF
+wait 9
+shot4k toff-roll-wheels
+wait 3
+orbit 46 95 95 g1.6 0 HB-TOFF
+flightwait 90 HB-TOFF climb
+shot4k toff-liftoff
+orbit 45 100 150 3 10 HB-TOFF
+wait 5
+shot4k toff-gear-up
+# ===== 3 10,000 ft: tracking, round to ahead, the banked turn (wings dip), behind, level again
+flightwait 40 HB-TOFF high
+orbit 42 95 95 2 0 HB-TOFF
+wait 1
+shot4k high-track
+orbit 48 95 -15 3 6 HB-TOFF
+flightwait 30 HB-TOFF turn
+wait 4
+shot4k turn-ahead-bank
+orbit 46 -15 75 5 14 HB-TOFF
+wait 7
+shot4k turn-inside-wing-down
+orbit 55 150 215 4 16 HB-TOFF
+wait 8
+shot4k turn-behind
+orbit 48 -40 -20 1 8 HB-TOFF
+flightwait 70 HB-TOFF high
+wait 2
+shot4k turn-level-again
+# ===== 4 landing: approach from ahead and beside, low by the touchdown zone (main gear smoke, the nose let down gently), rollout
+flight land a320 60
+orbit 50 -35 -35 4 0 HB-LAND
+wait 4
+shot4k land-approach-ahead
+orbit 42 -35 80 2 14 HB-LAND
+wait 10
+shot4k land-approach-side
+wait 18
+orbit 36 105 105 g1.6 0 HB-LAND
+flightwait 45 HB-LAND rollout
+shot4k land-touchdown-smoke
+orbit 34 100 115 g1.6 6 HB-LAND
+wait 3
+shot4k land-nose-down
+orbit 40 115 165 g1.8 10 HB-LAND
+wait 5
+shot4k land-rollout-reversers
+wait 4
+# ===== end
+sound stop
+wait 2
+lives
+parkoff
+hour live
+weather live
+quit

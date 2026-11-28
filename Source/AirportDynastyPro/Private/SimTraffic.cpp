@@ -429,6 +429,8 @@ bool ASimTraffic::TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg)
 	//  HB-TOFF stood in the list unseen and unmoving, kept the runway "busy" and HB-LAND was refused: made here, now)
 	T->ModelFor(T->Moves.Last());
 	ADP_LOG(TEXT("Traffic: test %s %s on runway %s, nose at %.0f %.0f, %.0f m up%s%s"), *Reg, bTakeoff ? TEXT("takes off") : TEXT("lands"), bToX1 ? TEXT("towards x1") : TEXT("towards x0"), M.Nose.X, M.Nose.Y, M.Height, M.Stand.IsEmpty() ? TEXT("") : TEXT(", stand "), *M.Stand);
+	{ const FMove& N = T->Moves.Last(); if (N.Model.IsValid()) ADP_LOG(TEXT("Traffic: test %s spawned - model %s at %s"), *Reg, *N.Model->GetName(), *N.Model->GetActorLocation().ToCompactString());
+	  else ADP_WARN(TEXT("Traffic: test %s - its model could not be made"), *Reg); }
 	return T->Moves.Last().Model.IsValid();
 }
 
@@ -466,7 +468,7 @@ FString ASimTraffic::TestPhase(const UWorld* W, const FString& Reg)
 			case EPhase::Push: return TEXT("push");
 			case EPhase::Taxi: return M.Path.Num() == 1 && FVector2f::Distance(M.Path[0], M.Nose) < 0.5f ? TEXT("hold") : TEXT("taxi");
 			case EPhase::Roll: return M.Step == 0 || M.Clock < 4.f ? TEXT("lineup") : TEXT("roll");
-			case EPhase::Climb: return M.Height < 100.f ? TEXT("climb") : TEXT("away");
+			case EPhase::Climb: return M.Height < 100.f ? TEXT("climb") : !M.b10k ? TEXT("away") : FMath::Abs(M.Bank) > 5.f ? TEXT("turn") : TEXT("high");   // (high / turn: after the -AirplaneTest jump)
 			case EPhase::Approach: return TEXT("final");
 			case EPhase::Rollout: return TEXT("rollout");
 			case EPhase::TaxiIn: return FMath::Abs(M.Nose.Y - It->F.RwyY) < 140.f && FMath::Abs(M.Nose.X - 81.f) < 30.f ? TEXT("vacate") : TEXT("taxiin");

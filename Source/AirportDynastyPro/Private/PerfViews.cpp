@@ -54,6 +54,14 @@
 //   coachwait <seconds> unload           waits until the first test-filled coach to park has its first passenger off
 //   coachdoor                            the camera beside that coach's front door, 2.5 m up, looking at the door
 //   quit
+// (2026-11-28, the airplane test, Tools/views/airplane-test.txt, bash Tools/airplane_test.sh video|photos:)
+//   orbit <metres> <from> <to> <height> <seconds> <name>   the camera on a circle round it in its own heading frame (degrees
+//                                         from its nose, + its right), swept from..to in that time and held there, following it
+//                                         through turns, climbs and the test jump; height over its foot, g<m>: over the ground
+//   sound record <name> / sound stop      the game's own sound mix to F:/ADP-Export/airplane-test/<name>.wav (-RecordAudio;
+//                                         -RecordAudioDir=<dir>); a quit stops it and waits 5 s for the file
+//   -ViewsNoShots                         shot4k keeps its holds but takes no picture (the video run)
+//   flight takeoff|land waits up to 120 s for the runway to be free; flightwait phases high / turn: after the 10,000 ft jump
 // Save points (owner 2026-11-28): "# ===== <tag> <name>" lines divide the file into sections (tag: 1, 5b, coaches, end).
 //   -UIPerfViewsFrom=<tag or a word of the name, _ for a space> starts at that section (perf_views.sh --from <..>);
 //   -UIPerfViewsResume starts at the one after the last finished, from Saved/Logs/Views-Progress.txt (--resume), which
@@ -131,6 +139,8 @@
 #include "Misc/Parse.h"
 #include "Unseen.h"
 #include "Tickable.h"
+#include "AudioMixerBlueprintLibrary.h"
+#include "HAL/FileManager.h"
 
 namespace ADPPerfViewsInternal
 {
@@ -237,8 +247,18 @@ namespace ADPPerfViewsInternal
 		if (ViewsMe.IsValid()) ADP_LOG(TEXT("Views: the player's own character shown again (%d parts)"), ViewsMeWas.Num());
 		ViewsMeWas.Reset(); ViewsMe.Reset();
 	}
+	bool bSoundRec = false; FString SoundName;   // (sound record: the game's own mix, -RecordAudio only)
+	UWorld* ViewsWorld();
+	FString SoundDir() { FString D; if (!FParse::Value(FCommandLine::Get(), TEXT("RecordAudioDir="), D)) D = TEXT("F:/ADP-Export/airplane-test"); return D; }
+	void StopSound(UWorld* W)
+	{
+		if (!bSoundRec) return;
+		bSoundRec = false; IFileManager::Get().MakeDirectory(*SoundDir(), true);
+		UAudioMixerBlueprintLibrary::StopRecordingOutput(W, EAudioRecordingExportType::WavFile, SoundName, SoundDir(), nullptr, nullptr);
+		ADP_LOG(TEXT("Views: SOUND RECORDING STOPS %s at unix ms %lld - written to %s/%s.wav"), *SoundName, (FDateTime::UtcNow() - FDateTime(1970, 1, 1)).GetTicks() / ETimespan::TicksPerMillisecond, *SoundDir(), *SoundName);
+	}
 	/** The run's end, every way: the character back, the save point "end" if all was run. */
-	void Finish(bool bAll) { ShowMe(); if (bAll) Progress(CurSec.IsEmpty() ? FString(TEXT("all")) : CurSec, TEXT("end")); }
+	void Finish(bool bAll) { if (bSoundRec) StopSound(ViewsWorld()); ShowMe(); if (bAll) Progress(CurSec.IsEmpty() ? FString(TEXT("all")) : CurSec, TEXT("end")); }
 
 	UWorld* ViewsWorld()
 	{
@@ -455,6 +475,12 @@ namespace ADPPerfViewsInternal
 	FVector RelAt = FVector::ZeroVector, LookOff = FVector::ZeroVector; FRotator RelRot = FRotator::ZeroRotator;
 	FString Waits, Shot; int32 ShotAt = 0, TalkAt = 0; double NextLook = 0.0;
 	FString FlightReg; TArray<FString> FlightWords; double FlightEnd = 0.0;   // (flightwait: the test aircraft, the phases waited for, the latest time)
+	// orbit (the airplane test, 11-28): the camera on a circle round the subject in its own heading frame, swept from one side
+	//  angle to another (degrees from its nose, + to its right) while it follows it - turns, climbs and the 10,000 ft jump too
+	bool bOrbit = false, bOrbitGround = false; double OrbitDist = 0.0, OrbitFrom = 0.0, OrbitTo = 0.0, OrbitHigh = 0.0, OrbitSec = 0.0, OrbitT0 = 0.0;
+	FVector OrbitLocal = FVector::ZeroVector; double OrbitFoot = 0.0;   // (its box's centre in its own frame; the foot below that centre)
+	FString FlightRunway; double FlightRunwayEnd = 0.0;   // (flight takeoff|land: waits up to 120 s for the runway to be free - 11-28: HB-TOFF was refused
+	                                                      //  because HB-TAXI was still below 100 ft, and every later step lost its subject)
 
 	FBox PersonBox(const AActor* Pa) { const FVector Foot = Pa->GetActorLocation(); return FBox(Foot - FVector(38, 38, 0), Foot + FVector(38, 38, 182)); }
 	void Bodies(UWorld* W, TArray<AActor*>& Out)
@@ -616,9 +642,34 @@ namespace ADPPerfViewsInternal
 		return false;
 	}
 	/** Each frame: the camera stays with a subject that moves. */
+	/** The subject's nose, flat: aircraft (their models' nose is the actor's -Y) and everything else by its look direction. */
+	FVector NoseOf(const AActor* A)
+	{
+		const ABabylonModel* B = Cast<ABabylonModel>(A);
+		const bool bPlane = B && (B->ModelName().Contains(TEXT("A320")) || B->Tags.ContainsByPredicate([](const FName& T) { return T.ToString().StartsWith(TEXT("MOVE/")); }));
+		return (bPlane ? -A->GetActorRightVector() : Sub.Fw).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	}
+	void OrbitCam(UWorld* W, const AActor* Me, const AActor* Own)
+	{
+		const FTransform X(Own->GetActorRotation(), Own->GetActorLocation());
+		const FVector Mid = X.TransformPosition(OrbitLocal);
+		const double T = OrbitSec > 0.0 ? FMath::Clamp((FPlatformTime::Seconds() - OrbitT0) / OrbitSec, 0.0, 1.0) : 1.0;
+		const double Deg = FMath::Lerp(OrbitFrom, OrbitTo, FMath::SmoothStep(0.0, 1.0, T));
+		FVector C = Mid + NoseOf(Own).RotateAngleAxis(Deg, FVector::UpVector) * (OrbitDist * 100.0);
+		if (bOrbitGround) { const double G = GroundTop(W, C, Me, nullptr, true); C.Z = (G > -1e29 ? G : Mid.Z + OrbitFoot) + OrbitHigh * 100.0; }
+		else C.Z = Mid.Z + OrbitFoot + OrbitHigh * 100.0;
+		AboveGround(W, C, Me, TEXT("orbit round ") + Sub.Nm, true);
+		// (never into anything: a short step is swept, a long one - the 10,000 ft jump - only checked where it ends)
+		FHitResult H; const FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me);
+		const bool bLong = FVector::DistSquared(Want, C) > FMath::Square(5000.0);
+		if (!Solid(W, C, Me) && (bLong || !W->SweepSingleByChannel(H, Want, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(20.f), Q))) Want = C;
+		Sub.Stays = Own->GetActorLocation();
+		Rot = (Mid - Want).Rotation();
+	}
 	void KeepSub(UWorld* W, const AActor* Me)
 	{
 		const AActor* Own = Sub.Who.Get(); if (!Own) return;
+		if (bOrbit) { OrbitCam(W, Me, Own); return; }
 		if (bRel)
 		{
 			const FTransform X(Own->GetActorRotation(), Own->GetActorLocation());
@@ -961,6 +1012,19 @@ namespace ADPPerfViewsInternal
 			if (Was.Num() >= Need) { ADP_LOG(TEXT("Views: %d people are about"), Was.Num()); Need = 0; Until = 0.0; }
 			else if (FPlatformTime::Seconds() >= Until) { ADP_ERROR(TEXT("Views: FAILED - %d people about instead of %d, the run ends here"), Was.Num(), Need); Finish(false); FPlatformMisc::RequestExit(false); return false; }
 		}
+		if (!FlightRunway.IsEmpty())   // (flight takeoff|land held until the runway is free)
+		{
+			const double Now = FPlatformTime::Seconds();
+			if (Now < NextLook) return true;
+			NextLook = Now + 0.5;
+			if (ASimTraffic::RunwayBusy(W) && Now < FlightRunwayEnd) return true;
+			TArray<FString> V; FlightRunway.ParseIntoArrayWS(V);
+			const bool bOff = V.Num() > 1 && V[1] == TEXT("takeoff");
+			FString Reg;
+			if (ASimTraffic::TestMove(W, bOff, V.Num() > 3 ? FCString::Atof(*V[3]) : 20.f, Reg)) ADP_LOG(TEXT("Views: %s %s (look at it by %s) - spawned after the runway came free"), *Reg, bOff ? TEXT("takes off") : TEXT("on final"), *Reg);
+			else { ADP_WARN(TEXT("Views: %s left out (the runway stayed busy for 120 s or the model failed)"), *FlightRunway); bMissing = true; }
+			FlightRunway.Reset(); NextLook = 0.0;
+		}
 		if (!FlightReg.IsEmpty())   // (flightwait: a cheap look at the test aircraft's phase twice a second)
 		{
 			ADP_PERF_SCOPE("views: flightwait", 1.f);
@@ -988,6 +1052,8 @@ namespace ADPPerfViewsInternal
 		if (ShotAt > 0)   // (shot4k: three seconds for the streaming, then the picture, then two more)
 		{
 			const FString Png = FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir() / TEXT("Screenshots/run") / (Shot + TEXT(".png")));
+			if (ShotAt == 1 && FParse::Param(FCommandLine::Get(), TEXT("ViewsNoShots")))   // (the video run: the same holds, no picture)
+			{ ADP_LOG(TEXT("Views: picture %s not taken (video run)"), *Shot); ShotAt = 2; Until = FPlatformTime::Seconds() + 2.0; return true; }
 			if (ShotAt == 1)
 			{
 				// (the window already 4K: the picture straight from the screen. HighResShot draws the scene a second time with
@@ -1034,6 +1100,7 @@ namespace ADPPerfViewsInternal
 		TArray<FString> V; A.ParseIntoArrayWS(V);
 		if (Cast<AFireTruck>(PC->GetPawn()) && (K == TEXT("view") || K == TEXT("fly") || K == TEXT("look") || K == TEXT("rel") || K == TEXT("shotcam") || (K == TEXT("jetway") && A.Contains(TEXT(" cam")))))
 		{ ADP_WARN(TEXT("Views: %s left out - the camera is in the fire truck (fire park first)"), *L); return true; }
+		if (K == TEXT("view") || K == TEXT("fly") || K == TEXT("look") || K == TEXT("rel") || K == TEXT("follow") || K == TEXT("talk") || K == TEXT("coachdoor") || (K == TEXT("jetway") && A.Contains(TEXT(" cam")))) bOrbit = false;
 		if ((K == TEXT("view") && V.Num() >= 5) || (K == TEXT("fly") && V.Num() >= 6))
 		{
 			FVector To(FCString::Atof(*V[0]) * 100.f, -FCString::Atof(*V[2]) * 100.f, FCString::Atof(*V[1]) * 100.f);
@@ -1073,6 +1140,36 @@ namespace ADPPerfViewsInternal
 				if (Around(C - FVector(0, 0, 120), 45.0) > 0) ADP_WARN(TEXT("Views: subject missing: somebody is where the camera goes in %s"), *Nm);
 				else { SubLog(S); Sub = S; RelAt = RelTo; RelRot = FRotator(FCString::Atof(*V[4]), -FCString::Atof(*V[3]), 0.0); bSub = bRel = bHeld = true; bMissing = bFollow = false; FlyLen = 0.0; KeepSub(W, PC->GetPawn()); LockFov(PC, 90.f); }
 			}
+		}
+		else if (K == TEXT("orbit") && V.Num() > 5)   // orbit <metres> <from deg> <to deg> <height m over its foot, g<m>: over the ground> <seconds> <name>
+		{
+			const FString Nm = FString::JoinBy(TArrayView<FString>(V).RightChop(5), TEXT(" "), [](const FString& Word) { return Word; });
+			bSub = bRel = bOrbit = false; bMissing = true; FreeFov(PC); FSub S;
+			if (!bHeld) Want = PC->PlayerCameraManager->GetCameraLocation();
+			if (!FindSub(W, Nm, Want, S) || !S.Who.IsValid()) ADP_WARN(TEXT("Views: subject missing: %s is not there"), *Nm);
+			else
+			{
+				const AActor* Own = S.Who.Get(); const FTransform X(Own->GetActorRotation(), Own->GetActorLocation());
+				Sub = S; SubLog(S); OrbitLocal = X.InverseTransformPosition(S.Box.GetCenter()); OrbitFoot = S.Box.Min.Z - S.Box.GetCenter().Z;
+				OrbitDist = FMath::Max(3.0, FCString::Atod(*V[0])); OrbitFrom = FCString::Atod(*V[1]); OrbitTo = FCString::Atod(*V[2]);
+				FString Hs = V[3]; bOrbitGround = Hs.RemoveFromStart(TEXT("g")); OrbitHigh = FCString::Atod(*Hs);
+				OrbitSec = FCString::Atod(*V[4]); OrbitT0 = FPlatformTime::Seconds();
+				bSub = bHeld = bOrbit = true; bMissing = bFollow = false; FlyLen = 0.0;
+				Want = S.Box.GetCenter() + NoseOf(Own).RotateAngleAxis(OrbitFrom, FVector::UpVector) * (OrbitDist * 100.0) + FVector(0, 0, OrbitFoot + OrbitHigh * 100.0);   // (placed at once, then kept clear)
+				OrbitCam(W, PC->GetPawn(), Own); LockFov(PC, 60.f);
+				ADP_LOG(TEXT("Views: orbit round %s, %.0f m, %.0f to %.0f deg from its nose in %.0f s, %s%.1f m up"), *Nm, OrbitDist, OrbitFrom, OrbitTo, OrbitSec, bOrbitGround ? TEXT("ground + ") : TEXT(""), OrbitHigh);
+			}
+		}
+		else if (K == TEXT("sound") && V.Num())   // sound record <name> / sound stop: the game's own mix to F:/ADP-Export/airplane-test/<name>.wav (-RecordAudio)
+		{
+			if (!FParse::Param(FCommandLine::Get(), TEXT("RecordAudio"))) ADP_LOG(TEXT("Views: %s - no -RecordAudio, not recorded"), *L);
+			else if (V[0] == TEXT("record") && !bSoundRec)
+			{
+				SoundName = V.Num() > 1 ? V[1] : FString(TEXT("game-sound"));
+				UAudioMixerBlueprintLibrary::StartRecordingOutput(W, 3600.f, nullptr); bSoundRec = true;
+				ADP_LOG(TEXT("Views: SOUND RECORDING STARTS %s at unix ms %lld"), *SoundName, (FDateTime::UtcNow() - FDateTime(1970, 1, 1)).GetTicks() / ETimespan::TicksPerMillisecond);
+			}
+			else if (V[0] == TEXT("stop")) StopSound(W);
 		}
 		else if (K == TEXT("until") && V.Num() > 1) { FString Sec; A.Split(TEXT(" "), &Sec, &Waits); Waits.TrimStartAndEndInline(); NextLook = 0.0; Until = FPlatformTime::Seconds() + FCString::Atof(*V[0]); }
 		else if (K == TEXT("shot4k") && V.Num())
@@ -1376,6 +1473,7 @@ namespace ADPPerfViewsInternal
 		else if (K == TEXT("flight") && V.Num() > 1)   // flight takeoff a320 | flight land a320 <seconds before touchdown> | flight taxiout a320
 		{
 			FString Reg; const bool bOff = V[0] == TEXT("takeoff"), bTaxi = V[0] == TEXT("taxiout");
+			if (!bTaxi && ASimTraffic::RunwayBusy(W)) { FlightRunway = L; FlightRunwayEnd = FPlatformTime::Seconds() + 120.0; NextLook = 0.0; ADP_LOG(TEXT("Views: %s waits for the runway to be free (up to 120 s)"), *L); return true; }
 			if (bTaxi ? ASimTraffic::TestTaxiOut(W, Reg) : ASimTraffic::TestMove(W, bOff, V.Num() > 2 ? FCString::Atof(*V[2]) : 20.f, Reg)) ADP_LOG(TEXT("Views: %s %s (look at it by %s)"), *Reg, bTaxi ? TEXT("taxis out") : bOff ? TEXT("takes off") : TEXT("on final"), *Reg);
 			else { ADP_WARN(TEXT("Views: %s left out"), *L); bMissing = true; }
 		}
@@ -1418,6 +1516,7 @@ namespace ADPPerfViewsInternal
 			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : V[1] == TEXT("unload") ? 4 : V[1] == TEXT("boarded") ? 5 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
 			CoachEnd = FPlatformTime::Seconds() + FCString::Atof(*V[0]); ADP_LOG(TEXT("Views: waiting for the coaches (%s)"), *A);
 		}
+		else if (K == TEXT("quit") && bSoundRec) { StopSound(W); --At; Until = FPlatformTime::Seconds() + 5.0; return true; }   // (the wav is written in the background: 5 s, then the quit again)
 		else if (K == TEXT("quit")) { ADP_LOG(TEXT("Views: done")); Finish(true); FPlatformMisc::RequestExit(false); return false; }
 		else if (!L.IsEmpty() && !L.StartsWith(TEXT("#"))) ADP_WARN(TEXT("Views: not understood: %s"), *L);
 		return true;
