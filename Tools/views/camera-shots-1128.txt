@@ -50,7 +50,11 @@ night-jet-cab jetway 4 cam cab
 # --- 6 fire station (forecourt north of the bays)
 fire-wide view -1209 1.6 55.9 90 7
 fire-crane fly -1185 9 75 100 -8 12
-fire-high view -1185 9 75 100 -8
+# (fire-high was a fixed spot inside something: now above and behind truck 1, wherever it stands)
+fire-high look 26 200 7 Firetruck1
+fire-drive-1 look 24 35 3 Firetruck1
+fire-drive-2 look 0 150 6 Firetruck2
+fire-drive-3 look 30 -60 4 Firetruck2
 fire-side view -1130 1.6 44.8 -5 -5
 # --- 7 big hangar H1 (door line plan 1231)
 hangar-overview view -620 3.0 1180 -40 4

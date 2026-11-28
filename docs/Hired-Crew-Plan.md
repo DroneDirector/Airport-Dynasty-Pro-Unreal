@@ -1167,3 +1167,10 @@ Nothing stands in the aircraft's way when it is towed in or out of a hall. Befor
   Riders::Drive brakes gently (0.5 m/s2) well before a lower limit. Speed and limit are logged per coach every 4 s.
 - Test camera: one held look tracks the lead from behind (150 deg) all the way to its stand. Static shots come only before and after.
 - Only a run can prove: drivers appear unseen and are seated, the convoy order, the gentle braking, and the camera staying clear of posts.
+
+Fire turnout by its own crew (2026-11-28, compiled, NOT run): Private/FireTruckCrew.cpp, AFireTruck::CrewIn. A ground-crew
+person at the driver's door climbs in by the truck's own climb on their own body (no player, no second system), then the
+truck drives its route by itself (FollowRoute: eased to a stop at about 1 m/s/s, a gap kept to a truck ahead going the same
+way). The views test's `fire crew` / `fire out` / `firewait <s>` (PerfViews.cpp) send both trucks (the station's full set,
+docs/fire-station/SPEC.md) in turn to the taxiway A hold, round on taxiway A and back to the forecourt, nose to their bay.
+Not built yet: reversing into the bays, the crew getting out again, hired fire people taking this place.

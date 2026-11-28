@@ -184,30 +184,37 @@ wait 2
 shot4k night-jetway-bridge
 hour 13
 wait 5
-# ===== 6 fire station: doors up, trucks started with their lights, one driven out about 30 s
+# ===== 6 fire station: crews to their doors, lights on, doors up, both trucks driven out in turn by their crews to the taxiway A hold and back
+fire crew
+wait 3
 shotcam fire-wide
 wait 2
 measure 10 fire-wide
 shot4k fire-doors-shut
-fire doors open
-wait 12
-shot4k fire-doors-open
 fire lights on
 shotcam fire-crane
 shotcam fire-high
 wait 2
+measure 5 fire-lights
 shot4k fire-lights
-fire drive
+fire out
+shotcam fire-wide
+wait 12
+shot4k fire-doors-open
 wait 10
+shotcam fire-drive-1
+wait 2
 measure 10 fire-drive
 shot4k fire-drive-1
-wait 8
-shot4k fire-drive-2
-wait 8
-shot4k fire-drive-3
-fire park
-wait 4
 wait 6
+shotcam fire-drive-2
+wait 2
+shot4k fire-drive-2
+wait 12
+shotcam fire-drive-3
+wait 2
+shot4k fire-drive-3
+firewait 180
 fire lights off
 shotcam fire-side
 wait 2

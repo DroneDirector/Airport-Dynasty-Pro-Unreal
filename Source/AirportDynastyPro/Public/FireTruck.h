@@ -99,6 +99,17 @@ public:
 	TArray<FVector2D> TestRoute;
 	float TestKmh = 25.f;
 	void FollowRoute();
+	/** A turnout by its own crew, no player (FireTruckCrew.cpp; the views test's "fire out"): a person standing at the
+	 *  driver's door climbs in by the truck's own climb (the same keys as yours, on that person's own body), then the truck
+	 *  drives SetTestRoute's points by itself. False (and why) if it can't. */
+	bool CrewIn(AActor* Person, class USkeletalMeshComponent* PersonBody, FString& Why);
+	bool CrewSeated() const { return bCrew && Seq == ESeq::None; }
+	bool HasCrew() const { return bCrew; }
+	/** Metres left along the route; how long it has stood still (s). */
+	float RouteLeft() const { return RouteLeftM; }
+	float StoodFor() const { return StoodS; }
+	/** Where a crew member stands to climb in (on the ground at the driver's door, world). */
+	FVector CrewSpot() const;
 	void SetView(bool bChase);
 	/** As pressing V (tests). */
 	void PressView() { ToggleView(); }
@@ -211,6 +222,10 @@ private:
 	// getting in and out
 	enum class ESeq : uint8 { None, Walk, In, Out };
 	ESeq Seq = ESeq::None;
+	/** Driven by its own crew (CrewIn), not a player. */
+	bool bCrew = false;
+	TWeakObjectPtr<AActor> CrewBy;
+	float RouteLeftM = 0.f, StoodS = 0.f;
 	float SeqT = 0.f, WalkClock = 0.f;
 	void BeginClimb(APawn* Walker);
 	FVector HandleNow() const;   // the door handle's wrist spot now, as the door swings (root space)

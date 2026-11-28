@@ -41,6 +41,9 @@
 //   fire doors open|shut / fire lights on|off   the bay doors (their own motors) / every truck's blue lights and beams
 //   fire drive / fire park                the first truck taken from its door, out along the UIDrive route at 30 km/h in its
 //                                         chase view; stopped and left again (camera steps are left out while in it)
+//   fire crew / fire out / firewait <s>    each truck's own crew member to its door (only unseen) / doors up, lights on, the
+//                                         crews climb in and the trucks drive out in turn to the taxiway A hold, turn on the
+//                                         taxiway and stand back on the forecourt / the steps held until all are back
 //   hangar <plan x> open|shut [speed]     the hangar nearest that x, its doors sent; speed: how many times the real 10 min
 //   coach town|terminal                   every coach sent to the town hub / back to its own stand (Coaches::SendOnRoute)
 //   coach out <m> <gap> [pax]            every coach out on the way in, m short of its stand; pax: that many seated passengers
@@ -121,12 +124,18 @@
 #include "PerfLog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Unseen.h"
+#include "Tickable.h"
 
 namespace ADPPerfViewsInternal
 {
 	TArray<FString> Steps; int32 At = 0;
 	bool bHeld = false; FVector Want = FVector::ZeroVector, From = FVector::ZeroVector; FRotator Rot = FRotator::ZeroRotator, RotFrom = FRotator::ZeroRotator;
 	TMap<FString, FString> Shots; TWeakObjectPtr<AFireTruck> FireT; double FireEnterAt = 0.0, FireRouteAt = 0.0, FireExitAt = 0.0;
+	// the turnout (fire crew / fire out / firewait): each truck's own crew member comes to its door, climbs in, and the trucks
+	// drive out in turn to the taxiway A hold, turn on the taxiway and come back to the forecourt (FireTruckCrew.cpp)
+	struct FFireGo { TWeakObjectPtr<AFireTruck> T; TWeakObjectPtr<AActor> Crew; int32 Stage = 0; FVector2D Bay = FVector2D::ZeroVector; double At = 0.0; FString Why; };
+	TArray<FFireGo> FireGo; bool bFireGo = false; double FireGoAt = 0.0, FireWaitEnd = 0.0;
 	TArray<FVector> CoachHome; int32 CoachMode = 0; float CoachNear = 0.f; double CoachEnd = 0.0;
 	TArray<int32> CoachSend; TMap<int32, FString> CoachWhy; bool bCoachLed = false; bool bCoachSendTown = false; double CoachSendEnd = 0.0; int32 CoachSent = 0;   // (coaches waiting for their drivers before they are sent)
 	double Until = 0.0, FlyStart = 0.0, FlyLen = 0.0; FString Name; TArray<float> Fr, Gp, Rn, Gm; uint64 Shown0 = 0, Made0 = 0; double MStart = 0.0;
@@ -697,6 +706,84 @@ namespace ADPPerfViewsInternal
 		ADP_LOG(TEXT("Views: lives: the feet: see the Feet: lines (-FeetCheck)"));
 	}
 
+	// the turnout's ways, plan metres: from the bay out onto the fire road's northbound lane to the taxiway A hold; then a
+	// wide turn on taxiway A and down the southbound lane to stand on the forecourt, nose to its own bay
+	void FireWays(const FVector2D& S, const FVector2D& Bay, bool bBack, TArray<FVector2D>& Out)
+	{
+		double Rx = -1205.0, Ry = 373.5;   // (ROAD-FIRE-TWY-A: its line and its end at the hold)
+		for (const FAirfieldData::FRoad& R : AAirfield::Shared().Roads)
+			if (R.Id == TEXT("ROAD-FIRE-TWY-A") && R.Pts.Num() > 1) { Rx = R.Pts[0].X; Ry = R.Pts.Last().Y; }
+		const double Half = 2.1;   // (half a lane of the 7 m road: keeping right)
+		Out.Reset(); Out.Add(S);
+		if (!bBack)
+		{
+			Out.Add(FVector2D(Bay.X, 26.0)); Out.Add(FVector2D(Bay.X, 34.0)); Out.Add(FVector2D(Rx + Half, 48.0)); Out.Add(FVector2D(Rx + Half, Ry - 12.0));   // (stopped short of the hold: the one turning passes clear of its nose)
+			return;
+		}
+		const FVector2D C(Rx, Ry + 9.5); const double Rr = 11.0;
+		Out.Add(FVector2D(Rx + Half, Ry + 0.5)); Out.Add(FVector2D(Rx + 9.0, Ry + 6.5));
+		for (int32 k = 0; k <= 8; ++k) { const double A = PI * k / 8.0; Out.Add(C + FVector2D(FMath::Cos(A), FMath::Sin(A)) * Rr); }
+		Out.Add(FVector2D(Rx - 9.0, Ry + 6.5)); Out.Add(FVector2D(Rx - Half, Ry - 1.5));
+		Out.Add(FVector2D(Rx - Half, 70.0)); Out.Add(FVector2D(Bay.X, 45.0)); Out.Add(FVector2D(Bay.X, 31.0));
+	}
+	static FVector2D PlanOf(const AActor* A) { return FVector2D(A->GetActorLocation().X / 100.0, -A->GetActorLocation().Y / 100.0); }
+	void FireTurnout(UWorld* W)
+	{
+		ADP_PERF_SCOPE("views: fire turnout", 0.5f);
+		const double Now = FPlatformTime::Seconds();
+		AADPPeople* Pp = AADPPeople::Get(W);
+		static const TCHAR* const Crews[] = {TEXT("MH_078_ground"), TEXT("MH_080_ground"), TEXT("MH_076_ground"), TEXT("MH_081_ground")};
+		for (int32 i = 0; i < FireGo.Num(); ++i)
+		{
+			FFireGo& F = FireGo[i]; AFireTruck* T = F.T.Get();
+			if (F.Stage >= 9) continue;
+			if (!T) { F.Stage = 9; ADP_WARN(TEXT("Views: fire out: truck %d gone"), i); continue; }
+			TArray<FVector2D> Way;
+			switch (F.Stage)
+			{
+			case 0:   // its crew member comes, only where nobody sees them appear and nobody stands
+			{
+				if (!Pp) { F.Stage = 9; ADP_WARN(TEXT("Views: fire crew: no people here")); break; }
+				const FVector Spot = T->CrewSpot();
+				const FString Why = Pp->AnyoneNear(Spot, 80.f) ? TEXT("somebody stands at its door") : !ADPUnseen::May(W, Spot) ? TEXT("its door is in view") : TEXT("");
+				if (Why.IsEmpty())
+				{
+					AActor* D = Pp->Spawn(Crews[i % UE_ARRAY_COUNT(Crews)], Spot + FVector(0, 0, 60.f), float(T->GetActorRotation().Yaw) - 90.f);
+					if (!D) { F.Stage = 9; ADP_WARN(TEXT("Views: fire crew: truck %d's crew member could not be made"), i); break; }
+					F.Crew = D; F.Stage = 1; ADP_LOG(TEXT("Views: fire crew: %s at truck %s's door"), Crews[i % UE_ARRAY_COUNT(Crews)], *T->GetName());
+				}
+				else if (Why != F.Why) { F.Why = Why; ADP_LOG(TEXT("Views: fire crew: truck %d waits - %s"), i, *Why); }
+				break;
+			}
+			case 1:   // in turn: the first once the doors are going up, each next once the one before is well on its way
+			{
+				if (!bFireGo || Now < FireGoAt + 3.0) break;
+				if (i > 0) { const FFireGo& Pv = FireGo[i - 1]; if (Pv.Stage < 9 && (Pv.Stage < 3 || !Pv.T.IsValid() || (PlanOf(Pv.T.Get()) - Pv.Bay).Size() < 40.0)) break; }
+				AActor* D = F.Crew.Get(); AADPPeople::FWho* Wh = D && Pp ? Pp->Find(D) : nullptr;
+				FString Why;
+				if (!Wh || !Wh->Body || !T->CrewIn(D, Wh->Body, Why)) { F.Stage = 9; ADP_WARN(TEXT("Views: fire out: truck %s's crew can't get in - %s"), *T->GetName(), Why.IsEmpty() ? TEXT("the person is gone") : *Why); break; }
+				F.Stage = 2; ADP_LOG(TEXT("Views: fire out: truck %s's crew climbs in"), *T->GetName());
+				break;
+			}
+			case 2:
+				if (!T->CrewSeated()) break;
+				T->SetTestLights(true, true);
+				FireWays(PlanOf(T), F.Bay, false, Way); T->SetTestRoute(Way, 30.f); F.Stage = 3; F.At = Now;
+				ADP_LOG(TEXT("Views: fire out: truck %s drives out to the taxiway A hold"), *T->GetName());
+				break;
+			case 3:
+				if (Now - F.At < 5.0 || T->RouteLeft() > 3.f || T->StoodFor() < 3.f) break;
+				FireWays(PlanOf(T), F.Bay, true, Way); T->SetTestRoute(Way, 25.f); F.Stage = 4; F.At = Now;
+				ADP_LOG(TEXT("Views: fire out: truck %s turns on taxiway A and comes back"), *T->GetName());
+				break;
+			case 4:
+				if (Now - F.At < 5.0 || T->RouteLeft() > 3.f || T->StoodFor() < 2.f) break;
+				F.Stage = 9; ADP_LOG(TEXT("Views: fire out: truck %s back on the forecourt (%.0f s after the call)"), *T->GetName(), Now - FireGoAt);
+				break;
+			default: break;
+			}
+		}
+	}
 	// the views run's own timed actions (fire truck, coach waits); false while a wait holds the steps
 	bool Pending(UWorld* W, APlayerController* PC)
 	{
@@ -722,6 +809,18 @@ namespace ADPPerfViewsInternal
 		{
 			FireExitAt = 0.0;
 			if (AFireTruck* T = Cast<AFireTruck>(PC->GetPawn())) { ADP_LOG(TEXT("Views: fire park: stopped at %.0f km/h, out"), T->SpeedKmh()); T->Exit(); }
+		}
+		if (FireGo.Num()) FireTurnout(W);
+		if (FireWaitEnd > 0.0)
+		{
+			int32 Home = 0; for (const FFireGo& F : FireGo) Home += F.Stage >= 9;
+			if (Home >= FireGo.Num() || Now >= FireWaitEnd)
+			{
+				if (Home < FireGo.Num()) ADP_WARN(TEXT("Views: firewait: only %d of %d trucks back in time"), Home, FireGo.Num());
+				else ADP_LOG(TEXT("Views: firewait: all %d trucks back on the forecourt"), Home);
+				FireWaitEnd = 0.0;
+			}
+			else return false;
 		}
 		if (CoachSend.Num())
 		{
@@ -808,15 +907,33 @@ namespace ADPPerfViewsInternal
 			AJetwayRigs::bBeaconTest ? TEXT(", all flashing (test)") : TEXT(""), ASunClock::HourOverride);
 	}
 
+	// the camera kept on a moving subject and placed: after the world's actors and physics have moved this frame, just
+	// before the cameras are worked out (FTickableGameObject::TickObjects runs there), so it never trails a frame behind
+	bool GFollowAfterPhysics = false;
+	void Follow(UWorld* W, APlayerController* PC, float Dt)
+	{
+		if (bFollow) FollowAt(W, PC->GetPawn(), Dt);
+		else if (bSub && bHeld) KeepSub(W, PC->GetPawn());
+		if (bHeld) Place(PC);
+	}
+	struct FAfterPhysics : public FTickableGameObject
+	{
+		virtual void Tick(float Dt) override
+		{
+			UWorld* W = ViewsWorld(); APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
+			if (PC && PC->PlayerCameraManager) Follow(W, PC, Dt);
+		}
+		virtual UWorld* GetTickableGameObjectWorld() const override { return ViewsWorld(); }
+		virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
+		virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FADPViewsFollow, STATGROUP_Tickables); }
+	};
 	bool Tick(float Dt)
 	{
 		UWorld* W = ViewsWorld(); APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
 		if (!PC || !PC->PlayerCameraManager) return true;
 		HideMe(PC);
 		LookAtPeople(W);
-		if (bFollow) FollowAt(W, PC->GetPawn(), Dt);
-		else if (bSub && bHeld) KeepSub(W, PC->GetPawn());
-		if (bHeld) Place(PC);
+		if (!GFollowAfterPhysics) Follow(W, PC, Dt);
 		if (!Pending(W, PC)) return true;
 		for (TStrongObjectPtr<UTextureRenderTarget2D>& T : Eaten) UKismetRenderingLibrary::ClearRenderTarget2D(W, T.Get(), FLinearColor::Black);
 		if (!Name.IsEmpty()) { Fr.Add(Dt * 1000.f); Gp.Add(FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles())); Rn.Add(FPlatformTime::ToMilliseconds(GRenderThreadTime)); Gm.Add(FPlatformTime::ToMilliseconds(GGameThreadTime)); }
@@ -1123,6 +1240,20 @@ namespace ADPPerfViewsInternal
 				}
 				FireT = T; FireEnterAt = FPlatformTime::Seconds() + 1.0; ADP_LOG(TEXT("Views: fire drive: at truck %s's door (%d trucks; only this one is driven, the others light up where they stand)"), *T->GetName(), Nt);
 			}
+			else if (V[0] == TEXT("crew") || V[0] == TEXT("out"))
+			{
+				bMissing = false;   // (a view left out earlier says nothing about the trucks)
+				if (!FireGo.Num())
+					for (const TWeakObjectPtr<AFireTruck>& X : AFireTruck::All)
+						if (X.IsValid() && !X->HasCrew()) { FFireGo F; F.T = X; F.Bay = PlanOf(X.Get()); FireGo.Add(F); }
+				if (V[0] == TEXT("out"))
+				{
+					bFireGo = true; FireGoAt = FPlatformTime::Seconds(); AFireStationDoors::CommandAll(true);
+					for (const TWeakObjectPtr<AFireTruck>& X : AFireTruck::All) if (X.IsValid()) X->SetTestLights(true, true);
+					ADP_LOG(TEXT("Views: fire out: doors up, lights on, %d trucks turn out in turn"), FireGo.Num());
+				}
+				else ADP_LOG(TEXT("Views: fire crew: %d trucks' crew on their way to the doors"), FireGo.Num());
+			}
 			else if (V[0] == TEXT("park")) { if (AFireTruck* In = Cast<AFireTruck>(PC->GetPawn())) { In->SetTestInput(0.f, 1.f, 0.f); FireExitAt = FPlatformTime::Seconds() + 4.0; ADP_LOG(TEXT("Views: fire park: braking")); } else ADP_WARN(TEXT("Views: fire park: not in a truck")); }
 		}
 		else if (K == TEXT("hangar") && V.Num() > 1)
@@ -1195,6 +1326,10 @@ namespace ADPPerfViewsInternal
 			}
 			if (bMissing) ADP_WARN(TEXT("Views: subject missing: every spot beside coach %d's door is inside something"), Ci);
 		}
+		else if (K == TEXT("firewait") && V.Num())
+		{
+			FireWaitEnd = FPlatformTime::Seconds() + FCString::Atof(*V[0]); ADP_LOG(TEXT("Views: waiting for the fire trucks to come back (up to %s s)"), *V[0]);
+		}
 		else if (K == TEXT("coachwait") && V.Num() > 1)
 		{
 			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : V[1] == TEXT("unload") ? 4 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
@@ -1223,5 +1358,8 @@ void ADPPerfViews::Begin(const FString& File)
 	if (StartAt == TEXT("end")) { ADP_LOG(TEXT("Views: done - the save point says every section was finished")); FPlatformMisc::RequestExit(false); return; }
 	if (!StartAt.IsEmpty() && !SkipTo(StartAt)) { FPlatformMisc::RequestExit(false); return; }
 	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&Tick));
+	static FAfterPhysics* AfterPhysics = nullptr;
+	if (!AfterPhysics) AfterPhysics = new FAfterPhysics();   // (lives as long as the run)
+	GFollowAfterPhysics = true;
 	ADP_LOG(TEXT("Views: %d steps from %s"), Steps.Num(), *File);
 }

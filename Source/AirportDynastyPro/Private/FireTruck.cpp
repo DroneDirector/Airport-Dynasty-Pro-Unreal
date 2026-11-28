@@ -1041,6 +1041,7 @@ void AFireTruck::Wash(const FVector& At, float Amount)
 
 void AFireTruck::FollowRoute()
 {
+	ADP_PERF_SCOPE("fire truck: follows its route", 0.5f);
 	// the nearest point on the route, a point 10 m on from it, and the wheel turned toward it; the pace held, slower
 	// into a bend
 	const FVector2D P(GetActorLocation().X / 100.0, -GetActorLocation().Y / 100.0);
@@ -1064,10 +1065,35 @@ void AFireTruck::FollowRoute()
 	const double Cross = F.X * To.Y - F.Y * To.X, Dot = FVector2D::DotProduct(F, To);
 	const double Ang = FMath::RadiansToDegrees(FMath::Atan2(Cross, Dot));      // + to the left in the plan
 	InSteer = float(FMath::Clamp(-Ang / 25.0, -1.0, 1.0));
-	const float Want = TestKmh * (FMath::Abs(Ang) > 20.0 ? 0.55f : 1.f), Now = SpeedKmh();
-	const bool bEnd = (TestRoute.Last() - P).Size() < 8.0;
-	InThrottle = bEnd ? 0.f : Now < Want - 15.f ? 1.f : Now < Want ? 0.55f : 0.f;
-	InBrake = bEnd ? 1.f : Now > Want + 6.f ? 0.4f : 0.f;
+	// what is left of the way: the pace eased down so it comes to a stop at the end gently (about 1 m/s/s), never a stamp on
+	// the pedal; and a gap kept to a truck ahead in the same lane (2026-11-28, the views test's turnout)
+	double Left = (TestRoute[Seg + 1] - (TestRoute[Seg] + (TestRoute[Seg + 1] - TestRoute[Seg]) * T)).Size();
+	for (int32 k = Seg + 1; k + 1 < TestRoute.Num(); ++k) Left += (TestRoute[k + 1] - TestRoute[k]).Size();
+	RouteLeftM = float(Left);
+	const float Now = SpeedKmh();
+	float Want = TestKmh * (FMath::Abs(Ang) > 20.0 ? 0.55f : 1.f);
+	Want = FMath::Min(Want, FMath::Max(3.6f * FMath::Sqrt(2.f * 1.0f * FMath::Max(float(Left) - 1.f, 0.f)), Left > 1.5 ? 4.f : 0.f));
+	for (const TWeakObjectPtr<AFireTruck>& O : All)
+	{
+		if (!O.IsValid() || O.Get() == this) continue;
+		const FVector2D Q(O->GetActorLocation().X / 100.0, -O->GetActorLocation().Y / 100.0), D = Q - P;
+		const double Fwd = FVector2D::DotProduct(D, F), Side = FMath::Abs(F.X * D.Y - F.Y * D.X);
+		const FVector Of = O->GetActorForwardVector();
+		if (Fwd <= 0.0 || Fwd > 45.0 || Side > 3.5 || FVector2D::DotProduct(FVector2D(Of.X, -Of.Y), F) < 0.6) continue;   // (one going the same way)
+		Want = FMath::Min(Want, 3.6f * FMath::Sqrt(2.f * 1.0f * FMath::Max(float(Fwd) - 18.f, 0.f)));   // (about 6 m between bumpers when stopped)
+	}
+	const float Dt = GetWorld() ? GetWorld()->GetDeltaSeconds() : 0.f;
+	StoodS = Now < 0.5f ? StoodS + Dt : 0.f;
+	if (Want < 0.5f)
+	{
+		InThrottle = 0.f;
+		InBrake = Now < 1.f ? 1.f : FMath::Clamp(Now / 25.f, 0.15f, 0.5f);   // held only once it has stopped
+	}
+	else
+	{
+		InThrottle = Now < Want - 12.f ? 0.8f : Now < Want ? 0.45f : 0.f;
+		InBrake = Now > Want + 1.5f ? FMath::Clamp((Now - Want) / 12.f, 0.08f, 0.6f) : 0.f;
+	}
 }
 
 void AFireTruck::DressMaterials()
@@ -1424,13 +1450,13 @@ void AFireTruck::Sequence(float Dt)
 		{
 			Seq = ESeq::None;
 			MoveCam->SetActive(false);
-			SetView(bChase);
+			if (Driver) SetView(bChase);
 			EngineOn(true);
 			ADP_LOG(TEXT("Fire truck: you got in (%s)"), *GetName());
 		}
 		else if (Seq == ESeq::Out && SeqT >= ClimbLen + 0.25f) { FinishExit(); return; }
 	}
-	if (!Rider || !Rig.IsReady() || !Driver) return;
+	if (!Rider || !Rig.IsReady() || (!Driver && !bCrew)) return;
 	// the body: climbing (in: forwards through the keys, out: backwards), or at the wheel
 	const float KeyT = Seq == ESeq::Out ? ClimbLen - SeqT : Seq == ESeq::In ? SeqT : ClimbLen;
 	FDriverPose P = PoseAt(KeyT);
@@ -1487,10 +1513,10 @@ void AFireTruck::Tick(float Dt)
 	}
 	// the parking brake lets itself off as you pull away (as on today's trucks); held with Space / pad A it stays on
 	if (InThrottle > 0.1f && !bHandHeld) bHandbrake = false;
-	if (TestRoute.Num() >= 2 && Driver) FollowRoute();
+	if (TestRoute.Num() >= 2 && (Driver || bCrew) && Seq == ESeq::None) FollowRoute();
 	if (bSim) Simulate(FMath::Min(Dt, 1.f / 20.f));
 	if (bSim || DoorK > 0.f || DoorTarget > 0.f) Animate(Dt);
-	if (Driver || Seq != ESeq::None) Sequence(Dt);
+	if (Driver || bCrew || Seq != ESeq::None) Sequence(Dt);
 	DriverCam->SetRelativeRotation(FRotator(LookPitch - 11.f, LookYaw, 0.f));   // a driver's eyes rest a little down the road, the wheel's rim in view
 	Boom->SetRelativeRotation(FRotator((bFarView ? -16.f : -12.f) + LookPitch * 0.5f, LookYaw, 0.f));
 	if (bChase)
@@ -1511,7 +1537,7 @@ void AFireTruck::Tick(float Dt)
 	UpdateLamps(Dt);
 	TickYou(Dt);   // the cab worked by hand, the wipers, the turrets (FireTruckYou.cpp)
 	// once you've got out and it stands still a while, it rests (no physics running; it stays exactly where it stopped)
-	if (bSim && !Driver) { Still = SpeedKmh() < 0.5f ? Still + Dt : 0.f; if (Still > 3.f) SetPhysics(false); }
+	if (bSim && !Driver && !bCrew) { Still = SpeedKmh() < 0.5f ? Still + Dt : 0.f; if (Still > 3.f) SetPhysics(false); }
 }
 
 float AFireTruck::TurnRate() const { return Body ? Body->GetPhysicsAngularVelocityInDegrees().Size() : 0.f; }
