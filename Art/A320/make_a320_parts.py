@@ -89,7 +89,7 @@ if os.path.basename(globals().get('__file__', '')) == 'make_a320_parts.py':     
     exec(compile(open(os.path.join(HERE, 'a320_retract_parts.py')).read(), 'a320_retract_parts.py', 'exec'))
 for x in bpy.data.objects:
     if x.type == 'MESH': assert all(s.material for s in x.material_slots), 'empty material slot on ' + x.name
-bpy.ops.export_scene.gltf(filepath=os.path.join(HERE, 'A320.glb'), export_format='GLB', use_selection=False,
+bpy.ops.export_scene.gltf(filepath=os.environ.get('ADP_PARTS_GLB') or os.path.join(HERE, 'A320.glb'), export_format='GLB', use_selection=False,
                           export_apply=True, export_texcoords=True, export_normals=True, export_materials='EXPORT', export_image_format='AUTO')
 print('A320: written with its gear parts')
 print('DONE')

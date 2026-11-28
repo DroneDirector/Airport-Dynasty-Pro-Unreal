@@ -10,6 +10,9 @@
 #   NoseBay, MainBay_L/R - dark bays: walls from the hole edge in his skin up to a lid (under the wing's upper skin)
 # The skin is cut once per bay along the hole outline (level set: edges split where the line crosses, faces inside go).
 # Each part's origin is its hinge. Prints GEAR lines (Blender and glb frames) and the overlap check of the retracted gear.
+# (380 A2) Not solved yet: his wing is 0.5-0.6 m deep over the main leg and the folded strut is 0.63-0.75 m wide, so the
+# folded main leg still pokes through the lower skin and the bay lid (about 1260-1370 touching pairs per side); the nose
+# folds clean (0 pairs). The right gear is the left one mirrored; the doors are fitted to his skin (2D fit, within 12 mm).
 import math
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
@@ -31,7 +34,7 @@ def zm(s, brace):
         c = (lo + hi) / 2
         if s > 0 and not (lo[0] > 1.9 and hi[0] < 5.4): return False
         if s < 0 and not (hi[0] < -1.9 and lo[0] > -5.4): return False
-        if not (lo[1] > -14.3 and hi[1] < -11.3 and c[1] < -12.0 and lo[2] > 0.3 and hi[2] < 3.45 and hi[2] - lo[2] > 0.3): return False
+        if not (lo[1] > -14.3 and hi[1] < -11.3 and c[1] < -11.9 and lo[2] > 0.3 and hi[2] < 3.45 and hi[2] - lo[2] > 0.3): return False
         if math.hypot(c[0] - s * 5.45, c[2] - 1.97) < 1.45 and lo[1] > -12.0: return False      # (the engine's exhaust)
         if abs(c[0]) > 4.55: return False                                                         # wing fittings outboard of the hinge: fixed
         if brace and (lo[2] < 2.2 or min(abs(lo[0]), abs(hi[0])) < 2.6): return False                                                  # (a skin piece on the belly, not a stay)
@@ -39,8 +42,47 @@ def zm(s, brace):
     return t
 nose_up = redo(ns_test, 'NoseLegUpper')
 SB = {}; MU = {}
-for s, sd in ((-1, '_L'), (1, '_R')):
-    SB[sd] = redo(zm(s, True), 'SideBrace' + sd); MU[sd] = redo(zm(s, False), 'MainLegUpper' + sd)
+SB['_L'] = redo(zm(-1, True), 'SideBrace_L'); MU['_L'] = redo(zm(-1, False), 'MainLegUpper_L')
+# (380 A2) the gear is symmetric: the right gear and the small pieces round it are the left ones mirrored (his left side kept)
+def islands_of(me):
+    b = bmesh.new(); b.from_mesh(me); b.faces.ensure_lookup_table(); sn = set(); out = []
+    for f in b.faces:
+        if f.index in sn: continue
+        st = [f]; comp = []; sn.add(f.index)
+        while st:
+            g = st.pop(); comp.append(g.index)
+            for e in g.edges:
+                for h in e.link_faces:
+                    if h.index not in sn: sn.add(h.index); st.append(h)
+        vs = np.array([v.co[:] for i in comp for v in b.faces[i].verts]); out.append((comp, vs.min(0), vs.max(0)))
+    b.free(); return out
+def mirror_mesh(me_src, keep=None):            # a mirrored copy (x -> -x), winding and split normals mirrored too
+    me_src.calc_normals_split()
+    VK = lambda c: (round(c[0], 4), round(c[1], 4), round(c[2], 4))
+    nrm = {(p.index,) + VK(me_src.vertices[me_src.loops[li].vertex_index].co): me_src.loops[li].normal.copy() for p in me_src.polygons for li in p.loop_indices}
+    me = me_src.copy(); bm = bmesh.new(); bm.from_mesh(me); bm.faces.ensure_lookup_table()
+    if keep is not None: bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
+    bm.faces.ensure_lookup_table(); fidx = [f.index for f in bm.faces]
+    bm.transform(Matrix.Scale(-1, 4, (1, 0, 0))); bmesh.ops.reverse_faces(bm, faces=bm.faces[:]); bm.to_mesh(me); bm.free()
+    old = sorted(keep) if keep is not None else list(range(len(me_src.polygons)))
+    me.use_auto_smooth = True; cl = []
+    for p in me.polygons:
+        po = old[p.index]
+        for li in p.loop_indices:
+            c = me.vertices[me.loops[li].vertex_index].co; n = nrm.get((po,) + VK((-c.x, c.y, c.z)), Vector((0, 0, 1))); cl.append((-n.x, n.y, n.z))
+    me.normals_split_custom_set(cl); return me
+for nm in ('MainWheels_R', 'MainLeg_R'):
+    if nm in bpy.data.objects: bpy.data.objects.remove(bpy.data.objects[nm])
+for t_ in (zm(1, True), zm(1, False)):                   # his right gear pieces out, as on the left ...
+    r_ = redo(t_, '_right')
+    if r_ is not None: bpy.data.objects.remove(r_)
+for nm in ('MainWheels', 'MainLeg', 'MainLegUpper', 'SideBrace'):
+    sl = bpy.data.objects.get(nm + '_L')
+    if sl is None: continue
+    ob = bpy.data.objects.new(nm + '_R', mirror_mesh(sl.data)); ob.data.name = nm + '_R'; bpy.context.scene.collection.objects.link(ob)
+    ob.location = (-sl.location.x, sl.location.y, sl.location.z)
+    if nm == 'MainLegUpper': MU['_R'] = ob
+    if nm == 'SideBrace': SB['_R'] = ob
 
 # his skin (what is left of the A320 part), for shooting the doors and bays onto it and taking its UVs
 src = bmesh.new(); src.from_mesh(o.data); src.faces.ensure_lookup_table()
@@ -53,6 +95,33 @@ def skin(x, y, z0=1.6):          # first surface going up from z0 at (x, y): (po
 def upper(x, y, z):              # next surface above z
     h = BVH0.ray_cast(Vb(x, y, z + 0.02), Vb(0, 0, 1), 8.0)
     return h[0].z if h[0] is not None else 99.0
+# (380 A2) height maps of his skin over each main gear hole: lower skin (outside) and the bay lid (under the upper skin).
+# His lower wing skin has a gap round the top of the leg (his gear well): there the first hit is the upper skin - the lower
+# skin is taken from the straight line along the row (the wing's underside), the hit becomes the upper skin.
+ST = 0.04
+def build_map(x0, x1):
+    xs = np.arange(x0, x1 + 1e-6, ST); ys = np.arange(-14.0, -11.1 + 1e-6, ST)
+    LO = np.full((len(ys), len(xs)), 2.5); UP = np.full_like(LO, 99.0)
+    for j, yy in enumerate(ys):
+        for i, xx in enumerate(xs):
+            Pk, _ = skin(xx, yy, 0.5)
+            if Pk is not None: LO[j, i] = Pk.z; UP[j, i] = upper(xx, yy, Pk.z + 0.06)
+    wing = np.abs(xs) > 2.45; xw = xs[wing]; nfix = 0
+    for j in range(len(ys)):
+        z = LO[j, wing]; ok = np.ones(len(z), bool)
+        for thr in (0.3, 0.12, 0.06, 0.04):
+            cf = np.polyfit(xw[ok], z[ok], 1); fit = np.polyval(cf, xw); ok2 = np.abs(z - fit) < thr
+            if ok2.sum() < 6: break
+            ok = ok2
+        bad = (z - fit) > 0.12; nfix += int(bad.sum())
+        col = np.where(wing)[0][bad]; UP[j, col] = np.minimum(UP[j, col], LO[j, col]); LO[j, col] = fit[bad]
+    print('MAP %.1f..%.1f: %d points of the wing underside missing in his skin (taken from the line)' % (x0, x1, nfix))
+    return xs, ys, LO, np.minimum(4.45, UP - 0.04)
+MAPS = {'_L': build_map(-4.6, -0.6), '_R': build_map(0.6, 4.6)}
+def map_at(sd, x, y):
+    xs, ys, LO, LID = MAPS[sd]
+    i = int(np.clip(round((x - xs[0]) / ST), 0, len(xs) - 1)); j = int(np.clip(round((y - ys[0]) / ST), 0, len(ys) - 1))
+    return float(LO[j, i]), float(LID[j, i])
 def uv_at(P, fi):
     f = src.faces[fi]; ls = f.loops
     a, b, c = ls[0], ls[1], ls[2]
@@ -78,16 +147,14 @@ def new_obj(name, verts, faces, mats, uvs=None, fmat=None):
     return ob
 
 # ---------------------------------------------------------------- 2. holes, bays, doors (plan rectangles, Blender x, y)
-NOSE_Y0 = -1.20
+NOSE_Y0 = -0.78
 HOLES = {'NoseBay': (-0.80, 0.80, NOSE_Y0, 3.05, 2.0)}                 # x0, x1, y0, y1, lowest skin z to shoot from
 for s, sd in ((-1, '_L'), (1, '_R')):
     xa, xb = sorted((s * 0.75, s * 4.45)); HOLES['MainBay' + sd] = (xa, xb, -13.80, -11.35, 1.8)
-LIDMAX = {'NoseBay': 3.45}
+LIDMAX = {'NoseBay': 3.95}
 def lid_z(name, x, y):
     if name == 'NoseBay': return LIDMAX[name]
-    P, _ = skin(x, y, 1.8)
-    z0 = P.z if P else 2.0
-    return min(4.45, upper(x, y, z0 + 0.08) - 0.04)
+    return map_at(name[-2:], x, y)[1]
 def samples(a, b, step=0.05):
     n = max(2, int(math.ceil(abs(b - a) / step)) + 1); return [a + (b - a) * i / (n - 1) for i in range(n)]
 
@@ -124,7 +191,8 @@ def bay(name):                    # walls from the hole edge on his skin up to t
     ring = [(x, y0) for x in xs[:-1]] + [(x1, y) for y in ys[:-1]] + [(x, y1) for x in xs[:0:-1]] + [(x0, y) for y in ys[:0:-1]]
     V = []; F = []
     for x, y in ring:
-        P, _ = skin(x, y, zs); zb = (P.z if P else 2.2) + 0.002
+        if name == 'NoseBay': P, _ = skin(x, y, zs); zb = (P.z if P else 2.2) + 0.002
+        else: zb = map_at(name[-2:], x, y)[0] + 0.002
         V += [(x, y, zb), (x, y, lid_z(name, x, y))]
     n = len(ring)
     for i in range(n):
@@ -162,24 +230,23 @@ def door(name, x0, x1, y0, y1, zs, t=0.03, step=0.05):     # a panel on his skin
     zz = np.array([v[2] for v in V]).reshape(ny, nx)
     # his skin has gaps and other pieces lie on it: along each line across the door (fore-aft) the skin is smooth - fit a
     # quadratic, drop what is off it by more than 2 cm, fit again; the dropped points go onto the fit
-    w = np.array(ys) - np.mean(ys); A = np.stack([np.ones_like(w), w, w * w], 1); fixed = 0
-    for c in range(nx):
-        col = zz[:, c].copy(); ok = np.abs(col - np.median(col)) < 0.25
-        for _ in range(6):
-            cf = np.linalg.lstsq(A[ok], col[ok], rcond=None)[0]; fit = A @ cf; ok2 = np.abs(col - fit) < 0.02
-            if (ok2 == ok).all() or ok2.sum() < 4: break
-            ok = ok2
-        fixed += int((~ok).sum()); zz[:, c] = np.where(ok, col, fit)
-    for _ in range(3):           # and across: a line that is off its neighbours by more than 5 cm goes onto their median
-        pad = np.pad(zz, ((0, 0), (2, 2)), mode='edge'); med = np.median(np.stack([pad[:, j:j + nx] for j in range(5)]), 0)
-        bad = np.abs(zz - med) > 0.05; fixed += int(bad.sum()); zz = np.where(bad, med, zz)
+    gx, gy = np.meshgrid(np.array(xs), np.array(ys))
+    u = (gx - np.mean(xs)) / (np.ptp(xs) / 2 + 1e-9); w = (gy - np.mean(ys)) / (np.ptp(ys) / 2 + 1e-9)
+    A = np.stack([(u ** i * w ** j).ravel() for i in range(6) for j in range(4)], 1); zr = zz.ravel().copy()
+    ok = np.abs(zr - np.median(zr)) < 0.6
+    for thr in (0.3, 0.15, 0.08, 0.04, 0.02, 0.012, 0.012):
+        cf = np.linalg.lstsq(A[ok], zr[ok], rcond=None)[0]; fit = A @ cf; ok2 = np.abs(zr - fit) < thr
+        if ok2.sum() < A.shape[1] * 3: break
+        ok = ok2
+    fixed = int((~ok).sum()); FLUSH = (float(np.abs(zr - fit)[ok].max()), float(np.sqrt(np.mean((zr - fit)[ok] ** 2))), float(ok.mean()))
+    zz = np.where(ok, zr, fit).reshape(ny, nx)
     for k in range(len(V)):
         r, c = divmod(k, nx)
         if abs(V[k][2] - zz[r, c]) > 1e-6:
             P = Vb(V[k][0], V[k][1], float(zz[r, c])); hit = BVH0.find_nearest(P)
             V[k] = P[:]
             if hit[0] is not None: uv, mi = uv_at(hit[0], hit[2]); UV[k] = uv[:]; out_mi[k] = mi
-    print('DOOR %s: %d points off his skin (other pieces or misses) set to their neighbours' % (name, fixed))
+    print('FLUSH %s: %.0f%% of its points on his skin (max %.1f mm, rms %.1f mm off the fitted surface); %d points (his skin hidden by other pieces or missed) set onto it' % (name, 100 * FLUSH[2], 1000 * FLUSH[0], 1000 * FLUSH[1], fixed))
     bump = max(float(np.abs(np.diff(zz, axis=0)).max()), float(np.abs(np.diff(zz, axis=1)).max()))
     for v in list(V): V.append((v[0], v[1], v[2] + t)); UV.append((v[0] * 0.5, v[1] * 0.5))
     F = []; N = nx * ny
@@ -228,10 +295,14 @@ BV_STATIC = bvh_of(STATIC)
 col = vts(nose_up); top = col[(col[:, 2] > 1.95) & (np.abs(col[:, 0]) < 0.2)]
 NY = float(top[:, 1].mean()) if len(top) else 0.0
 nose_parts = [nose_up, bpy.data.objects['NoseLeg'], bpy.data.objects['NoseWheels']]
+# (380 A2) the slot aft of the nose doors (where the strut comes out) is closed by a panel on the strut: built flush in
+# its place, it rides on NoseLegUpper (with the gear down it stands inside the bay behind the strut)
+AFT = door('_NoseAft', -0.80 + SEAM, 0.80 - SEAM, NOSE_Y0 + SEAM, 0.45 - SEAM, 2.0)
+BV_AFT = bvh_of([AFT])
 best = None
-for pz in (2.80, 2.90, 3.00):
-    for ang in (90.0, 95.0, 100.0):
-        piv = Vb(0.0, NY, pz); hits = len(BV_STATIC.overlap(bvh_of(nose_parts, about(None, piv, 'X', ang))))
+for pz in (2.80, 2.85, 2.90, 2.95, 3.00, 3.05):
+    for ang in (85.0, 87.5, 90.0, 92.5, 95.0, 97.5, 100.0):
+        piv = Vb(0.0, NY, pz); mv = bvh_of(nose_parts, about(None, piv, 'X', ang)); hits = len(BV_STATIC.overlap(mv)) + len(mv.overlap(BV_AFT))
         print('CHECK nose hinge z %.2f, %.0f deg: %d touching triangle pairs' % (pz, ang, hits))
         if best is None or hits < best[0]: best = (hits, pz, ang)
 def breakdown(tag, moving, M):
@@ -262,20 +333,53 @@ def add_tubes(target, specs):
         t.select_set(True); target.select_set(True); bpy.context.view_layer.objects.active = target; bpy.ops.object.join()
 P = NOSE['piv']; ztop = float(top[:, 2].max()) - 0.05 if len(top) else 2.2
 add_tubes(nose_up, [(Vb(0, NY, ztop), Vb(0, NY, P.z + 0.08), 0.075), (Vb(-0.38, NY, P.z), Vb(0.38, NY, P.z), 0.06)])
+AFT.data.transform(about(None, P, 'X', -NOSE['deg']))
+print('EXT nose gear down: %d touching triangle pairs' % (len(BV_STATIC.overlap(bvh_of(nose_parts))) + len(BV_STATIC.overlap(bvh_of([AFT])))))
+for x in bpy.context.selected_objects: x.select_set(False)
+AFT.select_set(True); nose_up.select_set(True); bpy.context.view_layer.objects.active = nose_up; bpy.ops.object.join()
 
 MAIN = {}
 for s, sd in ((-1, '_L'), (1, '_R')):
     mu = MU[sd]; v = vts(mu); hi = v[v[:, 2] > 2.85]; ml = vts(bpy.data.objects['MainLeg' + sd])
     px = float(hi[:, 0].mean()) if len(hi) else s * 4.3; py = float((ml[:, 1].min() + ml[:, 1].max()) / 2)
+    if sd == '_R': py = MAIN['_L']['piv'].y
     parts = [mu, bpy.data.objects['MainLeg' + sd], bpy.data.objects['MainWheels' + sd], DOORS['MainDoor' + sd]]
-    best = None
-    for pz in (3.00, 3.10, 3.20, 3.30):
-        for ang in (80.0, 85.0, 90.0, 95.0):
-            piv = Vb(px, py, pz); M = about(None, piv, 'Y', s * ang)
-            mv = bvh_of(parts[:3], M); bvd = bvh_of([parts[3]])                 # the leg door: built in its retracted place
-            hits = len(BV_STATIC.overlap(mv)) + len(mv.overlap(bvd))
-            print('CHECK main%s hinge z %.2f, %.0f deg: %d touching triangle pairs' % (sd, pz, ang, hits))
-            if best is None or hits < best[0]: best = (hits, pz, ang)
+    if sd == '_L':
+        # (380 A2) the fold: every vertex of the folded leg, leg and wheels inside its well (above the leg/bay door's inner
+        # face, under the bay lid, within the hole) - searched on height maps of his skin, then the best checked by triangles
+        st = ST; xs, ys, LO, LID = MAPS['_L']
+        X0, X1, Y0, Y1, _z = HOLES['MainBay_L']
+        Wr = np.concatenate([vts(p_) for p_ in parts[:3]])
+        def score(px_, pz_, ang_):
+            a = math.radians(s * ang_); c, sn = math.cos(a), math.sin(a)
+            dx, dz = Wr[:, 0] - px_, Wr[:, 2] - pz_
+            X = px_ + dx * c + dz * sn; Z = pz_ - dx * sn + dz * c; Y = Wr[:, 1]
+            inx = (X > X0 + 0.01) & (X < X1 - 0.01) & (Y > Y0 + 0.01) & (Y < Y1 - 0.01)
+            ii = np.clip(np.round((X - xs[0]) / st).astype(int), 0, len(xs) - 1); jj = np.clip(np.round((Y - ys[0]) / st).astype(int), 0, len(ys) - 1)
+            und = np.maximum(0, LO[jj, ii] + 0.04 - Z) * inx; ovr = np.maximum(0, Z - LID[jj, ii] + 0.01) * inx
+            return int((~inx).sum()), int((und > 0).sum()), int((ovr > 0).sum()), float(und.max()), float(ovr.max())
+        cand = []
+        for px_ in np.arange(px - 0.15, px + 0.151, 0.05):
+            for pz_ in np.arange(2.85, 3.451, 0.025):
+                for ang_ in range(70, 101):
+                    r = score(px_, pz_, ang_); cand.append((r[0] + r[1] + r[2], r, float(px_), float(pz_), float(ang_)))
+        cand.sort(key=lambda q: q[0])
+        for q in cand[:6]: print('OPT main_L hinge x %.3f z %.3f %3.0f deg: %d verts out (outside hole %d, under the door face %d (max %.3f m), over the lid %d (max %.3f m))' % (q[2], q[3], q[4], q[0], q[1][0], q[1][1], q[1][3], q[1][2], q[1][4]))
+        best = None
+        for q in cand[:6]:
+            piv = Vb(q[2], py, q[3]); M = about(None, piv, 'Y', s * q[4])
+            mv = bvh_of(parts[:3], M); hits = len(BV_STATIC.overlap(mv)) + len(mv.overlap(bvh_of([parts[3]])))
+            print('CHECK main_L hinge x %.3f z %.3f, %.0f deg: %d touching triangle pairs' % (q[2], q[3], q[4], hits))
+            if best is None or hits < best[0]: best = (hits, q[3], q[4], q[2])
+        LBEST = best
+    else:                                    # the right gear: the left one mirrored
+        b0 = LBEST; piv = Vb(-b0[3], py, b0[1]); M = about(None, piv, 'Y', s * b0[2])
+        mv = bvh_of(parts[:3], M); best = (len(BV_STATIC.overlap(mv)) + len(mv.overlap(bvh_of([parts[3]]))), b0[1], b0[2], -b0[3])
+        print('CHECK main_R (mirrored) hinge x %.3f z %.3f, %.0f deg: %d touching triangle pairs' % (best[3], best[1], best[2], best[0]))
+    px = best[3]
+    # with the gear down: the leg, wheels and the leg door (in its gear-down place) against the skin, bays and closed doors
+    Md = about(None, Vb(px, py, best[1]), 'Y', -s * best[2])
+    print('EXT main%s gear down: %d touching triangle pairs' % (sd, len(BV_STATIC.overlap(bvh_of(parts[:3]))) + len(BV_STATIC.overlap(bvh_of([parts[3]], Md)))))
     breakdown('main' + sd, parts[:3], about(None, Vb(px, py, best[1]), 'Y', s * best[2]))
     MAIN[sd] = dict(piv=Vb(px, py, best[1]), axis=Vb(0, 1, 0), deg=s * best[2], hits=best[0])
     P = MAIN[sd]['piv']
