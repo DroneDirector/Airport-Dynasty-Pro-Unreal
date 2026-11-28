@@ -121,6 +121,9 @@ public:
 	static float GroundAt(float X, float Y);
 	/** The ground's rise per metre there, along +x and along +y. */
 	static FVector2f SlopeAt(float X, float Y);
+	/** The height of the surface actually drawn there (runway, taxiway, apron, the model site's own paving, a player-made
+	 *  runway): a short look straight down round the grade, Ignore left out; the grade (GroundAt) where nothing is met. */
+	static float SurfaceAt(const UWorld* W, float X, float Y, const AActor* Ignore = nullptr);
 	#pragma endregion
 
 private:

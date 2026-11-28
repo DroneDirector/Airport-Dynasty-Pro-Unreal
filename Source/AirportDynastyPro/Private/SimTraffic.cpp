@@ -385,7 +385,14 @@ void ASimTraffic::Pose(FMove& M)
 	const FVector2f D = (M.Nose - M.Main).GetSafeNormal();
 	// (11-28 owner: the nose wheel floated while taxiing - the aircraft was held level on the ground under its nose; now it lies
 	//  on the ground under both gears: tilted by the slope from the main gear to the nose, the nose tyre placed from the main gear)
-	const float GNose = AAirfield::GroundAt(M.Nose.X, M.Nose.Y), GMain = AAirfield::GroundAt(M.Main.X, M.Main.Y);
+	// (owner 11-28: flush on every runway, taxiway and apron - the surface drawn under each gear, not the grade; where one
+	//  surface steps onto another the gear follows within about half a second, never a jump)
+	const float WantN = AAirfield::SurfaceAt(GetWorld(), M.Nose.X, M.Nose.Y, B) - AAirfield::GroundAt(M.Nose.X, M.Nose.Y);
+	const float WantM = AAirfield::SurfaceAt(GetWorld(), M.Main.X, M.Main.Y, B) - AAirfield::GroundAt(M.Main.X, M.Main.Y);
+	const float Step = 0.6f * FMath::Max(GetWorld()->GetDeltaSeconds(), 0.f);
+	if (!M.bSurfSet) { M.SurfN = WantN; M.SurfM = WantM; M.bSurfSet = true; }
+	M.SurfN += FMath::Clamp(WantN - M.SurfN, -Step, Step); M.SurfM += FMath::Clamp(WantM - M.SurfM, -Step, Step);
+	const float GNose = AAirfield::GroundAt(M.Nose.X, M.Nose.Y) + M.SurfN, GMain = AAirfield::GroundAt(M.Main.X, M.Main.Y) + M.SurfM;
 	const float Slope = FMath::RadiansToDegrees(FMath::Atan2(GNose - GMain, Wheelbase));
 	// (the body on its struts: lifted by the nose strut's bounce, pitched by the difference to the main's - Gear())
 	const float Up = M.Pitch + Slope + FMath::RadiansToDegrees(FMath::Atan2(M.BncN - M.BncM, Wheelbase));   // (the rotation / flare on top of the ground's own tilt)
@@ -1356,9 +1363,22 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 	// 5 deg with the flaps out (the A320's aileron droop) and lean into a crosswind in the flare and on the rollout
 	const float dTrk = FMath::FindDeltaAngleDegrees(M.Track, Trk); M.Track = Trk;
 	M.TurnRate = FMath::FInterpTo(M.TurnRate, -dTrk / Dt, Dt, 2.f);   // (deg/s, + to the right)
-	const float BankWant = bAir ? FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(M.Speed * FMath::DegreesToRadians(M.TurnRate) / 9.81f)), -25.f, 25.f) : 0.f;
+	// (11-28 owner: "it feels like running on a wire" - the bank came from the turn already flown, so it yawed flat first,
+	//  rolled in 5 s late and was still banked after the turn; a pilot rolls in first and the turn follows: on a planned arc
+	//  the bank leads by the roll time - in about 2.5 s before the arc, out about 2.5 s before its end)
+	float RateWant = M.TurnRate;
+	if (bAir && M.ArcStep >= 0 && M.ArcR > 1.f)
+	{
+		const float Lead = M.Speed * 2.5f;
+		const FVector2f Hd = (M.Nose - M.Main).GetSafeNormal(), ToC = M.ArcC - M.Nose;
+		const float ArcRate = -FMath::Sign(Hd.X * ToC.Y - Hd.Y * ToC.X) * FMath::RadiansToDegrees(M.Speed / M.ArcR);
+		if (M.Step == M.ArcStep) RateWant = (M.ArcEnd - M.ArcA) * M.ArcR > Lead ? ArcRate : 0.f;
+		else if (M.Step + 1 == M.ArcStep && M.Path.IsValidIndex(M.Step)) RateWant = FVector2f::Distance(M.Nose, M.Path[M.Step]) < Lead ? ArcRate : 0.f;
+	}
+	const float BankWant = bAir ? FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(M.Speed * FMath::DegreesToRadians(RateWant) / 9.81f)), -25.f, 25.f) : 0.f;
 	const float BankWas = M.Bank;
-	M.Bank = FMath::FInterpConstantTo(M.Bank, BankWant, Dt, 5.f);
+	// (eased: the roll starts and ends softly, at most 6 deg/s - about the airliner's autopilot roll)
+	M.Bank += FMath::Clamp((BankWant - M.Bank) * 1.2f, -6.f, 6.f) * Dt;
 	if (FMath::Abs(M.Bank) > FMath::Abs(M.BankPeak)) M.BankPeak = M.Bank;
 	if (FMath::Abs(M.BankPeak) > 3.f && FMath::Abs(M.Bank) < 1.f)
 	{
@@ -1835,7 +1855,7 @@ void ASimTraffic::TouchSmoke(const FMove& M)
 {
 	const FVector2f D2 = (M.Nose - M.Main).GetSafeNormal();
 	const FVector Fwd(D2.X, -D2.Y, 0.f), Side(-Fwd.Y, Fwd.X, 0.f);
-	const float G = AAirfield::GroundAt(M.Main.X, M.Main.Y);
+	const float G = AAirfield::GroundAt(M.Main.X, M.Main.Y) + M.SurfM;
 	const FVector At = FTerminalPlan::ToWorld(M.Main.X, G + 0.5f, M.Main.Y);
 	// (owner 11-28: too faint - now a dense white-grey burst at each main gear, laid along the first ~0.4 s of the roll as
 	//  the wheels spin up, so a short trail stays on the runway behind the gear; it hangs, spreads to ~7 m and thins in 3-4 s)

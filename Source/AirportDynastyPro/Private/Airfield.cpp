@@ -2,6 +2,7 @@
 // millimetres over the one under it so they never flicker through each other: grass, then aprons, taxiways, runway,
 // then the markings. Only what stands up (the cargo building) is still a slab.
 #include "Airfield.h"
+#include "Engine/World.h"
 #include "ServiceVehicles.h"
 #include "Site.h"
 #include "Algo/Reverse.h"
@@ -186,6 +187,21 @@ float AAirfield::GroundAt(float X, float Y)
 		H = FMath::Lerp(H, Pd.Z, W);
 	}
 	return H;
+}
+
+float AAirfield::SurfaceAt(const UWorld* W, float X, float Y, const AActor* Ignore)
+{
+	// (owner 11-28: the aircraft floated on the runway - at the model site everything the airfield lays is 25 cm under the grade
+	//  (Sink); whatever the runway, taxiway or apron, the tyres stand on what is drawn, so look for it rather than reckon it)
+	const float G = GroundAt(X, Y);
+	if (!W) return G;
+	constexpr float Over = 1.5f, Under = 1.0f;   // (every drawn surface lies within a few cm of the grade, the model site's 25 cm under)
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(ADPSurface), true);
+	if (Ignore) Q.AddIgnoredActor(Ignore);
+	FHitResult Hit;
+	const FVector From = FTerminalPlan::ToWorld(X, G + Over, Y), To = FTerminalPlan::ToWorld(X, G - Under, Y);
+	if (!W->LineTraceSingleByObjectType(Hit, From, To, FCollisionObjectQueryParams(ECC_WorldStatic), Q)) return G;
+	return G + Over - (Over + Under) * Hit.Time;
 }
 
 FVector2f AAirfield::SlopeAt(float X, float Y)

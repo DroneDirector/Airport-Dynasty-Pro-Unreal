@@ -136,10 +136,13 @@ def main():
     fr = re.findall(r'frame=\s*(\d+)', n); uniq = int(fr[-1]) if fr else 0
     d = re.search(r'Duration: (\d+):(\d+):([\d.]+)', n); dur = int(d.group(1)) * 3600 + int(d.group(2)) * 60 + float(d.group(3)) if d else 0
     rate = uniq / dur if dur > 1 and uniq > 0 else 0
-    vf = ('%s,setpts=N/%.5f/TB,fps=60' % (DEC, rate)) if 20 <= rate <= 150 else 'fps=60'
+    # (kept at the game's own rate: made 60 again, 55.6 game frames a second came back with 4 repeats a second - players
+    #  show any rate; never made up to 60 by repeating)
+    good = 20 <= rate <= 150
+    vf = ('%s,setpts=N/%.5f/TB' % (DEC, rate)) if good else 'fps=60'
     say('game frames: %d unique in %.1f s = %.2f a second; picture filter %s' % (uniq, dur, rate, vf))
     mux = [FF, '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-ss', '%.3f' % off, '-i', wav, '-map', '0:v:0', '-map', '1:a:0',
-           '-vf', vf, '-c:v', 'h264_nvenc', '-preset', 'p6', '-tune', 'hq', '-rc', 'vbr', '-cq', '19', '-b:v', '60M', '-maxrate', '80M',
+           '-vf', vf, '-r', ('%.5f' % rate) if good else '60', '-c:v', 'h264_nvenc', '-preset', 'p6', '-tune', 'hq', '-rc', 'vbr', '-cq', '19', '-b:v', '60M', '-maxrate', '80M',
            '-bufsize', '160M', '-profile:v', 'high', '-g', '120', '-bf', '2', '-c:a', 'aac', '-b:a', '256k', '-shortest', '-movflags', '+faststart', OUT]
     r = subprocess.run(mux, capture_output=True, text=True)
     if r.returncode != 0: say('FAILED to put the sound in:', r.stderr[-300:]); os.replace(raw, OUT); return check(OUT, wav)
@@ -153,7 +156,7 @@ def check(path, wav):
     sec = int(d.group(1)) * 3600 + int(d.group(2)) * 60 + float(d.group(3)) if d else 0
     n = subprocess.run([FF, '-hide_banner', '-i', path, '-map', '0:v:0', '-c', 'copy', '-f', 'null', '-'], capture_output=True, text=True).stderr
     fr = re.findall(r'frame=\s*(\d+)', n); frames = int(fr[-1]) if fr else 0
-    say('FILE', path, '%.0f MB, %.1f s, %d frames (%.2f fps average; 60 expected)' % (os.path.getsize(path) / 1e6, sec, frames, frames / sec if sec else 0))
+    say('FILE', path, '%.0f MB, %.1f s, %d frames (%.2f fps average; the game own rate expected)' % (os.path.getsize(path) / 1e6, sec, frames, frames / sec if sec else 0))
     say('video:', v.group(1)[:160] if v else 'none'); say('audio:', a.group(1)[:120] if a else 'NONE')
     base = os.path.splitext(path)[0]
     for i, f in enumerate((0.1, 0.5, 0.9)):
