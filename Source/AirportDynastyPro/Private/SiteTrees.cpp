@@ -35,6 +35,18 @@ namespace
 				return Cast<UStaticMesh>(A.GetAsset());
 		return nullptr;
 	}
+	/** (to-do 385, owner 2026-11-28: real foliage, not our solid blobs) the conifers are the Pine Imposter Pack's ten pines
+	 *  (Content/Pine_Imposter_Pack, Fab): masked two-sided cards, Nanite on (Tools/enable_tree_nanite.py, Preserve Area).
+	 *  The Megaplant Baltic Pine in Content/Megaplant_Library has only skeletal saplings (1-4 m) and branch parts, which
+	 *  HISM cannot draw and which are no full tree, so none of it is used here; the beech stays our own model. */
+	const int32 NumImposters = 10;
+	UStaticMesh* FindImposter(int32 i)
+	{
+		const FString P = FString::Printf(TEXT("/Game/Pine_Imposter_Pack/Meshes/Imposter/SM_Imposter_%d.SM_Imposter_%d"), i + 1, i + 1);
+		UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *P);
+		if (!M) ADP_WARN(TEXT("Trees: pine %s missing - that one is left out"), *P);
+		return M;
+	}
 	/** A material's colour parameter, whatever the glTF importer called it. */
 	void Tint(UMaterialInstanceDynamic* M, const FLinearColor& C)
 	{
@@ -82,6 +94,17 @@ bool ASiteTrees::Load()
 	}
 	Trees = MoveTemp(Sorted);
 	for (const TCHAR* N : TreeNames) Meshes.Add(FindTree(N));
+	// the pines after our own five; each one's height in its mesh, so every tree stands at its own measured height
+	Pines.Reset(); PineH.Reset();
+	for (int32 i = 0; i < NumImposters; ++i)
+		if (UStaticMesh* M = FindImposter(i))
+		{
+			const FBox Bx = M->GetBoundingBox();
+			if (Bx.GetSize().Z < 50.f) { ADP_WARN(TEXT("Trees: pine %s has no height (%.0f cm) - left out"), *M->GetName(), Bx.GetSize().Z); continue; }
+			Pines.Add(Meshes.Num()); PineH.Add(Bx.Max.Z); Meshes.Add(M);
+		}
+	if (!Pines.Num()) ADP_WARN(TEXT("Trees: no pines from Content/Pine_Imposter_Pack - the conifers are our own spruce and fir again"));
+	else ADP_LOG(TEXT("Trees: conifers are %d pines (Pine Imposter Pack, Nanite %s)"), Pines.Num(), Meshes[Pines[0]]->IsNaniteEnabled() ? TEXT("on") : TEXT("OFF"));
 	if (!Meshes[0] || !Meshes[3]) { ADP_WARN(TEXT("Trees: the tree models are missing (Art/Trees, Tools/import_model.py)")); return false; }
 	// seasonal colours on our own instances of the trees' materials (needles, bark, leaves)
 	for (UStaticMesh* M : Meshes) if (M) for (int32 s = 0; s < M->GetStaticMaterials().Num(); ++s)
@@ -149,12 +172,21 @@ void ASiteTrees::Season()
 void ASiteTrees::Show(const FIntPoint& Key, FBlock& B)
 {
 	const bool bBare = bSeasonalBeech && (SeasonDay >= 335 || SeasonDay < 100);
-	TArray<TArray<FTransform>> Xf; Xf.SetNum(UE_ARRAY_COUNT(TreeNames));
+	TArray<TArray<FTransform>> Xf; Xf.SetNum(Meshes.Num());
 	for (int32 i = B.First; i < B.First + B.Num; ++i)
 	{
 		const FTree& T = Trees[i];
 		// which model: conifers one of the three by the tree's place (always the same tree there), broadleaf the beech
 		const uint32 Hh = uint32(T.X * 7.3f) * 2654435761u ^ uint32(T.Y * 3.1f);
+		if (T.Kind < 0.5f && Pines.Num())
+		{
+			// a pine: one of the ten by the tree's place (always the same there), its own yaw, its measured height +-15 %
+			const int32 P = int32((Hh >> 8) % uint32(Pines.Num()));
+			const float Vary = 0.85f + 0.30f * float((Hh >> 16) % 1000u) / 999.f;
+			const float Sp = FMath::Max(0.15f, T.H * 100.f / PineH[P]) * Vary;
+			Xf[Pines[P]].Add(FTransform(FRotator(0.f, float(Hh % 360), 0.f), FVector(T.X * 100.f, -T.Y * 100.f, T.Z * 100.f), FVector(Sp)));
+			continue;
+		}
 		const int32 K = T.Kind < 0.5f ? int32(Hh % 3) : (bBare ? 4 : 3);
 		const float S = FMath::Max(0.15f, T.H / 20.f);   // (the models are 20 m tall)
 		const float Wide = K >= 3 ? FMath::Clamp(T.R / 6.5f, 0.6f, 1.5f) / FMath::Max(0.4f, S) : 1.f;   // (a broadleaf's crown as wide as found)

@@ -92,3 +92,13 @@ use them in the game. No real brand names, logos or liveries are carried over on
 - French side of the map: RGE ALTI 1 m heights and BD ORTHO 20 cm photos - source: IGN (Institut national de l'information
   géographique et forestière), Licence Ouverte / Open Licence 2.0 (Etalab), commercial use allowed with attribution "© IGN".
   Downloaded 2026-11-20 from data.geopf.fr.
+
+## Megaplant Library (Tree_Baltic_Pine, Shrub_Greasewood) - Fab Standard License
+Copied unchanged from the owner's Fab downloads (UE project MyProject) to Content/Megaplant_Library, same /Game paths.
+Licensed under the Fab Standard License (https://www.fab.com/eula); shipped only inside the game, not on its own.
+Not drawn yet: the Baltic Pine trees are skeletal saplings (1-4 m), which the instanced site trees cannot use.
+
+## Pine Imposter Pack - Fab Standard License
+Copied from the owner's Fab downloads (UE project MyProject) to Content/Pine_Imposter_Pack, same /Game paths; the ten
+SM_Imposter meshes have Nanite switched on (Tools/enable_tree_nanite.py). Licensed under the Fab Standard License
+(https://www.fab.com/eula); used for the conifers round the airport (Source/.../SiteTrees.cpp), not redistributed on its own.

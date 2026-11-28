@@ -1,8 +1,8 @@
 // The real trees round the airport (to-do 200; owner, 2026-11-20 night: "place it where trees are actually supposed to be ...
 // you can see a top-down view of the trees on the satellite photo ... and I also want it to be seasonal").
 // Data/Sites/<site>/trees.bin (Tools/make_site_trees.py): every tree found in swisstopo's surface model and the 10 cm photo
-// - its place, the ground under it, its real height and crown, conifer or broadleaf. Drawn as our own Blender trees
-// (Art/Trees: Norway spruce, silver fir, beech), instanced and Nanite, each scaled to its real height:
+// - its place, the ground under it, its real height and crown, conifer or broadleaf. Drawn as the Pine Imposter Pack's pines
+// (conifers, to-do 385) and our own Blender beech (Art/Trees; spruce and fir only if the pines are missing), instanced and Nanite, each scaled to its real height:
 //  - in 1 km blocks streamed round you (full trees out to TreeRadiusKm, the rest of the forests are the 10 cm photo);
 //  - seasonal by the airport's own date: beech bare from December to March, fresh green in April-May, summer green,
 //    yellow-orange-brown in autumn; spruce and fir always green (a little darker in winter); snow on the branches with
@@ -37,7 +37,9 @@ private:
 	TArray<FTree> Trees;
 	struct FBlock { int32 First = 0, Num = 0; FVector2D Centre; bool bIn = false, bNear = false; TArray<TObjectPtr<UHierarchicalInstancedStaticMeshComponent>> Parts; };
 	TMap<FIntPoint, FBlock> Blocks;
-	UPROPERTY() TArray<TObjectPtr<UStaticMesh>> Meshes;   // Spruce_A, Spruce_B, Fir_A, Beech_A, BeechBare_A
+	UPROPERTY() TArray<TObjectPtr<UStaticMesh>> Meshes;   // Spruce_A, Spruce_B, Fir_A, Beech_A, BeechBare_A, then the pines
+	TArray<int32> Pines;    // the pines' places in Meshes (Pine Imposter Pack, to-do 385)
+	TArray<float> PineH;    // each pine's height in its mesh (cm)
 	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> Mats;   // needles, conifer bark, leaves, beech bark
 	int32 Count = 0;
 	float Clock = 0.f;
