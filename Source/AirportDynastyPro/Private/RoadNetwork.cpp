@@ -20,6 +20,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Kismet/GameplayStatics.h"
 #include "PerfLog.h"
+#include "Misc/ScopeExit.h"
 #include "Components/TextRenderComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
@@ -75,7 +76,11 @@ namespace
 		TSharedPtr<FJsonObject> Root; bool bTest = false; double T0 = 0;
 		int32 Next = 0, Total = 0, Built = 0, Crossings = 0; bool bDone = false;
 		TMap<FName, FPaintBuf> Paint;
+		// (the start-up hitch, 2026-11-28: the coaches one a frame after the roads, not seven in one 2.6 s frame; and how many
+		//  roads came from the bake and how long the rest took, to show when the bake is out of date)
+		bool bCoaches = false; int32 CoachAt = 0, Parked = 0, FromBake = 0; double FreshSecs = 0;
 	};
+	double GWriteSecs = 0;   // (time in WritePart for the road being built: its meshes made into the engine's own)
 	TMap<const ARoadNetwork*, FRoadJob>& Jobs() { static TMap<const ARoadNetwork*, FRoadJob> J; return J; }
 
 	// ---- the baked roads (ARoadNetwork::BakeAll): each road's fingerprint and its finished parts ----
@@ -330,6 +335,8 @@ namespace
 	 *  came out without one and was drawn as Unreal's grey squares, whatever the slots held). */
 	bool WritePart(MetaRoad::FRoadLayerMeshResult&& Result, AActor* Target)
 	{
+		const double TW = FPlatformTime::Seconds();
+		ON_SCOPE_EXIT { GWriteSecs += FPlatformTime::Seconds() - TW; };
 		if (GCurbGaps.Num() && Target)
 		{
 			const int32 Down = CutKerbs(Result.Mesh, FTransform(FVector(Result.PivotOffset)) * Target->GetActorTransform(), GCurbGaps);
@@ -610,11 +617,38 @@ float ARoadNetwork::Progress() const
 	return !St ? 1.f : St->bDone ? 1.f : St->Total ? float(St->Next) / float(St->Total) : 1.f;
 }
 
+/** The airport coaches parked in their stands after the roads, one a frame (the roads' last step, BuildSome). */
+static bool ParkCoaches(UWorld* W, FRoadJob& St, double Budget)
+{
+	const double TStep = FPlatformTime::Seconds();
+	if (W && !GBaking && !FParse::Param(FCommandLine::Get(), TEXT("NoCoaches")))
+	{
+		static constexpr double CoachYaw = 180.0;
+		while (St.CoachAt < ARoadNetwork::BusStands.Num() && St.Parked < 7)
+		{
+			const FTransform& Sd = ARoadNetwork::BusStands[St.CoachAt++];
+			FActorSpawnParameters CSp; CSp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			ABabylonModel* C = W->SpawnActor<ABabylonModel>(Sd.GetLocation(), FRotator(0.0, Sd.Rotator().Yaw + CoachYaw, 0.0), CSp);
+			if (C && C->Place(TEXT("AirportCoach"))) { ++St.Parked; if (ACoaches* Co = ACoaches::Get(W)) Co->Add(C); } else if (C) C->Destroy();
+			if (FPlatformTime::Seconds() - TStep > FMath::Min(Budget, 0.05)) return false;   // (the next one next frame)
+		}
+		ADP_LOG(TEXT("Roads: %d coaches parked in %d stands"), St.Parked, ARoadNetwork::BusStands.Num());
+	}
+	ADP_LOG(TEXT("Roads: %d built, %d zebra crossings, in %.2f s (MetaRoad Free, at run time)"), St.Built, St.Crossings, FPlatformTime::Seconds() - St.T0);
+	const int32 Fresh = St.Built - St.FromBake;
+	if (Fresh > 0 && !GBaking)
+		ADP_WARN(TEXT("Roads: %d of %d roads built at run time (%.1f s of the start, one road a frame) - no up-to-date bake for them in %s: run Tools/bake_roads.sh%s"),
+			Fresh, St.Built, St.FreshSecs, *ADPSite::File(TEXT("roads-baked.json")), ADPSite::IsDefault() ? TEXT("") : *FString::Printf(TEXT(" %s"), *ADPSite::Id()));
+	St.bDone = true; St.Root.Reset(); St.Paint.Reset();
+	return true;
+}
+
 bool ARoadNetwork::BuildSome(double Budget)
 {
 	FRoadJob* Sp = Jobs().Find(this);
 	if (!Sp || Sp->bDone) return true;
 	FRoadJob& St = *Sp;
+	if (St.bCoaches) return ParkCoaches(GetWorld(), St, Budget);
 	UWorld* W = GetWorld();
 	if (!W) return true;
 	TSharedPtr<FJsonObject> Root = St.Root;
@@ -802,10 +836,21 @@ bool ARoadNetwork::BuildSome(double Budget)
 						bFromBake = true;
 					}
 				}
+		GWriteSecs = 0;
 		if (!bFromBake && !Host->BuildRoad(Road)) { ADP_ERROR(TEXT("Roads: %s did not build"), *Id); continue; }
+		const double TShaped = FPlatformTime::Seconds();
 		if (!bFromBake && !GBaking) MakeSolid(Road, Id);
 		GCurbGaps.Reset();
-		ADP_LOG(TEXT("Roads: %s %s in %.2f s (%.0f m)"), *Id, bFromBake ? TEXT("placed from its saved parts") : TEXT("built"), FPlatformTime::Seconds() - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0);
+		const double TDone = FPlatformTime::Seconds();
+		if (bFromBake) { ++St.FromBake; ADP_LOG(TEXT("Roads: %s placed from its saved parts in %.2f s (%.0f m)"), *Id, TDone - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0); }
+		else
+		{
+			// (where a road built at run time spends its time: the plugin's own shapes, their meshes made into the engine's,
+			//  and the collision - the start-up hitch of 2026-11-27 was 35 s of these, one road a frame)
+			St.FreshSecs += TDone - TB;
+			ADP_LOG(TEXT("Roads: %s built in %.2f s (%.0f m): shapes %.2f s, meshes %.2f s, solid %.2f s"), *Id, TDone - TB, Pts.Num() > 1 ? FVector::Dist(Pts[0], Pts.Last()) / 100.0 : 0.0,
+				TShaped - TB - GWriteSecs, GWriteSecs, TDone - TShaped);
+		}
 		++Built; Roads.Add(Road); RoadIds.Add(Id);
 		// ---- along the road: where each point is (m), the way it runs, its right (Unreal: x forward, y right) ----
 		TArray<double> Al; Al.Add(0.0);
@@ -1409,23 +1454,11 @@ bool ARoadNetwork::BuildSome(double Budget)
 	// the airport coaches parked in their stands (owner, 2026-11-19: seven, one per stand, empty for now; -NoCoaches leaves them
 	// out): the assembled coach model (Tools/make_coach.py -- --assembled, imported as AirportCoach), its front the way the
 	// coaches drive in; CoachYaw turns the model onto the stand (the loader mirrors a Blender model's x)
-	if (!GBaking && !FParse::Param(FCommandLine::Get(), TEXT("NoCoaches")))
-	{
-		static constexpr double CoachYaw = 180.0;
-		int32 Parked = 0;
-		for (const FTransform& Sd : BusStands)
-		{
-			if (Parked >= 7) break;
-			FActorSpawnParameters CSp; CSp.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-			ABabylonModel* C = W->SpawnActor<ABabylonModel>(Sd.GetLocation(), FRotator(0.0, Sd.Rotator().Yaw + CoachYaw, 0.0), CSp);
-			if (C && C->Place(TEXT("AirportCoach"))) { ++Parked; if (ACoaches* Co = ACoaches::Get(W)) Co->Add(C); } else if (C) C->Destroy();
-		}
-		ADP_LOG(TEXT("Roads: %d coaches parked in %d stands"), Parked, BusStands.Num());
-	}
-	ADP_LOG(TEXT("Roads: %d built, %d zebra crossings, in %.2f s (MetaRoad Free, at run time)"), Built, Crossings, FPlatformTime::Seconds() - T0);
-	St.bDone = true; St.Root.Reset(); St.Paint.Reset();
-	return true;
+	// (2026-11-28: from here one coach a frame - ParkCoaches - the seven were 2.6 s in one frame, each model 0.27-0.67 s)
+	St.bCoaches = true;
+	return ParkCoaches(GetWorld(), St, Budget);
 }
+
 
 
 int32 ARoadNetwork::BakeAll(UObject* WorldContext)
@@ -1440,7 +1473,10 @@ int32 ARoadNetwork::BakeAll(UObject* WorldContext)
 	Net->Build();
 	while (!Net->BuildSome(1e9)) {}
 	FString Text;
-	if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectDir() / TEXT("Data/roads.json")))) { GBaking = false; return 0; }
+	// (the site's own roads and its own folder of saved parts: -Site=chablais bakes Content/Data/Sites/chablais - 2026-11-28,
+	//  before this every site's bake went to the default site's list and folder, and Chablais had none at all)
+	if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json")))) { GBaking = false; return 0; }
+	const FString BakeDir = ADPSite::IsDefault() ? FString(TEXT("/Game/Roads/Baked/")) : FString::Printf(TEXT("/Game/Roads/Baked/%s/"), *ADPSite::Id());
 	TSharedPtr<FJsonObject> Root; FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Root);
 	TMap<FString, TSharedPtr<FJsonObject>> ById;
 	for (const TSharedPtr<FJsonValue>& V : Root->GetArrayField(TEXT("roads"))) ById.Add(V->AsObject()->GetStringField(TEXT("id")), V->AsObject());
@@ -1463,7 +1499,7 @@ int32 ARoadNetwork::BakeAll(UObject* WorldContext)
 			if (const TArray<FCurbGap>* Gs = GCurbGapsById.Find(Id)) CutKerbs(Cut, C->GetComponentTransform(), *Gs);   // (the dropped kerbs at its zebras, saved with it)
 			Conv.Convert(&Cut, MD, true);
 			const FString Name = FString::Printf(TEXT("SM_%s_%d"), *Id.Replace(TEXT("-"), TEXT("_")), k);
-			const FString PkgName = TEXT("/Game/Roads/Baked/") + Name;
+			const FString PkgName = BakeDir + Name;
 			UPackage* Pkg = CreatePackage(*PkgName);
 			UStaticMesh* SM = NewObject<UStaticMesh>(Pkg, *Name, RF_Public | RF_Standalone);
 			for (int32 m = 0; m < C->GetNumMaterials(); ++m)
@@ -1497,8 +1533,9 @@ int32 ARoadNetwork::BakeAll(UObject* WorldContext)
 	Man->SetStringField(TEXT("about"), TEXT("ARoadNetwork::BakeAll (Tools/bake_roads.sh): each road's saved parts; a road whose plan changed is built again at run time until the next bake"));
 	Man->SetObjectField(TEXT("roads"), RJ);
 	FString Out; FJsonSerializer::Serialize(Man, TJsonWriterFactory<>::Create(&Out));
-	FFileHelper::SaveStringToFile(Out, *(FPaths::ProjectDir() / TEXT("Data/roads-baked.json")));
-	ADP_LOG(TEXT("Roads bake: %d of %d roads saved to /Game/Roads/Baked"), Saved, Net->Roads.Num());
+	const FString OutFile = ADPSite::IsDefault() ? FPaths::ProjectDir() / TEXT("Data/roads-baked.json") : ADPSite::File(TEXT("roads-baked.json"));
+	FFileHelper::SaveStringToFile(Out, *OutFile);
+	ADP_LOG(TEXT("Roads bake: %d of %d roads saved to %s, their list in %s"), Saved, Net->Roads.Num(), *BakeDir, *OutFile);
 	GBaking = false;
 	Net->Destroy();
 	return Saved;

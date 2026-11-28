@@ -135,3 +135,7 @@ Packaged Shipping, 3840x1080, the owner's settings, own frame generation on, all
   collision (21,896) too. Not in Lumen's distance fields, as before; the invisible occluders stay; the glass stays procedural.
 - Changed buffers fall back to the procedural shell with a warning (tried both ways). After a change: bash Tools/bake_tower.sh.
 - Not measured yet: the frame time and the look in the game (log line "Tower: 3 baked shells").
+
+## 2026-11-28: the start-up hitch (stress walk 11-27, 0.20.2): 112 roads built at run time, the coaches in one frame
+- Cause from ADP.log: none of the 112 roads came from the bake (roads-baked.json 11-15, roads.json changed since; Chablais has no bake at all), so MetaRoad built each one at run time, one a frame: 35 s in all, AIRPORT-FORECOURT 3.09 s (the 3.6 s frame), BACK-TO-TOWN 2.06, SUDURBOGI-7 1.98, SUDURBOGI-INNER-1 1.74, TORGVEGUR-1 1.65, MIDBOGI-1 1.64; then the 7 coaches 2.6 s in one frame.
+- Changed (RoadNetwork.cpp, Tools/bake_roads.sh): coaches one a frame; each road's time split into shapes / meshes / solid in the log; a warning names the roads built at run time; the bake works per site (bash Tools/bake_roads.sh chablais). Not yet measured; the real fix is a fresh bake.
