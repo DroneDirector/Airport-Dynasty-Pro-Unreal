@@ -5,6 +5,7 @@
 #include "HangarTow.h"
 #include "Turnaround.h"
 #include "A320Parts.h"
+#include "A320Sound.h"
 #include "GSE.h"
 #include "ParkedAircraft.h"
 #include "JetwayRigs.h"
@@ -977,6 +978,12 @@ void ASimTraffic::Tick(float Dt)
 		Haze(M, FMath::Min(Dt, 0.1f));
 		Surfaces(M, FMath::Min(Dt, 0.1f));
 		Spoilers(M, FMath::Min(Dt, 0.1f));
+		if (ABabylonModel* Bm = M.Model.Get())
+		{
+			ADPA320Snd::FIn Si; Si.bEngines = M.bEnginesOn; Si.Power = M.Power; Si.Rev = M.RevPos; Si.GearSt = uint8(M.GearSt); Si.Flap = M.FlapDeg;
+			Si.Height = M.Height; Si.Speed = M.Speed; Si.Stage = uint8(M.Phase);
+			ADPA320Snd::Moving(Bm, M.Reg, Si, FMath::Min(Dt, 0.1f));
+		}
 		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && !M.bYouOff && SlipPoll <= 0.f)
 			if (UADPSim* Sl = UADPSim::Get(this)) if (FADPFlight* Fs = Sl->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == M.FlightId; }))
 				if (Sl->Now() > Fs->DepAt) { Fs->DelayMin += (Sl->Now() - Fs->DepAt).GetTotalMinutes(); Fs->DepAt = Sl->Now(); }   // (waiting for its tug: off blocks when it is pushed)
@@ -1120,13 +1127,15 @@ void ASimTraffic::Haze(FMove& M, float Dt)
 	// the engines: started during the pushback (once it moves) or already running on arrival; shut down 8 s on the stand
 	if (!M.bDeparture || M.Phase != EPhase::Push || M.Speed > 0.05f) M.bEnginesOn = true;
 	if (M.Phase == EPhase::Done && M.Clock >= 8.f) M.bEnginesOn = false;
-	float Want = 0.f;
+	float Want = 0.f, PowerWant = 0.f;
 	if (M.bEnginesOn)
 	{
 		const bool bTOGA = (M.Phase == EPhase::Roll && M.bTakeoffOk && M.Step >= M.Path.Num() - 1 && M.Clock >= 4.f) || (M.Phase == EPhase::Roll && M.Step >= M.Path.Num()) || M.Phase == EPhase::Climb;
 		Want = bTOGA ? 1.f : M.Phase == EPhase::Approach ? 0.35f : (M.Phase == EPhase::Rollout && M.RevPos >= 1.f) ? 0.45f : 0.15f;   // (idle 0.15; the approach's power; reverse power once the reverser doors are open - Spoilers())
+		PowerWant = Want;   // (the sound's power: the climb keeps its thrust when the haze goes)
 		if (M.Phase == EPhase::Climb && M.Height > 250.f) Want = 0.f;   // (high up: nothing to see against)
 	}
+	M.Power = FMath::FInterpConstantTo(M.Power, PowerWant, Dt, PowerWant > M.Power ? 0.18f : 0.25f);
 	// spooling: up from idle to take-off power in about 5 s, back down a little quicker
 	M.Thrust = FMath::FInterpConstantTo(M.Thrust, Want, Dt, Want > M.Thrust ? 0.18f : 0.25f);
 	if (FMath::Abs(M.Thrust - M.HazeShown) < 0.02f && !(M.Thrust == 0.f && M.HazeShown != 0.f)) return;

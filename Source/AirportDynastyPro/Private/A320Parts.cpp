@@ -52,6 +52,7 @@ namespace ADPA320
 			FWant Want;
 		};
 		TMap<TWeakObjectPtr<ABabylonModel>, FState> States;
+		TSet<FString> Holds;   // "Reg/part" kept open (Hold)
 
 		void PosePart(ABabylonModel* B, const FState& S, int32 Part)
 		{
@@ -89,6 +90,9 @@ namespace ADPA320
 		// the flap mechanisms: hidden, as in FlightGear (a select on /fdm/jsbsim/zero, never true)
 		const int32 GMech = M->BindGroup({TEXT("FlapMechanismL"), TEXT("FlapMechanismR")}, false, I);
 		M->MoveGroup(GMech, FTransform(FQuat::Identity, FVector::ZeroVector, FVector::ZeroVector));
+		// the side braces' lock actuators: hidden too (FlightGear selects them off the same way)
+		const int32 GLock = M->BindGroup({TEXT("SideBraceUp_L.LockActuator1"), TEXT("SideBraceUp_L.LockActuator2"), TEXT("SideBraceUp_R.LockActuator1"), TEXT("SideBraceUp_R.LockActuator2")}, false, I);
+		M->MoveGroup(GLock, FTransform(FQuat::Identity, FVector::ZeroVector, FVector::ZeroVector));
 		M->FlushMoves();
 		static int32 Told = 0;
 		if (Told++ < 3) ADP_LOG(TEXT("A320 parts: %d of 16 doors/flap bound, RAT %s, flap mechanisms %s"), Found, GRat != INDEX_NONE ? TEXT("stowed") : TEXT("missing"), GMech != INDEX_NONE ? TEXT("hidden") : TEXT("missing"));
@@ -133,6 +137,29 @@ namespace ADPA320
 		W.K[Cargo1] = Busy(TEXT("fwd")) ? 1.f : 0.f;
 		W.K[Cargo2] = Busy(TEXT("aft")) ? 1.f : 0.f;
 		W.K[Cargo3] = Busy(TEXT("bulk")) ? 1.f : 0.f;
+		for (int32 p = 0; p < PartNum; ++p) if (PartsData::Holds.Contains(FString::Printf(TEXT("%s/%d"), *Reg, p))) W.K[p] = 1.f;
 		return W;
+	}
+
+	float Now(ABabylonModel* M, EPart P)
+	{
+		const PartsData::FState* S = M ? PartsData::States.Find(M) : nullptr;
+		return S && P >= 0 && P < PartNum ? S->K[P] : 0.f;
+	}
+
+	float NowFor(const FString& Reg, EPart P)
+	{
+		const FName Tag(*(TEXT("SIM/") + Reg));
+		for (const auto& It : PartsData::States)
+			if (ABabylonModel* M = It.Key.Get()) if (M->Tags.Contains(Tag)) return P >= 0 && P < PartNum ? It.Value.K[P] : 0.f;
+		return -1.f;
+	}
+
+	void Hold(const FString& Reg, EPart P, bool bOn)
+	{
+		const FString Key = FString::Printf(TEXT("%s/%d"), *Reg, int32(P));
+		if (bOn == PartsData::Holds.Contains(Key)) return;
+		if (bOn) PartsData::Holds.Add(Key); else PartsData::Holds.Remove(Key);
+		ADP_LOG(TEXT("A320 parts: %s door %d %s"), *Reg, int32(P), bOn ? TEXT("held open") : TEXT("released"));
 	}
 }

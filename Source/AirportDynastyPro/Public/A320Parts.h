@@ -19,4 +19,10 @@ namespace ADPA320
 	AIRPORTDYNASTYPRO_API bool Step(ABabylonModel* M, float Dt);
 	/** The turnaround's tasks for this registration -> its doors and APU flap (bApu: the APU runs). */
 	AIRPORTDYNASTYPRO_API FWant FromTurnaround(const FString& Reg, bool bApu);
+	/** Where the part is now (0 closed .. 1 open); 0 for a model not bound. */
+	AIRPORTDYNASTYPRO_API float Now(ABabylonModel* M, EPart P);
+	/** The same for the A320 tagged SIM/<Reg>; -1 when there is none. */
+	AIRPORTDYNASTYPRO_API float NowFor(const FString& Reg, EPart P);
+	/** Keeps a door open for a vehicle at it (the ambulift at R1) until released, whatever the turnaround says. */
+	AIRPORTDYNASTYPRO_API void Hold(const FString& Reg, EPart P, bool bOn);
 }

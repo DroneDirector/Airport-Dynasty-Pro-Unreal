@@ -64,6 +64,10 @@ licensed under version 2 of the GNU General Public License (full text: LICENSE i
 turned and moved into the game's frame, parts renamed, hinge points set, parts moved a hair apart; livery, airline marks,
 registration and engine/maker texts painted out (plain white fuselage, grey tail). The changed model and the two scripts
 are available under the same licence. The game's own earlier A320 is kept as Art/A320/A320-own.glb.
+The A320's sounds, Art/Sounds/A320/*.wav (engines, gear, flaps, APU, packs, touchdown, wheels, pushback, cabin chime and
+cabin announcements), are from the same FlightGear A320-family package's Sounds/ folder (SASA CFM56B, SASA, Effects,
+Cockpit, Announce), same copyright holders, GNU General Public License version 2; only renamed (list:
+Art/Sounds/A320/SOURCES.md).
 
 ## Meshy models (owner's own)
 The models listed in Art/MeshyIntake/README.md (lorry, cargo vehicles, aircraft, received 2026-11-26) were made by the

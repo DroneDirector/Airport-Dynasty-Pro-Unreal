@@ -8,6 +8,7 @@
 #include "AircraftLights.h"
 #include "Turnaround.h"
 #include "A320Parts.h"
+#include "A320Sound.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
@@ -239,7 +240,7 @@ namespace ADPParked
 		GPartsTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WW](float Dt) -> bool
 		{
 			if (!WW.IsValid()) { GPartsTick.Reset(); return false; }
-			for (const auto& G : GLive) if (ABabylonModel* M = G.Value.Value.Get()) ADPA320::Step(M, FMath::Min(Dt, 0.1f));
+			for (const auto& G : GLive) if (ABabylonModel* M = G.Value.Value.Get()) { ADPA320::Step(M, FMath::Min(Dt, 0.1f)); ADPA320Snd::Parked(M, G.Value.Key, FMath::Min(Dt, 0.1f)); }
 			return true;
 		}));
 		GLiveTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WW, Stands](float) -> bool

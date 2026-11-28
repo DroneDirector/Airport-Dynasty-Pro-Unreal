@@ -15,6 +15,7 @@
 #include "CrewPose.h"
 #include "ADPLog.h"
 #include "BabylonModel.h"
+#include "A320Parts.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Engine/World.h"
@@ -356,12 +357,20 @@ void AGSE::AmbuStage(int32 Job)
 		Lever(C0, AwFront, TEXT("IK_Lever_Lift"), [Am] { Am().Want[FA::Lift] = FMath::Clamp(Am().Sill - 128.f, 105.f, 290.f); }, Is(FA::Lift), true); End(C0, 7); break;
 	case 7:
 		Lever(C0, AwFront, TEXT("IK_Lever_Plat"), Set(FA::Plat, 90.f), Is(FA::Plat), true); Key(C0, AwFront, TEXT("DoorFront"), Set(FA::DoorF, 1.f), Is(FA::DoorF));
-		There(C1, FA::DoorF, 1.f, 120.f); AmbuFrontRails(Job, true); There(C0, FA::Gates, 40.f, 120.f); Lever(C0, AwFront, TEXT("IK_Lever_Bridge"), Set(FA::Bridge, 50.f), Is(FA::Bridge), true);
+		There(C1, FA::DoorF, 1.f, 120.f); AmbuFrontRails(Job, true); There(C0, FA::Gates, 40.f, 120.f);
+		// the aircraft's R1 door: held open for the ambulift (A320Parts) and waited for before the bridge goes out to it
+		Do(C0, [this, Job] { if (const FSvcJob* X = SvcJ(Job)) ADPA320::Hold(X->Reg, ADPA320::PR1, true); });
+		WaitFor(C0, [this, Job](float E) {
+			const FSvcJob* X = SvcJ(Job); const float K = X ? ADPA320::NowFor(X->Reg, ADPA320::PR1) : -1.f;
+			if (E > 60.f && K >= 0.f && K < 1.f) ADP_WARN(TEXT("GSE: %s's R1 door not open after 60 s - the ambulift goes on"), *X->Reg);
+			return !X || K < 0.f || K >= 1.f || E > 60.f; });
+		Lever(C0, AwFront, TEXT("IK_Lever_Bridge"), Set(FA::Bridge, 50.f), Is(FA::Bridge), true);
 		Do(C0, [this, Job] { if (const FSvcJob* X = SvcJ(Job)) ADP_LOG(TEXT("GSE: the ambulift's platform is at %s's front right door"), *X->Reg); }); End(C0, 8); break;
 	case 8: for (int32 i = 0; i < N; ++i) AmbuDoor(Job, i, bArr); End(C1, 9); break;
 	case 9:
 	{
 		Lever(C0, AwFront, TEXT("IK_Lever_Bridge"), Set(FA::Bridge, 0.f), Is(FA::Bridge), true); There(C1, FA::Bridge, 0.f, 30.f); AmbuFrontRails(Job, false);
+		Do(C1, [this, Job] { if (const FSvcJob* X = SvcJ(Job)) ADPA320::Hold(X->Reg, ADPA320::PR1, false); });
 		const TFunction<bool()> In = At(C1, AwWaitH); WaitFor(C0, [In, Am](float E) { return E > 150.f || (Am().Now[FA::Rails] <= 0.f && In()); });
 		Key(C0, AwFront, TEXT("DoorFront"), Set(FA::DoorF, 0.f), Is(FA::DoorF)); Lever(C0, AwFront, TEXT("IK_Lever_Plat"), Set(FA::Plat, 0.f), Is(FA::Plat), true); End(C0, 10); break;
 	}
@@ -388,6 +397,7 @@ void AGSE::AmbuStage(int32 Job)
 void AGSE::AmbuEnd(int32 Job)
 {
 	if (const FString* K = AmbuFlown.Find(Job)) { AmbuDone.Add(*K); AmbuFlown.Remove(Job); }
+	if (const FSvcJob* Jh = SvcJ(Job)) ADPA320::Hold(Jh->Reg, ADPA320::PR1, false);   // (never left held)
 	FSvcJob* J = SvcJ(Job); if (!J || !Tractors.IsValidIndex(J->Ti) || !Tractors[J->Ti].Am) return;
 	J->CtDone = 1; FSvcAmbu& C = *Tractors[J->Ti].Am; C.Rolls.Reset();
 	if (C.bRoom) if (UStaffPeople* Sp = UStaffPeople::Get(GetWorld())) { Sp->RampFree(C.Room); C.bRoom = false; }

@@ -91,7 +91,7 @@ private:
 		// the engines' heat haze (to-do 379): three rings of shimmer behind each engine (M_HeatHaze), the far two only with
 		// power; Thrust 0 off .. 1 take-off power, eased as the engines spool
 		TArray<TWeakObjectPtr<class UMaterialBillboardComponent>> HazeB; TArray<TWeakObjectPtr<class UMaterialInstanceDynamic>> HazeM;
-		bool bEnginesOn = false; float Thrust = 0.f, HazeShown = -1.f;
+		bool bEnginesOn = false; float Thrust = 0.f, HazeShown = -1.f, Power = 0.f;   // (Power: the engines' eased power for their sound, A320Sound)
 		// its control surfaces (step B, Art/A320/a320_surfaces.py, FlightGear's hinges): flaps (aft on their tracks and down),
 		// slats, ailerons, elevators, rudder and the flap track fairings, each about its hinge, at the moments and speeds a
 		// real A320 moves them. Conf 0, 1, 1+F, 2, 3, FULL (0..5); degrees + = trailing edge down (slats: leading edge down,
