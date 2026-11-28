@@ -25,7 +25,7 @@ for d in Saved/Config/WindowsEditor Saved/Config/Windows "$S/Config/Windows"; do
 if [ "$W" = editor ]; then
   # (his own game settings, so the run draws what he sees)
   [ -f "$S/Config/Windows/GameUserSettings.ini" ] && mkdir -p Saved/Config/WindowsEditor && cp "$S/Config/Windows/GameUserSettings.ini" Saved/Config/WindowsEditor/GameUserSettings.ini
-  timeout 3600 "/c/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game -fullscreen -ResX=3840 -ResY=1080 -ForceRes -Site=chablais -LocalTerrain -UIShot -UIChablais "-UIPerfViews=$F" "$@" -nosplash -log=Views.log > /dev/null 2>&1; EC=$?
+  rm -f Saved/Logs/Views-Exit.txt; powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w $PWD/Tools/run_exit.ps1)" 3600 "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor.exe" "$(cygpath -w $PWD/AirportDynastyPro.uproject)" -game -fullscreen -ResX=3840 -ResY=1080 -ForceRes -Site=chablais -LocalTerrain -UIShot -UIChablais "-UIPerfViews=$F" "$@" -nosplash -log=Views.log > /dev/null 2>&1; EC=$?
   L=Saved/Logs/Views.log; P=Saved/Logs/ADP-Perf.log; G=Saved/Logs/Views-Progress.txt
 else
   (cd "$W" && ADP_LOG=1 timeout 3600 ./AirportDynastyPro/Binaries/Win64/AirportDynastyPro-Win64-Shipping.exe -UIShot -UIChablais -fullscreen "-UIPerfViews=$F" "$@" > /dev/null 2>&1); EC=$?
@@ -34,10 +34,10 @@ fi
 kill $SM 2>/dev/null
 # (how the game ended; bash sees only the low byte of a Windows code: 0 = it quit itself, 124 = the hour ran out,
 #  116 = 0xC0000374 heap damaged, 9 = 0xC0000409 fast fail, 253 = 0xC00000FD stack overflow, 5 = 0xC0000005 bad pointer)
-ECX=$(case $EC in 0) echo "quit itself";; 124) echo "the hour ran out";; 116) echo "heap damaged?";; 9) echo "fast fail?";; 253) echo "stack overflow?";; 5) echo "bad pointer?";; *) echo "died";; esac); echo "game exit code $EC ($ECX)"
+ECX=$(case $EC in 0) echo "quit itself";; 124) echo "the hour ran out";; 116) echo "heap damaged?";; 9) echo "fast fail?";; 253) echo "stack overflow?";; 5) echo "bad pointer?";; *) echo "died";; esac); WX=$( [ -f Saved/Logs/Views-Exit.txt ] && tr -cd '[:print:]' < Saved/Logs/Views-Exit.txt ); echo "game exit code $EC ($ECX)${WX:+; Windows: $WX}"
 for d in Saved/Config/WindowsEditor Saved/Config/Windows "$S/Config/Windows"; do [ -f "$d/GameUserSettings.ini.bak-views" ] && mv -f "$d/GameUserSettings.ini.bak-views" "$d/GameUserSettings.ini"; done
 grep "Views:" "$L" | sed 's/.*Views: //' > Saved/Logs/Views-Summary.txt
-{ echo "---- game exit code $EC ($ECX)"
+{ echo "---- game exit code $EC ($ECX)${WX:+; Windows: $WX}"
   echo "---- save point: $(head -2 "$G" 2>/dev/null | tr '\n' ' ')"
   echo "---- stalls (the game thread held 60 ms or more; first and longest look of each, the step it was in)"
   [ -f "$P" ] && awk -f Tools/views_stalls.awk "$P" | tail -300; } >> Saved/Logs/Views-Summary.txt

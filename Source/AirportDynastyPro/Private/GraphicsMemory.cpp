@@ -3,6 +3,7 @@
 #include "RHI.h"
 #include "Containers/Ticker.h"
 #include "HAL/IConsoleManager.h"
+#include "Engine/World.h"
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <dxgi1_4.h>
@@ -63,10 +64,13 @@ namespace ADPGraphicsMemoryInternal
 			Want = int32(FMath::Max(FMath::Min<int64>(LeastMB, Most), FMath::Min<int64>(Pool, M.StreamingMemorySize / 1048576) - (KeepFreeMB - Free)));
 		}
 		else if (Free > RoomMB) Want = FMath::Min(Most, Pool + 50);
-		if (Want < Pool) ADP_LOG(TEXT("Graphics memory: nearly full (%s); texture pool %d -> %d MB"), *ADPGraphicsMemory::Line(), Pool, Want);
+		if (Want < Pool) ADP_LOG(TEXT("Graphics memory: nearly full (%s); texture pool would be %d -> %d MB (left as it is while playing)"), *ADPGraphicsMemory::Line(), Pool, Want);
 		else if (Want == Most && Pool < Most) ADP_LOG(TEXT("Graphics memory: room again, texture pool %d MB"), Want);
 		else if (Free < 0 && Want == Pool && (Full++ % 15) == 0) ADP_WARN(TEXT("Graphics memory: over the limit with the texture pool at its least (%s)"), *ADPGraphicsMemory::Line());
-		if (Want != Pool) { Pool = Want; V->Set(Pool, ECVF_SetByGameSetting); }
+		// (NOT set while playing: resizing r.Streaming.PoolSize mid-game killed the game with a fast fail (0xC0000409) a
+		//  moment after each change - 11-28, six views runs at the town hub. Only watched and written down now; the pool is
+		//  set once from your setting, before the world.)
+		if (Want != Pool) { Pool = Want; if (!GWorld || !GWorld->HasBegunPlay()) V->Set(Pool, ECVF_SetByGameSetting); }
 		return true;
 	}
 }
