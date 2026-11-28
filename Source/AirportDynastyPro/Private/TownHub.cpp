@@ -32,7 +32,7 @@ namespace TownHubT
 	constexpr double ShutS = 3.0 * 60.0;       // the bays shut and the driver gets in this long before the run leaves
 	constexpr double HardS = 60.0 * 60.0;      // at the terminal no later than this before the flight (the desks close 45 min before)
 	constexpr int32 Slots = 6;                 // people at the coach's door at once
-	const TCHAR* const Drivers[] = {TEXT("MH_070_ground"), TEXT("MH_071_ground"), TEXT("MH_072_ground"), TEXT("MH_076_ground"), TEXT("MH_080_ground"), TEXT("MH_090_ground")};
+	const TCHAR* const Drivers[] = {TEXT("MH_076_ground"), TEXT("MH_077_ground"), TEXT("MH_078_ground"), TEXT("MH_079_ground"), TEXT("MH_080_ground"), TEXT("MH_090_ground")};
 }
 
 ATownHub::ATownHub() { PrimaryActorTick.bCanEverTick = true; }

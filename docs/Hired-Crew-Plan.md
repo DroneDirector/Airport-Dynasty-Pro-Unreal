@@ -1155,3 +1155,15 @@ Nothing stands in the aircraft's way when it is towed in or out of a hall. Befor
   the free strip between the belts (z 57.05) and the carts (z 59.3).
 - Only a game run can prove: no "no way found" at these parts, the tunnel floor traced right at rest, the stair walk,
   the night cab spot; the A380 gate and the gate walkway east retries were not looked at.
+
+## Coaches: speed rules and the arriving test (2026-11-28, compiled, NOT run)
+- Cause (Views.log 05:51): drivers MH_070/071/072_ground do not exist (070-072 are pilots), so coaches 0, 1, 2, 6 never got
+  one (and each try cost about 150 ms a frame). Coaches 3-5 had drivers but the coach 25 m in front blocked their way (RouteFree).
+  Also, the lead coach 6 had no driver, so nobody could go. Fix: drivers are 076-081/090 ground crew (Coaches test, TownHub, CoachIKTest).
+- Views "coach terminal" holds the steps only until the lead is off. The others go as their way frees. The reason each one waits
+  is logged when it changes. "coachwait home" also waits for the ones not yet sent.
+- Speed (game): the loop's limits per path point (ACoaches::RouteCaps). The open road is 85 km/h. The town hub's streets
+  (within 60 m) and the airport (inside the airfield boundary) use the run's limit, at most 50 km/h.
+  Riders::Drive brakes gently (0.5 m/s2) well before a lower limit. Speed and limit are logged per coach every 4 s.
+- Test camera: one held look tracks the lead from behind (150 deg) all the way to its stand. Static shots come only before and after.
+- Only a run can prove: drivers appear unseen and are seated, the convoy order, the gentle braking, and the camera staying clear of posts.

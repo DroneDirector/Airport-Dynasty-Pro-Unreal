@@ -1008,6 +1008,14 @@ FVector UVehicleRiders::OnPath(float S, FVector* Dir) const
 	return Go.Pts[i - 1] + D * (S - Go.Len[i - 1]);   // (past the end: straight on)
 }
 
+float UVehicleRiders::LimitHere() const
+{
+	if (!IsDriving() || Go.Pts.Num() < 2) return 0.f;
+	if (Go.Lim.Num() != Go.Pts.Num()) return Go.Limit / 100.f;
+	int32 i = 1; while (i + 1 < Go.Pts.Num() && Go.Len[i] < Go.S) ++i;
+	return Go.Lim[i - 1] / 100.f;
+}
+
 bool UVehicleRiders::YouAboard() const
 {
 	// (never with you aboard, or right against it: your own walking and sitting stay as they are)
@@ -1017,7 +1025,7 @@ bool UVehicleRiders::YouAboard() const
 	return FMath::Abs(L.X) < 680.f && FMath::Abs(L.Y) < 165.f && L.Z > 0.f && L.Z < 450.f;
 }
 
-bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs)
+bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs, const TArray<float>* CapsMs)
 {
 	if (!LineOn() || !bAtWheel || IsDriving() || Path.Num() < 2) return false;
 	for (const TSharedPtr<FRider>& R : Riders) if (!R->bDriver && R->bAboard && (!R->bSeated || R->Way == 2)) return false;   // (everyone sits first, nobody still to get off)
@@ -1025,11 +1033,22 @@ bool UVehicleRiders::Drive(const TArray<FVector>& Path, float LimitMs)
 	Go = FGo(); Go.Pts = Path; Go.Len.SetNum(Path.Num()); Go.Len[0] = 0.f;
 	for (int32 i = 1; i < Path.Num(); ++i) Go.Len[i] = Go.Len[i - 1] + float(FVector::Dist2D(Path[i], Path[i - 1]));
 	Go.Limit = LimitMs * 100.f; Go.Rear = Body->Road().TransformPosition(Spec.At(TEXT("rear_axle")));
+	if (CapsMs && CapsMs->Num() == Path.Num())
+	{
+		// the limit at each point, then backwards: never faster than it can lose gently (0.5 m/s2) before a lower one ahead
+		const float Gentle = 50.f;
+		Go.Lim.SetNum(Path.Num()); Go.Cap2.SetNum(Path.Num()); float Top = 0.f;
+		for (int32 i = 0; i < Path.Num(); ++i) { Go.Lim[i] = FMath::Max(1.f, (*CapsMs)[i]) * 100.f; Top = FMath::Max(Top, Go.Lim[i]); }
+		Go.Cap2[Path.Num() - 1] = FMath::Square(Go.Lim.Last());
+		for (int32 i = Path.Num() - 2; i >= 0; --i) Go.Cap2[i] = FMath::Min(FMath::Square(Go.Lim[i]), Go.Cap2[i + 1] + 2.f * Gentle * (Go.Len[i + 1] - Go.Len[i]));
+		// (a higher limit only from where it starts: the front of the body past the sign, not the mid of a segment)
+		Go.Limit = Top; LimitMs = Top / 100.f;
+	}
 	Go.Stage = EGo::Shut;
 	if (Body->DoorK(0) > 0.f) { Gest = GButton; GestT = 0.f; GestDur = 1.5f; GestSide = -1; }
 	for (int32 b = 0; b < Spec.List(TEXT("bays")).Num(); ++b) Body->SetBay(b, false);
 	Body->SetDoor(1, false);
-	ADP_LOG(TEXT("Riders: driving off - %.0f m, at most %.0f km/h"), Go.Len.Last() / 100.f, LimitMs * 3.6f);
+	ADP_LOG(TEXT("Riders: driving off - %.0f m, at most %.0f km/h%s"), Go.Len.Last() / 100.f, LimitMs * 3.6f, Go.Cap2.Num() ? TEXT(" (the road's limits on the way)") : TEXT(""));
 	return true;
 }
 
@@ -1132,7 +1151,7 @@ float UVehicleRiders::Clear(float Need)
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(RidersAhead), false, Body->Actor());
 	for (const TSharedPtr<FRider>& R : Riders) if (R->A.IsValid()) Q.AddIgnoredActor(R->A.Get());
 	const float VEnd = FMath::Min3(Need, Left + 200.f, Best + 60.f);
-	for (float d = 60.f; d <= VEnd; d += 90.f)
+	for (float d = 60.f; d <= VEnd; d += d < 6000.f ? 90.f : 300.f)   // (beyond 60 m, at the open road's speed, every 3 m: any vehicle is longer)
 	{
 		FVector D; FVector At = OnPath(Go.S + Ahead + d, &D); At.Z = State.Road.GetLocation().Z;
 		const FVector Rt(-D.Y, D.X, 0.f);
@@ -1230,6 +1249,13 @@ void UVehicleRiders::TickDrive(float Dt)
 	const float Left = Go.Len.Last() - Go.S;
 	// the speed wanted: the limit, the bends ahead, the stop, what is in the way
 	float Want = Go.Limit;
+	if (Go.Cap2.Num() == Go.Pts.Num() && Go.Pts.Num() > 1)
+	{
+		// the road's limits: v2 between the points as it brakes (constant deceleration), the lower limit of the two once inside
+		int32 i = 1; while (i + 1 < Go.Pts.Num() && Go.Len[i] < Go.S) ++i;
+		const float Seg = FMath::Max(1.f, Go.Len[i] - Go.Len[i - 1]), T = FMath::Clamp((Go.S - Go.Len[i - 1]) / Seg, 0.f, 1.f);
+		Want = FMath::Min(Want, FMath::Sqrt(FMath::Min(FMath::Lerp(Go.Cap2[i - 1], Go.Cap2[i], T), FMath::Square(Go.Lim[i - 1]))));
+	}
 	for (float d = 0.f; d <= 1400.f; d += 200.f)
 	{
 		FVector A, B; OnPath(FMath::Min(Go.S + d, Go.Len.Last()), &A); OnPath(FMath::Min(Go.S + d + 200.f, Go.Len.Last()), &B);

@@ -116,10 +116,14 @@ public:
 	bool IsBusy(const AActor* Who) const;
 	bool IsAboard(const AActor* Who) const;
 	// ---- driving
-	bool Drive(const TArray<FVector>& Path, float LimitMs);
+	/** CapsMs (optional, one per path point, m/s): the road's own limit there (open road, town, the airport) - it brakes gently
+	 *  well before a lower one, and only speeds up once past its start. */
+	bool Drive(const TArray<FVector>& Path, float LimitMs, const TArray<float>* CapsMs = nullptr);
 	bool IsDriving() const { return Go.Stage != EGo::Parked; }
 	bool IsGivingWay() const { return Go.bGiveWay; }
 	float Speed() const { return Go.V; }
+	/** The road's limit where it is now (m/s; 0: parked). */
+	float LimitHere() const;
 	float WheelTurn() const { return State.WheelTurn; }
 	float FrontSteer() const { return State.SteerDeg; }
 	/** Tests: everyone out of the vehicle's hands, the vehicle back where it was, every part as parked. */
@@ -161,7 +165,7 @@ private:
 	enum EGest : uint8 { GNone, GButton, GIndicate, GMirror };
 	float HandBase[2] = {0.f, 0.f}, RegT[2] = {1.f, 1.f}, RegFrom[2] = {0.f, 0.f}, FootMix = 1.f, GestT = 1e9f, GestDur = 1.f, MirrorIn = 4.f; EGest Gest = GNone; int32 GestSide = 0; float HeadYaw = 0.f, HeadPitch = 0.f, AccelK = 0.f, BrakeK = 1.f, WheelErr = 0.f;
 	enum class EGo : uint8 { Parked, Shut, Signal, Run };
-	struct FGo { EGo Stage = EGo::Parked; TArray<FVector> Pts; TArray<float> Len; float S = 0.f, V = 0.f, A = 0.f, Limit = 830.f, T = 0.f, Roll = 0.f; FVector Rear = FVector::ZeroVector; bool bGiveWay = false; float LookIn = 0.f, Free = 1e9f, Still = 0.f, SayAt = 60.f; int32 Indicate = 0;
+	struct FGo { EGo Stage = EGo::Parked; TArray<FVector> Pts; TArray<float> Len, Cap2, Lim; float S = 0.f, V = 0.f, A = 0.f, Limit = 830.f, T = 0.f, Roll = 0.f; FVector Rear = FVector::ZeroVector; bool bGiveWay = false; float LookIn = 0.f, Free = 1e9f, Still = 0.f, SayAt = 60.f; int32 Indicate = 0;
 		// (the people round about, their own motion measured from look to look; who or what it waits for; held because you stepped in)
 		struct FSeen { TWeakObjectPtr<AActor> A; FVector At = FVector::ZeroVector, Vel = FVector::ZeroVector; bool bNew = true; };
 		TArray<FSeen> Seen; float SeenIn = 0.f, LookDt = 0.f; FString Why; bool bHeld = false; } Go;

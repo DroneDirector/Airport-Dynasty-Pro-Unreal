@@ -7,6 +7,7 @@
 #include "ADPWalker.h"
 #include "People.h"
 #include "Unseen.h"
+#include "Airfield.h"
 #include "ADPLog.h"
 #include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
@@ -573,6 +574,8 @@ namespace CoachLoop
 	constexpr float LoopPullLen = 1800.f;                 // a pull-out's run into the next lane
 	constexpr float LoopBackSpeed = 90.f, LoopMaxBack = 600.f, LoopPad = 30.f, LoopLook = 3500.f;
 	constexpr float LoopTownLimit = 13.9f;                // m/s: 50 km/h
+	constexpr float LoopOpenLimit = 23.6f;                // m/s: 85 km/h on the open road (owner 2026-11-28)
+	constexpr float LoopTownReach = 6000.f;               // cm: the town hub's own streets, this near their lanes
 
 	FVector LoopPlan(const TArray<TSharedPtr<FJsonValue>>& A) { return A.Num() >= 2 ? FVector(A[0]->AsNumber() * 100.0, -A[1]->AsNumber() * 100.0, 0.0) : FVector::ZeroVector; }
 	int32 LoopNearest(const TArray<FVector>& P, const FVector& Q)
@@ -766,7 +769,7 @@ bool ACoaches::SendOnRoute(int32 Ci, bool bToTown, int32 Bay, float LimitMs)
 	}
 	if (Hit != INDEX_NONE) { ADP_WARN(TEXT("Coaches: coach %d can't go %s - still touches coach %d after backing %.1f m"), Ci, Way, Hit, LoopMaxBack / 100.f); return false; }
 	float Len = 0.f; for (int32 i = 1; i < Path.Num(); ++i) Len += float(FVector::Dist2D(Path[i], Path[i - 1]));
-	FRouteGo& G = RouteGo.Add(Ci); G.Path = MoveTemp(Path); G.BackLeft = Backed; G.bToTown = bToTown; G.Bay = Bay; G.LimitMs = FMath::Clamp(LimitMs, 5.f, LoopTownLimit);
+	FRouteGo& G = RouteGo.Add(Ci); G.LimitMs = FMath::Clamp(LimitMs, 5.f, LoopTownLimit); G.Caps = RouteCaps(Path, G.LimitMs); G.Path = MoveTemp(Path); G.BackLeft = Backed; G.bToTown = bToTown; G.Bay = Bay;
 	if (bToTown) HubBayOf.Add(Ci, Bay); else HubBayOf.Remove(Ci);
 	const FString BayS = bToTown ? FString::Printf(TEXT(" (hub bay %d)"), Bay) : FString();
 	const FString BackS = Backed > 0.f ? FString::Printf(TEXT(", backing up %.2f m first (coach %d in front)"), Backed / 100.f, FirstHit) : FString(TEXT(", straight out"));
@@ -776,7 +779,8 @@ bool ACoaches::SendOnRoute(int32 Ci, bool bToTown, int32 Bay, float LimitMs)
 
 namespace CoachTestT
 {
-	const TCHAR* const TestDrivers[] = {TEXT("MH_070_ground"), TEXT("MH_071_ground"), TEXT("MH_072_ground"), TEXT("MH_076_ground"), TEXT("MH_080_ground"), TEXT("MH_090_ground")};
+	// (the ground crew that is built: Content/People/Built/MH_076_ground .. MH_091_ground; 070-072 are pilots)
+	const TCHAR* const TestDrivers[] = {TEXT("MH_076_ground"), TEXT("MH_077_ground"), TEXT("MH_078_ground"), TEXT("MH_079_ground"), TEXT("MH_080_ground"), TEXT("MH_081_ground"), TEXT("MH_090_ground")};
 	// the road's top near Z (roads, the airfield's ground; never the cut-away terrain's hidden collision)
 	double RoadZ(UWorld* W, const FVector& At, double Near)
 	{
@@ -851,33 +855,63 @@ int32 ACoaches::TestOut(float Metres, float GapM)
 	return Put;
 }
 
-bool ACoaches::TestDriver(int32 Ci)
+bool ACoaches::TestDriver(int32 Ci, FString* Why)
 {
 	UVehicleRiders* R = Riders(Ci);
-	if (!R) return false;
+	if (!R) { if (Why) *Why = TEXT("no riders (its driving parts missing?)"); return false; }
 	if (R->DriverAtWheel()) return true;
 	if (!TestDriverOf.Contains(Ci))
 	{
 		AADPPeople* P = AADPPeople::Get(GetWorld()); if (!P) return false;
 		const FTransform Root = RootOf(Ci);
 		FVector At = Root.TransformPosition(FVector(320.f, 460.f, 0.f)); At.Z = CoachTestT::RoadZ(GetWorld(), At, Root.GetLocation().Z);
-		if (P->AnyoneNear(At, 80.f) || !ADPUnseen::May(GetWorld(), At)) return false;
-		AActor* D = P->Spawn(CoachTestT::TestDrivers[Ci % UE_ARRAY_COUNT(CoachTestT::TestDrivers)], At + FVector(0, 0, 60.f), float(Root.Rotator().Yaw) - 90.f);
-		if (!D) return false;
+		if (P->AnyoneNear(At, 80.f)) { if (Why) *Why = TEXT("somebody stands where its driver would come"); return false; }
+		if (!ADPUnseen::May(GetWorld(), At)) { if (Why) *Why = TEXT("its driver's place is in view (or this frame's looks used up)"); return false; }
+		const TCHAR* Who = CoachTestT::TestDrivers[Ci % UE_ARRAY_COUNT(CoachTestT::TestDrivers)];
+		AActor* D = P->Spawn(Who, At + FVector(0, 0, 60.f), float(Root.Rotator().Yaw) - 90.f);
+		if (!D) { if (Why) *Why = FString::Printf(TEXT("its driver %s could not be made"), Who); return false; }
 		if (!R->HireDriver(D)) { D->Destroy(); ADP_WARN(TEXT("Coaches: test - coach %d's driver could not take the wheel"), Ci); return false; }
 		TestDriverOf.Add(Ci, D);
 		ADP_LOG(TEXT("Coaches: test - coach %d's driver comes"), Ci);
 	}
 	if (!R->IsBusy(TestDriverOf[Ci].Get())) R->DriverGetIn();
+	if (!R->DriverAtWheel() && Why) *Why = TEXT("its driver is getting in");
 	return R->DriverAtWheel();
 }
 
-bool ACoaches::RouteFree(int32 Ci, bool bToTown) const
+bool ACoaches::RouteFree(int32 Ci, bool bToTown, FString* WhyNot) const
 {
 	if (!Coaches.IsValidIndex(Ci)) return false;
 	FString Why; const FTransform From = RootW(Coaches[Ci]);
 	const TArray<FVector> P = RoutePath(Ci, bToTown, INDEX_NONE, From, Why);
-	return P.Num() >= 2 && RouteHits(Ci, From, P) == INDEX_NONE;
+	if (P.Num() < 2) { if (WhyNot) *WhyNot = FString::Printf(TEXT("no way (%s)"), *Why); return false; }
+	const int32 Hit = RouteHits(Ci, From, P);
+	if (Hit != INDEX_NONE && WhyNot) *WhyNot = FString::Printf(TEXT("coach %d in its way"), Hit);
+	return Hit == INDEX_NONE;
+}
+
+TArray<float> ACoaches::RouteCaps(const TArray<FVector>& Path, float TownMs) const
+{
+	using namespace CoachLoop;
+	TArray<float> Caps; Caps.Init(LoopOpenLimit, Path.Num());
+	const float Town = FMath::Min(TownMs, LoopTownLimit);
+	// the town hub's own streets (its loop and the street out of it): town speed near their lanes
+	TArray<FVector> TownPts;
+	for (const TCHAR* Id : {TEXT("TOWN-HUB"), TEXT("TOWN-HUB-STREET")})
+		for (int32 Side = 0; Side < 2; ++Side) { FVehicleLane L; if (FVehicleLane::FromRoad(Id, Side == 1, 0, L)) TownPts.Append(L.Pts); }
+	// the airport: inside the airfield's boundary (plan metres; plan y is -world y)
+	const FAirfieldData::FRect& B = AAirfield::Shared().Boundary;
+	int32 InAir = 0, InTown = 0;
+	for (int32 i = 0; i < Path.Num(); ++i)
+	{
+		const float X = float(Path[i].X / 100.0), Y = float(-Path[i].Y / 100.0);
+		bool bTown = X >= B.X0 && X <= B.X1 && Y >= B.Y0 && Y <= B.Y1;
+		if (bTown) ++InAir;
+		else for (int32 k = 0; k < TownPts.Num() && !bTown; k += 2) bTown = FVector::DistSquared2D(TownPts[k], Path[i]) < FMath::Square(LoopTownReach);
+		if (bTown) { Caps[i] = Town; ++InTown; }
+	}
+	ADP_LOG(TEXT("Coaches: the loop's limits - %d of %d points at %.0f km/h (%d inside the airport), the rest open road at %.0f km/h"), InTown, Path.Num(), Town * 3.6f, InAir, LoopOpenLimit * 3.6f);
+	return Caps;
 }
 
 void ACoaches::RouteTick(float Dt)
@@ -890,6 +924,12 @@ void ACoaches::RouteTick(float Dt)
 		if (!R) { if (G.Beep) G.Beep->Stop(); ADP_WARN(TEXT("Coaches: coach %d's loop dropped (its riders gone)"), Ci); It.RemoveCurrent(); continue; }
 		if (G.bDriving)
 		{
+			if (R->IsDriving() && (G.SayIn -= Dt) <= 0.f && Coaches[Ci].M.IsValid())
+			{
+				G.SayIn = 4.f;
+				const FVector At = RootW(Coaches[Ci]).GetLocation();
+				ADP_LOG(TEXT("Coaches: coach %d at %.0f km/h (limit here %.0f km/h%s) at %.0f %.0f"), Ci, R->Speed() * 0.036f, R->LimitHere() * 3.6f, R->IsGivingWay() ? TEXT(", giving way") : TEXT(""), At.X / 100.0, -At.Y / 100.0);
+			}
 			if (!R->IsDriving()) { ADP_LOG(TEXT("Coaches: coach %d %s"), Ci, G.bToTown ? *FString::Printf(TEXT("in hub bay %d"), G.Bay) : TEXT("back on its stand")); It.RemoveCurrent(); }
 			continue;
 		}
@@ -916,7 +956,7 @@ void ACoaches::RouteTick(float Dt)
 		const FTransform Parent = C.RootBase.Inverse() * RootW(C);
 		TArray<FVector> Local; Local.Reserve(G.Path.Num());
 		for (const FVector& P : G.Path) Local.Add(Parent.InverseTransformPosition(P));
-		if (!R->Drive(Local, G.LimitMs)) { ADP_WARN(TEXT("Coaches: coach %d's riders won't drive the loop (someone not seated, or you aboard)"), Ci); It.RemoveCurrent(); continue; }
+		if (!R->Drive(Local, G.LimitMs, G.Caps.Num() == Local.Num() ? &G.Caps : nullptr)) { ADP_WARN(TEXT("Coaches: coach %d's riders won't drive the loop (someone not seated, or you aboard)"), Ci); It.RemoveCurrent(); continue; }
 		G.bDriving = true;
 	}
 }

@@ -105,7 +105,7 @@ namespace ADPPerfViewsInternal
 	bool bHeld = false; FVector Want = FVector::ZeroVector, From = FVector::ZeroVector; FRotator Rot = FRotator::ZeroRotator, RotFrom = FRotator::ZeroRotator;
 	TMap<FString, FString> Shots; TWeakObjectPtr<AFireTruck> FireT; double FireEnterAt = 0.0, FireRouteAt = 0.0, FireExitAt = 0.0;
 	TArray<FVector> CoachHome; int32 CoachMode = 0; float CoachNear = 0.f; double CoachEnd = 0.0;
-	TArray<int32> CoachSend; bool bCoachSendTown = false; double CoachSendEnd = 0.0; int32 CoachSent = 0;   // (coaches waiting for their drivers before they are sent)
+	TArray<int32> CoachSend; TMap<int32, FString> CoachWhy; bool bCoachLed = false; bool bCoachSendTown = false; double CoachSendEnd = 0.0; int32 CoachSent = 0;   // (coaches waiting for their drivers before they are sent)
 	double Until = 0.0, FlyStart = 0.0, FlyLen = 0.0; FString Name; TArray<float> Fr, Gp, Rn, Gm; uint64 Shown0 = 0, Made0 = 0; double MStart = 0.0;
 
 	TArray<TStrongObjectPtr<UTextureRenderTarget2D>> Eaten;
@@ -613,15 +613,33 @@ namespace ADPPerfViewsInternal
 			ACoaches* C = ACoaches::Find();
 			if (C) for (int32 i = CoachSend.Num() - 1; i >= 0; --i)
 			{
-				const int32 c = CoachSend[i];
-				if (!C->TestDriver(c) || (!bCoachSendTown && !C->RouteFree(c, false))) continue;
+				const int32 c = CoachSend[i]; FString Why;
+				if (!C->TestDriver(c, &Why) || (!bCoachSendTown && !C->RouteFree(c, false, &Why)))
+				{
+					// (each coach's reason said once, and again only when it changes)
+					FString& SaidWhy = CoachWhy.FindOrAdd(c);
+					if (Why != SaidWhy) { SaidWhy = Why; if (!Why.IsEmpty()) ADP_LOG(TEXT("Views: coach %d waits - %s"), c, *Why); }
+					continue;
+				}
 				if (C->SendOnRoute(c, bCoachSendTown)) ++CoachSent;
-				CoachSend.RemoveAt(i);
+				CoachSend.RemoveAt(i); CoachWhy.Remove(c);
 			}
-			if (C && CoachSend.Num() && Now < CoachSendEnd) return false;
-			if (CoachSend.Num()) ADP_WARN(TEXT("Views: %d coaches still not sent after 3 min (no driver at the wheel, or the way not free)"), CoachSend.Num());
+			// (the steps held only until the first one is off - the lead: the others behind it wait for it -, so the camera sees
+			// it drive in; the rest are sent meanwhile as their way frees, and "coachwait home" waits for them too)
+			const bool bOpen = C && CoachSend.Num() && Now < CoachSendEnd;
+			if (bOpen && CoachSent == 0) return false;
+			if (bOpen) { if (!bCoachLed) { bCoachLed = true; ADP_LOG(TEXT("Views: the first coach is off, %d follow as their way frees"), CoachSend.Num()); } }
+			else
+			{
+			if (CoachSend.Num())
+			{
+				FString Left; for (const int32 c : CoachSend) { const FString* Wh = CoachWhy.Find(c); Left += FString::Printf(TEXT(" %d (%s)"), c, Wh && !Wh->IsEmpty() ? **Wh : TEXT("?")); }
+				ADP_WARN(TEXT("Views: %d coaches still not sent after 3 min:%s"), CoachSend.Num(), *Left);
+			}
+			CoachWhy.Reset();
 			ADP_LOG(TEXT("Views: %d coaches sent %s"), CoachSent, bCoachSendTown ? TEXT("to the town hub") : TEXT("back to their stands"));
 			CoachSend.Reset();
+			}
 		}
 		if (CoachMode)
 		{
@@ -634,7 +652,7 @@ namespace ADPPerfViewsInternal
 					bAny |= C->OnRoute(c);
 					if (C->ModelOf(c) && CoachHome.IsValidIndex(c)) Best = FMath::Min(Best, float(FVector::Dist2D(C->RootOf(c).GetLocation(), CoachHome[c]) / 100.0));
 				}
-				bDone = CoachMode == 3 ? Best <= CoachNear : !bAny;
+				bDone = CoachMode == 3 ? Best <= CoachNear : !bAny && !CoachSend.Num();   // (home: the ones still to be sent too)
 			}
 			if (bDone) ADP_LOG(TEXT("Views: coachwait done (%s; the nearest coach %.0f m from its stand)"), CoachMode == 3 ? TEXT("near") : CoachMode == 1 ? TEXT("at the hub") : TEXT("home"), Best);
 			else if (Now >= CoachEnd) { ADP_WARN(TEXT("Views: coachwait timed out - the coaches still on their way (nearest %.0f m from its stand)"), Best); bDone = true; }
@@ -981,7 +999,7 @@ namespace ADPPerfViewsInternal
 			const bool bTown = V[0] == TEXT("town");
 			if (bTown) { CoachHome.Reset(); for (int32 c = 0; c < C->Num(); ++c) CoachHome.Add(C->RootOf(c).GetLocation()); }
 			CoachSend.Reset(); for (int32 c = 0; c < C->Num(); ++c) if (!C->OnRoute(c)) CoachSend.Add(c);
-			bCoachSendTown = bTown; CoachSendEnd = FPlatformTime::Seconds() + 180.0; CoachSent = 0;
+			bCoachSendTown = bTown; CoachSendEnd = FPlatformTime::Seconds() + 180.0; CoachSent = 0; bCoachLed = false; CoachWhy.Reset();
 			ADP_LOG(TEXT("Views: %d coaches get their drivers, then go %s"), CoachSend.Num(), bTown ? TEXT("to the town hub") : TEXT("to their stands"));
 		}
 		else if (K == TEXT("flight") && V.Num() > 1)   // flight takeoff a320 | flight land a320 <seconds before touchdown>

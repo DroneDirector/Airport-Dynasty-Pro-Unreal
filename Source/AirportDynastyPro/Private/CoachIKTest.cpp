@@ -74,7 +74,7 @@ bool ADPCoachIKTestStep(APlayerController* PC, float Clock)
 			Me->SetActorEnableCollision(false); if (ACharacter* Ch = Cast<ACharacter>(Me)) Ch->GetCharacterMovement()->DisableMovement();
 			Me->SetActorLocation(InCoach(0.f, -14.f, 3.f), false, nullptr, ETeleportType::TeleportPhysics);
 		}
-		for (const TCHAR* N : {TEXT("MH_070_ground"), TEXT("MH_071_ground"), TEXT("MH_072_ground"), TEXT("MH_076_ground"), TEXT("MH_080_ground"), TEXT("MH_090_ground"), TEXT("MH_060_pilot")}) if (!CT.Driver.IsValid()) CT.Driver = P->Spawn(N, InCoach(3.2f, -4.6f, 0.6f), Co->RootOf(Ci).Rotator().Yaw - 90.f);
+		for (const TCHAR* N : {TEXT("MH_076_ground"), TEXT("MH_077_ground"), TEXT("MH_078_ground"), TEXT("MH_079_ground"), TEXT("MH_080_ground"), TEXT("MH_090_ground"), TEXT("MH_060_pilot")}) if (!CT.Driver.IsValid()) CT.Driver = P->Spawn(N, InCoach(3.2f, -4.6f, 0.6f), Co->RootOf(Ci).Rotator().Yaw - 90.f);
 		CT.Pax[0] = P->Spawn(TEXT("MH_003_passenger"), InCoach(0.6f, -4.8f, 0.6f), Co->RootOf(Ci).Rotator().Yaw - 90.f);
 		CT.Pax[1] = P->Spawn(TEXT("MH_012_passenger"), InCoach(-0.6f, -5.2f, 0.6f), Co->RootOf(Ci).Rotator().Yaw - 90.f);
 		ADP_LOG(TEXT("CoachIKTest: coach %d at %s, people %d %d %d"), Ci, *CT.Base.GetLocation().ToCompactString(), CT.Driver.IsValid(), CT.Pax[0].IsValid(), CT.Pax[1].IsValid());

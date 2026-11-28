@@ -96,9 +96,12 @@ public:
 	 *  stands left empty, each one's stand kept as its home). Only before their riders exist. The number put out. */
 	int32 TestOut(float Metres, float GapM);
 	/** Views test: the coach operator's driver for it (appears unseen beside the coach, climbs in). True once at the wheel. */
-	bool TestDriver(int32 Coach);
+	bool TestDriver(int32 Coach, FString* Why = nullptr);
 	/** Views test: could it set off along the loop now without touching another coach? */
-	bool RouteFree(int32 Coach, bool bToTown) const;
+	bool RouteFree(int32 Coach, bool bToTown, FString* Why = nullptr) const;
+	/** The road's limit at each point of a loop path (m/s): the open road 85 km/h, the town hub's streets and the airport
+	 *  (inside the airfield's boundary) TownMs, at most 50 km/h. */
+	TArray<float> RouteCaps(const TArray<FVector>& Path, float TownMs) const;
 
 private:
 	static TWeakObjectPtr<ACoaches> One;
@@ -143,7 +146,7 @@ private:
 	void ReachTick(float Dt);
 	void ReachEnd();
 	// the loop (to-do 373)
-	struct FRouteGo { TArray<FVector> Path; float BackLeft = 0.f, Backed = 0.f; UAudioComponent* Beep = nullptr; bool bToTown = false; bool bDriving = false; int32 Bay = INDEX_NONE; float LimitMs = 13.9f; };
+	struct FRouteGo { TArray<FVector> Path; float BackLeft = 0.f, Backed = 0.f; UAudioComponent* Beep = nullptr; bool bToTown = false; bool bDriving = false; int32 Bay = INDEX_NONE; float LimitMs = 13.9f; TArray<float> Caps; float SayIn = 0.f; };
 	TMap<int32, FRouteGo> RouteGo;
 	TMap<int32, FTransform> HomeStand;     // a coach's terminal stand (world root): where it was when first sent to town
 	TMap<int32, int32> HubBayOf;           // the hub bay a coach went to

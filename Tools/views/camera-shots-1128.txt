@@ -21,7 +21,7 @@ land-orbit-east fly 160 9 -70 -120 -5 20
 land-orbit-home fly 75 16 -130 -90 -6 12
 # --- coaches arriving at their stands
 coach-road-wide view 700 20 -95 -18 -7
-coach-track look 0 0 14 AirportCoach
+coach-track look 0 150 8 AirportCoach
 coach-turn-crane fly 276 12 -70 -90 -14 10
 coach-parked-wide view 276 10 -85 -90 -9
 # --- 3 terminal inside
