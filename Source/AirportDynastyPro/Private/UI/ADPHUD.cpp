@@ -536,7 +536,17 @@ void AADPHUD::BeginPlay()
 		[
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
 			// (this alone decides: never SetVisibility on it, that replaces the rule for good and the map lay over the menus)
-			.Visibility_Lambda([this]() { return bGame || bInLounge || bViewer || bWardrobe || bDevice || bMiniAway || HoldingDevice() ? EVisibility::Collapsed : EVisibility::Visible; })
+			.Visibility_Lambda([this]() {
+				const bool bHold = HoldingDevice(), bAway = bGame || bInLounge || bViewer || bWardrobe || bDevice || bMiniAway || bHold;
+				// one log line whenever the map comes or goes, naming what hid it (owner 11-28: "the holographic map is not there")
+				static int32 LastAway = -1;
+				if (LastAway != (bAway ? 1 : 0))
+				{
+					LastAway = bAway ? 1 : 0;
+					ADP_LOG(TEXT("Holomap: small map %s (menu %d lounge %d viewer %d wardrobe %d device %d test-away %d holding %d)"), bAway ? TEXT("hidden") : TEXT("shown"),
+						bGame ? 1 : 0, bInLounge ? 1 : 0, bViewer ? 1 : 0, bWardrobe ? 1 : 0, bDevice ? 1 : 0, bMiniAway ? 1 : 0, bHold ? 1 : 0);
+				}
+				return bAway ? EVisibility::Collapsed : EVisibility::Visible; })
 			[
 				// the map, and beside it (full screen only) its shortcuts in their own column: nothing of the interface lies
 				// over the map's drawing (owner, 2026-11-13: no UI in the way of another)

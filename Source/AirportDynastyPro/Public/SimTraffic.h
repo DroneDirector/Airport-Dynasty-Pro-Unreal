@@ -92,6 +92,9 @@ private:
 		// PosN / PosM: FlightGear's gear position-norm (1 down, 0 up); GG: every moving part's group (SimTraffic.cpp EGg)
 		TArray<int32> GG;
 		bool bGear = false, bGearPrev = false; float Steer = 0.f, RollN = 0.f, RollM = 0.f, ExtN = 0.f, ExtNV = 0.f, ExtM = 0.f, ExtMV = 0.f;
+		// the body on its struts once its wheels are down (m, + up from resting; a damped spring kicked at touchdown and as the nose
+		// comes down: it dips, comes back up a little and settles - owner 11-28), per gear; Pose() lifts and tilts the body by them
+		float BncM = 0.f, BncMV = 0.f, BncN = 0.f, BncNV = 0.f; bool bOnM = false, bOnN = false;
 		FVector2f PrevNose = FVector2f::ZeroVector, PrevMain = FVector2f::ZeroVector;
 		// GearSt 0 down and locked, 1 retracting, 2 up and locked, 3 extending
 		uint8 GearSt = 0; float AirT = 0.f, PosN = 1.f, PosM = 1.f;

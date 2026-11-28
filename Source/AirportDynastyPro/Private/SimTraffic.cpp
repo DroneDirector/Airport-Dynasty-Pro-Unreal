@@ -387,8 +387,9 @@ void ASimTraffic::Pose(FMove& M)
 	//  on the ground under both gears: tilted by the slope from the main gear to the nose, the nose tyre placed from the main gear)
 	const float GNose = AAirfield::GroundAt(M.Nose.X, M.Nose.Y), GMain = AAirfield::GroundAt(M.Main.X, M.Main.Y);
 	const float Slope = FMath::RadiansToDegrees(FMath::Atan2(GNose - GMain, Wheelbase));
-	const float Up = M.Pitch + Slope;   // (the rotation / flare on top of the ground's own tilt)
-	const FVector World = FTerminalPlan::ToWorld(M.Nose.X, GMain + M.Height + Wheelbase * FMath::Sin(FMath::DegreesToRadians(Up)), M.Nose.Y);
+	// (the body on its struts: lifted by the nose strut's bounce, pitched by the difference to the main's - Gear())
+	const float Up = M.Pitch + Slope + FMath::RadiansToDegrees(FMath::Atan2(M.BncN - M.BncM, Wheelbase));   // (the rotation / flare on top of the ground's own tilt)
+	const FVector World = FTerminalPlan::ToWorld(M.Nose.X, GMain + M.Height + M.BncM + Wheelbase * FMath::Sin(FMath::DegreesToRadians(Up)), M.Nose.Y);
 	const FVector Dir(D.X, -D.Y, 0.f);   // (plan (x, y) -> world (x, -y))
 	// (2026-11-21: the moving aircraft drew nose-backwards - its nose away from the gate and the tug inside its body; the model is
 	//  created unturned here and turned after Place, unlike ParkedAircraft's: the half turn the other way)
@@ -1644,14 +1645,34 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	// nose's that plus the wheelbase times the pitch's sine), with a damped spring under that - so the main legs compress
 	// first at touchdown, the nose strut extends first at rotation; never into the ground
 	const float ClearM = M.Height, ClearN = M.Height + Wheelbase * FMath::Sin(FMath::DegreesToRadians(M.Pitch));
-	auto Strut = [Dt](float& E, float& V, float Clear)
+	// once a gear's wheels are down, the body rides on it as an underdamped spring (about 1 Hz, damping 0.22): kicked down at
+	// the wheels' first touch, it sinks, rebounds a little above resting and settles in about 2 s; the strut's tube slides by
+	// the same amount (E below 0 = further in than resting), so the wheels stay on the ground (owner 11-28: "the airplane
+	// settles a little bit up again after landing")
+	auto Strut = [Dt](float& E, float& V, float Clear, float& Bnc, float& BncV, bool& bOn, float Kick, const TCHAR* Which, const FString& Reg)
 	{
-		const float Lim = FMath::Clamp(Clear * 100.f / StrutCm, 0.f, 1.f);
-		V += ((1.f - E) * 90.f - V * 11.f) * Dt; E += V * Dt;
-		if (E >= Lim) { E = Lim; V = FMath::Min(V, 0.f); }
-		if (E <= 0.f) { E = 0.f; V = FMath::Max(V, 0.f); }
+		if (Clear > 0.005f)
+		{
+			bOn = false; Bnc = BncV = 0.f;
+			const float Lim = FMath::Clamp(Clear * 100.f / StrutCm, 0.f, 1.f);
+			V += ((1.f - E) * 90.f - V * 11.f) * Dt; E += V * Dt;
+			if (E >= Lim) { E = Lim; V = FMath::Min(V, 0.f); }
+			if (E <= 0.f) { E = 0.f; V = FMath::Max(V, 0.f); }
+			return;
+		}
+		if (!bOn) { bOn = true; BncV = Kick; ADP_LOG(TEXT("Traffic: %s %s gear on the ground - the struts take the weight (body dips at %.1f m/s, rebounds, settles)"), *Reg, Which, -Kick); }
+		const float W = 2.f * PI * 1.0f, Z = 0.22f, Sub = 1.f / 120.f;
+		for (float T = 0.f; T < Dt; T += Sub)
+		{
+			const float H = FMath::Min(Sub, Dt - T);
+			BncV += (-W * W * Bnc - 2.f * Z * W * BncV) * H; Bnc += BncV * H;
+		}
+		if (FMath::Abs(Bnc) < 0.0005f && FMath::Abs(BncV) < 0.002f) Bnc = BncV = 0.f;
+		Bnc = FMath::Clamp(Bnc, -0.12f, 0.10f);   // (within the strut's travel past resting)
+		E = Bnc * 100.f / StrutCm; V = 0.f;
 	};
-	Strut(M.ExtM, M.ExtMV, ClearM); Strut(M.ExtN, M.ExtNV, ClearN);
+	Strut(M.ExtM, M.ExtMV, ClearM, M.BncM, M.BncMV, M.bOnM, (M.Phase == EPhase::Approach || M.Phase == EPhase::Rollout) ? -0.7f : 0.f, TEXT("main"), M.Reg);
+	Strut(M.ExtN, M.ExtNV, ClearN, M.BncN, M.BncNV, M.bOnN, M.Phase == EPhase::Rollout ? -0.35f : 0.f, TEXT("nose"), M.Reg);
 	M.bGearPrev = bGround;
 	M.PrevNose = M.Nose; M.PrevMain = M.Main;
 	// the retraction and extension (to-do 380) at FlightGear's rates: the doors, legs and doors again follow the

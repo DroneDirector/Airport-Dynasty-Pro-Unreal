@@ -77,12 +77,14 @@ wait 18
 orbit 36 105 105 g1.6 0 HB-LAND
 flightwait 45 HB-LAND rollout
 shot4k land-touchdown-smoke
-orbit 34 100 115 g1.6 6 HB-LAND
-wait 3
+# (the reversers are open from about 2 s after touchdown until about 70 kt, ~16 s: seen from the rear quarter while open)
+orbit 30 100 145 g2.2 5 HB-LAND
+wait 1
+shot4k land-rollout-reversers
+orbit 34 145 115 g1.6 4 HB-LAND
+wait 1
 shot4k land-nose-down
 orbit 40 115 165 g1.8 10 HB-LAND
-wait 5
-shot4k land-rollout-reversers
 wait 4
 # ===== end
 sound stop
