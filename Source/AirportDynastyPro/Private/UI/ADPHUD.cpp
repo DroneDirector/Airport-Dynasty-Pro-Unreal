@@ -537,7 +537,9 @@ void AADPHUD::BeginPlay()
 			SAssignNew(MiniBox, SBox).WidthOverride(240).HeightOverride(240)
 			// (this alone decides: never SetVisibility on it, that replaces the rule for good and the map lay over the menus)
 			.Visibility_Lambda([this]() {
-				const bool bHold = HoldingDevice(), bAway = bGame || bInLounge || bViewer || bWardrobe || bDevice || bMiniAway || bHold;
+				// (owner 11-28: never in the test recordings - the aircraft / views runs)
+				static const bool bRec = FParse::Param(FCommandLine::Get(), TEXT("AirplaneTest")) || FParse::Param(FCommandLine::Get(), TEXT("ViewsNoShots"));
+				const bool bHold = HoldingDevice(), bAway = bGame || bInLounge || bViewer || bWardrobe || bDevice || bMiniAway || bHold || bRec;
 				// one log line whenever the map comes or goes, naming what hid it (owner 11-28: "the holographic map is not there")
 				static int32 LastAway = -1;
 				if (LastAway != (bAway ? 1 : 0))
