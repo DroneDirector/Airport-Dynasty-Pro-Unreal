@@ -993,9 +993,13 @@ namespace ADPPerfViewsInternal
 				// (the window already 4K: the picture straight from the screen. HighResShot draws the scene a second time with
 				//  its own 4K buffers - +850 MB at once, and on the 8 GB card that killed the game silently at the town hub 11-28)
 				FVector2D Vs(0, 0); if (GEngine && GEngine->GameViewport) GEngine->GameViewport->GetViewportSize(Vs);
-				if (Vs.X >= 3840 && Vs.Y >= 2160) FScreenshotRequest::RequestScreenshot(Png, false, false);
+				// (and the 4K redraw needs about 2 GB more: with less free than that the picture is the screen's own size -
+				//  each 11-28 town-hub death came 2-3 s after a redraw took the 8 GB card to 7.8 GB)
+				const ADPGraphicsMemory::FNow VMem = ADPGraphicsMemory::Now();
+				const bool bScreen = (Vs.X >= 3840 && Vs.Y >= 2160) || (VMem.bKnown && VMem.BudgetMB - VMem.UsedMB < 2200);
+				if (bScreen) FScreenshotRequest::RequestScreenshot(Png, false, false);
 				else PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 3840x2160 filename=\"%s\""), *Png));
-				ADP_LOG(TEXT("Views: picture %s (%s; %s)"), *Png, Vs.X >= 3840 && Vs.Y >= 2160 ? TEXT("from the screen") : TEXT("drawn again at 4K"), *ADPGraphicsMemory::Line());
+				ADP_LOG(TEXT("Views: picture %s (%s; %s)"), *Png, bScreen ? (Vs.X >= 3840 && Vs.Y >= 2160 ? TEXT("from the screen") : TEXT("from the screen, its own size: too little graphics memory free for the 4K redraw")) : TEXT("drawn again at 4K"), *ADPGraphicsMemory::Line());
 				ShotAt = 2; Until = FPlatformTime::Seconds() + 2.0; return true;
 			}
 			// (the 4K redraw's buffers stay in Unreal's render-target pool; with the next scene on top the 8 GB card ran out at
