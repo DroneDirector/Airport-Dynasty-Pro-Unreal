@@ -17,7 +17,7 @@
 namespace
 {
 	const FVector LdPivot(-320.f, 0.f, 76.f);
-	const float LdSill = 9.22f, LdUp = 20.5f, LdOut = 5.69f, LdAft = 19.6f;   // (as its crew: GSELoader.cpp)
+	const float LdSill = 9.22f, LdUp = 20.5f, LdOut = 5.69f, LdAft = 21.1f;   // (as its crew: GSELoader.cpp)
 	enum : int32 { LdFwd = 1, LdStop, LdBack, LdCab, LdEStop, LdLamp, LbTakeCart, LbTakeFoot, LbTakeTop, LbTakeHold, LbPutFoot, LbPutCart, LbPutHold, LbPutTop, LbClimb };
 	enum : int32 { LdFChassis, LdFBoom, LdFJoy };
 	FTransform LdRot(const FVector& P, float Deg) { return FTransform(-P) * FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(Deg)), P); }

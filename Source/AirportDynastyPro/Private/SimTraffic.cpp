@@ -1340,7 +1340,7 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 	uint8 ESt = 0; float EWant = 0.f;
 	if (M.Phase == EPhase::Roll && M.RotT >= 0.f && !bAir) { ESt = 1; EWant = -13.f; }
 	else if (M.Phase == EPhase::Roll && M.RotT >= 0.f) { ESt = 2; EWant = -6.f; }
-	else if (M.Phase == EPhase::Climb) { ESt = M.Pitch < 14.5f ? 2 : 3; EWant = M.Pitch < 14.5f ? -6.f : -2.f; }
+	else if (M.Phase == EPhase::Climb) { const bool bLift = M.Pitch < 14.5f && M.Height < 100.f; ESt = bLift ? 2 : 3; EWant = bLift ? -6.f : -2.f; }   // (pitching up only just after lift-off; higher up the climb holds its pitch)
 	else if (M.Phase == EPhase::Approach) { ESt = M.Height < FlareM ? 5 : 4; EWant = M.Height < FlareM ? -8.f : -1.f; }
 	else if (M.Phase == EPhase::Rollout && M.Pitch > 0.3f) { ESt = 6; EWant = -4.f; }
 	// (a banked turn needs a little back stick to hold the height: about 3 deg more up at 24 deg of bank, load factor 1.09)

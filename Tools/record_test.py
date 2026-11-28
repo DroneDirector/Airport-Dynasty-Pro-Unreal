@@ -55,6 +55,14 @@ def monitor_of(h):
     m = u.MonitorFromWindow(h, 2); mi = MI(); mi.cb = ctypes.sizeof(MI); u.GetMonitorInfoW(m, ctypes.byref(mi))
     return mi.rc.right - mi.rc.left, mi.rc.bottom - mi.rc.top, bool(mi.flags & 1)
 
+def refresh_hz():
+    # (the screen's refresh: captured at it, every frame the screen really showed is caught - at 60 against a 143 Hz
+    #  screen, ddagrab's own clock repeated or skipped about 4 frames a second, the judder in the videos)
+    try:
+        dc = u.GetDC(0); hz = ctypes.windll.gdi32.GetDeviceCaps(dc, 116); u.ReleaseDC(0, dc)   # (116 = VREFRESH)
+        return hz if 60 <= hz <= 240 else 60
+    except Exception: return 60
+
 def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     enc = subprocess.run([FF, '-hide_banner', '-encoders'], capture_output=True, text=True).stdout
@@ -75,10 +83,11 @@ def main():
     w, hh, main_screen = monitor_of(h)
     idx = os.environ.get('REC_OUTPUT', '0' if main_screen else '1')
     raw = os.path.splitext(OUT)[0] + '-picture.mp4'
-    cmd = [FF, '-y', '-hide_banner', '-loglevel', 'info', '-f', 'lavfi', '-i', 'ddagrab=output_idx=%s:framerate=60:draw_mouse=0' % idx,
+    hz = refresh_hz()
+    cmd = [FF, '-y', '-hide_banner', '-loglevel', 'info', '-f', 'lavfi', '-i', 'ddagrab=output_idx=%s:framerate=%d:draw_mouse=0' % (idx, hz),
            '-c:v', 'h264_nvenc', '-preset', 'p6', '-tune', 'hq', '-rc', 'vbr', '-cq', '19', '-b:v', '60M', '-maxrate', '80M',
-           '-bufsize', '160M', '-profile:v', 'high', '-g', '120', '-bf', '2', '-r', '60', '-movflags', '+faststart', raw]
-    say('screen %dx%d (output %s), game %s; ffmpeg:' % (w, hh, idx, exe), ' '.join(cmd[4:]))
+           '-bufsize', '160M', '-profile:v', 'high', '-g', '240', '-bf', '2', '-r', str(hz), '-movflags', '+faststart', raw]
+    say('screen %dx%d at %d Hz (output %s), game %s; ffmpeg:' % (w, hh, hz, idx, exe), ' '.join(cmd[4:]))
     rec = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     v_ms = None; err = []
     import threading
@@ -120,8 +129,18 @@ def main():
     # (in step: the picture's first frame came v_ms, the sound began a_ms; the sound's earlier part is cut off)
     off = max(0.0, ((v_ms or a_ms) - a_ms) / 1000.0)
     say('sound', wav, '%.1f MB; picture began %.3f s after it' % (os.path.getsize(wav) / 1e6, off))
+    # (the repeats out: the screen's refreshes that showed the same game frame are dropped, the game's own frames are laid
+    #  evenly at their real average rate and the file made 60 fps - no repeated or skipped frame, the sound stays in step)
+    DEC = 'mpdecimate=hi=256:lo=64:frac=0.1'
+    n = subprocess.run([FF, '-hide_banner', '-i', raw, '-vf', DEC, '-an', '-f', 'null', '-'], capture_output=True, text=True).stderr
+    fr = re.findall(r'frame=\s*(\d+)', n); uniq = int(fr[-1]) if fr else 0
+    d = re.search(r'Duration: (\d+):(\d+):([\d.]+)', n); dur = int(d.group(1)) * 3600 + int(d.group(2)) * 60 + float(d.group(3)) if d else 0
+    rate = uniq / dur if dur > 1 and uniq > 0 else 0
+    vf = ('%s,setpts=N/%.5f/TB,fps=60' % (DEC, rate)) if 20 <= rate <= 150 else 'fps=60'
+    say('game frames: %d unique in %.1f s = %.2f a second; picture filter %s' % (uniq, dur, rate, vf))
     mux = [FF, '-y', '-hide_banner', '-loglevel', 'error', '-i', raw, '-ss', '%.3f' % off, '-i', wav, '-map', '0:v:0', '-map', '1:a:0',
-           '-c:v', 'copy', '-c:a', 'aac', '-b:a', '256k', '-shortest', '-movflags', '+faststart', OUT]
+           '-vf', vf, '-c:v', 'h264_nvenc', '-preset', 'p6', '-tune', 'hq', '-rc', 'vbr', '-cq', '19', '-b:v', '60M', '-maxrate', '80M',
+           '-bufsize', '160M', '-profile:v', 'high', '-g', '120', '-bf', '2', '-c:a', 'aac', '-b:a', '256k', '-shortest', '-movflags', '+faststart', OUT]
     r = subprocess.run(mux, capture_output=True, text=True)
     if r.returncode != 0: say('FAILED to put the sound in:', r.stderr[-300:]); os.replace(raw, OUT); return check(OUT, wav)
     os.remove(raw)

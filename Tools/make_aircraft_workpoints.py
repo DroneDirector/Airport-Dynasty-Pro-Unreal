@@ -37,8 +37,9 @@ def family(wheelbase, aft_plug, box_y_max):
         pt("tail", s, sg * 1.3, 23.4 + wb + af, l, 1.95, "hold"); pt("tail", s, sg * 1.3, 24.6 + wb + af, l, 1.95, "fasten")
         pt("tail", s, sg * 1.3, 25.8 + wb + af, l, 1.95, "hold")
     # the cargo doors are on the right: F the forward one, A the aft one
-    pt("cargodoor", "F", 2.95, 2.9, 270, 1.85, "hold"); pt("cargodoor", "F", 2.95, 4.1, 270, 1.85, "fasten"); pt("cargodoor", "F", 2.95, 5.2, 270, 1.6, "hold")
-    pt("cargodoor", "A", 2.95, 18.8 + wb + af, 270, 1.95, "hold"); pt("cargodoor", "A", 2.95, 20.0 + wb + af, 270, 1.95, "fasten"); pt("cargodoor", "A", 2.95, 21.1 + wb + af, 270, 1.7, "hold")
+    # (the game's A320, the FlightGear model: forward door 2.10-3.92 m behind the nose wheel, aft door 16.61-18.44 m)
+    pt("cargodoor", "F", 2.95, 1.9, 270, 1.85, "hold"); pt("cargodoor", "F", 2.95, 3.0, 270, 1.85, "fasten"); pt("cargodoor", "F", 2.95, 4.1, 270, 1.6, "hold")
+    pt("cargodoor", "A", 2.95, 16.4 + wb + af, 270, 1.95, "hold"); pt("cargodoor", "A", 2.95, 17.5 + wb + af, 270, 1.95, "fasten"); pt("cargodoor", "A", 2.95, 18.6 + wb + af, 270, 1.7, "hold")
     # the nose gear and the avionics bay hatch behind it (the belly about 1.9 m up there)
     pt("nosegear", "", -1.05, 0.2, 90, 1.0, "hold"); pt("nosegear", "", 1.05, 0.2, 270, 1.0, "fasten"); pt("nosegear", "", 0.0, -1.3, 180, 1.2, "hold")
     pt("avionics", "", 0.0, 2.3, 0, 1.9, "hold"); pt("avionics", "", 0.8, 1.9, 270, 1.9, "fasten")
