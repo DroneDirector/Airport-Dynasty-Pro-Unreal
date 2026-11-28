@@ -26,6 +26,11 @@ measure 10 bus-bay
 shot4k bus-bay
 # the coaches out on the road in, 2 km short of their stands and 25 m apart (on AIRPORT-BACK-TO-TOWN, the 85 km/h open road, about 900 m before the airfield; clear of the CHABLAIS-LINK junction), so none stands outside the Grand Hall when they come in
 # (36 seated passengers in each, bags in the door-side bays: they get off at the Grand Hall bays and walk in)
+# the town bus station (TownHub, about 5 km out): its bays, coaches and the people waiting, from 25 m over its foot
+shotcam town-station
+wait 3
+measure 10 town-station
+shot4k town-station
 coach out 2000 25 36
 # ===== 2 terminal landside, from near the car park
 shotcam land-whole
@@ -135,8 +140,12 @@ wait 4
 shot4k jetway-docking
 hmi g4
 wait 3
-shot4k jetway-console
+shot4k jetway-hmi
 hmi close
+shotcam jet-console
+wait 2
+measure 10 jetway-console
+shot4k jetway-console
 wait 30
 jetway 4 state
 shotcam jet-wide
@@ -152,9 +161,11 @@ wait 8
 shot4k gate4-passengers-through
 shotcam jet-cab
 wait 6
+measure 10 jetway-passengers-bridge
 shot4k jetway-passengers-bridge
 shotcam jet-cabin
-wait 6
+wait 4
+measure 10 jetway-passengers-cab
 shot4k jetway-passengers-cab
 wait 20
 # ===== 5b gate 4 by night: moving with its beacons flashing and its lights lit, docking, docked

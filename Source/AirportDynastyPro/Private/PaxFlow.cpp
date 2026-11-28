@@ -1821,15 +1821,18 @@ void APaxFlow::WayToJetway(FPx& P)
 	{
 		Ro.Z = F2Z;
 		P.TunA = P.Way.Num();
-		// (owner 2026-11-21: no cabin yet - halfway along the tunnel they fade away, one by one, walking on as they go; its inside
-		//  as it is now, as off the aircraft, the other way)
+		// (owner 2026-11-28: the whole bridge, the cab and through the aircraft's door - the walk's last 40 cm slice is in it
+		//  (Measure); only on the last stretch, past the door's sill, do they fade, walking on into the cabin. Was: faded
+		//  halfway along the tunnel, owner 2026-11-21, when no aircraft had a cabin)
 		if (Measure(R))
-			for (int32 k = R.Walk.Num() - 1; k >= 0; k -= 3)
-			{
-				const FSlice& Sl = R.Walk[k]; Add(Sl.C - Sl.Rt * FMath::Clamp(float(P.Jit.X) * 0.4f + 8.f, -Sl.Lim, Sl.Lim));
-				if (P.FadeFrom == INDEX_NONE && FVector::Dist2D(Sl.C, Mid) < FVector::Dist2D(Ro, Mid) * 0.5f) P.FadeFrom = P.Way.Num() - 1;
-			}
-		else { Add(Ro); Add(FMath::Lerp(Ro, Mid, 0.5f)); P.FadeFrom = P.Way.Num() - 1; Add(Mid); Add(Mid + Front.GetSafeNormal2D() * 70.f); }
+		{
+			auto Slice = [&](int32 k) { const FSlice& Sl = R.Walk[k]; Add(Sl.C - Sl.Rt * FMath::Clamp(float(P.Jit.X) * 0.4f + 8.f, -Sl.Lim, Sl.Lim)); };
+			for (int32 k = R.Walk.Num() - 1; k > 0; k -= 3) Slice(k);
+			if (R.Walk.Num() > 1) Slice(1);
+			P.FadeFrom = P.Way.Num() - 1;   // (from the cab's doorway on)
+			{ const FSlice& Sl = R.Walk[0]; Add(Sl.C); }   // (the very end, in the door: on its middle line)
+		}
+		else { Add(Ro); Add(FMath::Lerp(Ro, Mid, 0.5f)); Add(Mid); P.FadeFrom = P.Way.Num() - 1; Add(Mid + Front.GetSafeNormal2D() * 95.f); }
 		P.TunB = P.Way.Num();
 		for (int32 k = P.TunA; k < P.TunB; ++k) P.Way[k].bNav = true;
 	}
@@ -1941,7 +1944,7 @@ void APaxFlow::Arrive(int32 i)
 	case EDo::Aboard:
 		++R.Aboard; ++TotalAboard;
 		ADP_LOG(TEXT("PaxFlow: %s aboard %s (%d of %d walkers; about %d of %d passengers aboard)"), *P.Id, *R.Label, R.Aboard, R.Visible, FMath::Min(R.Pax, FMath::RoundToInt(float(R.Aboard) / FMath::Max(1, R.Visible) * R.Pax)), R.Pax);
-		Finish(i, R.Way ? TEXT("is aboard (gone at the top of the passenger stairs)") : TEXT("is aboard (faded away halfway along the jetway)"));
+		Finish(i, R.Way ? TEXT("is aboard (gone at the top of the passenger stairs)") : TEXT("is aboard (through the cab and into the aircraft's door)"));
 		break;
 	case EDo::ApronOut: ApronArrived(i); break;
 	case EDo::ArrIn: P.TunA = P.TunB = 0; WayArrivals(P); P.St = EPx::Walk; break;
@@ -2046,9 +2049,29 @@ bool APaxFlow::Measure(FRun& R)
 	for (const FPx& O : Pax) if (AActor* A = O.A.Get()) { Q.AddIgnoredActor(A); Qs.AddIgnoredActor(A); }
 	if (AActor* D = DoorsActor.Get()) { Q.AddIgnoredActor(D); Qs.AddIgnoredActor(D); }
 	if (APlayerController* PC = W->GetFirstPlayerController()) if (APawn* Pw = PC->GetPawn()) { Q.AddIgnoredActor(Pw); Qs.AddIgnoredActor(Pw); }
-	// its middle line: the cab's front, the cab, the rotunda, the gate's door - a point every 40 cm
+	// (owner 2026-11-28: the whole bridge, through the cab's doorway and into the aircraft's door - not faded halfway. Where
+	//  that walk ends is found once, from inside the cab: on along its floor while it stays level and nothing stands in the
+	//  way at the knee or the chest - a shut door, the fuselage, the cab's front - at most 5 m on from the cab's middle)
+	FVector Into = Mid + Front.GetSafeNormal2D() * 55.f; float Reach = 55.f; FString Stop = TEXT("5 m on");
+	{
+		ADP_PERF_SCOPE("pax flow: jetway - where the walk into the aircraft ends (once a flight)", 1.f);
+		const FVector Fw = Front.GetSafeNormal2D(); FHitResult H;
+		float CabZ = Mid.Z - 120.f; bool bFloor = W->LineTraceSingleByChannel(H, Mid, Mid - FVector(0, 0, 400.f), ECC_Visibility, Q);
+		if (bFloor) { CabZ = H.ImpactPoint.Z; Into.Z = CabZ; }
+		for (float d = 75.f; bFloor && d <= 500.f; d += 20.f)
+		{
+			const FVector Was = Mid + Fw * (d - 20.f), At = Mid + Fw * d;
+			auto Block = [&](float Hh) { return W->LineTraceSingleByChannel(H, FVector(Was.X, Was.Y, CabZ + Hh), FVector(At.X, At.Y, CabZ + Hh), ECC_Visibility, Q); };
+			if (Block(40.f) || Block(110.f)) { Stop = H.GetComponent() ? H.GetComponent()->GetOwner() ? H.GetComponent()->GetOwner()->GetName() + TEXT(".") + H.GetComponent()->GetName() : H.GetComponent()->GetName() : TEXT("something"); break; }
+			if (!W->LineTraceSingleByChannel(H, FVector(At.X, At.Y, CabZ + 60.f), FVector(At.X, At.Y, CabZ - 60.f), ECC_Visibility, Q)) { Stop = TEXT("no floor (the gap or the sill)"); break; }
+			if (FMath::Abs(H.ImpactPoint.Z - CabZ) > 25.f) { Stop = FString::Printf(TEXT("a step of %.0f cm"), H.ImpactPoint.Z - CabZ); break; }
+			Reach = d; Into = FVector(At.X, At.Y, H.ImpactPoint.Z);
+		}
+		ADP_LOG(TEXT("PaxFlow: %s's jetway - the walk ends %.2f m on from the cab's middle (stopped by %s)"), *R.Label, Reach / 100.f, *Stop);
+	}
+	// its middle line: in the aircraft's door, the cab, the rotunda, the gate's door - a point every 40 cm
 	Ro.Z = F2Z;
-	TArray<FVector> Line = {Mid + Front.GetSafeNormal2D() * 55.f, Mid, Ro, PW(G.Jw.X, F2Y, G.Jw.Y + 1.2f), PW(G.Jw.X, F2Y, G.Jw.Y)};
+	TArray<FVector> Line = {Into, Mid, Ro, PW(G.Jw.X, F2Y, G.Jw.Y + 1.2f), PW(G.Jw.X, F2Y, G.Jw.Y)};
 	for (int32 s = 0; s + 1 < Line.Num(); ++s)
 	{
 		const FVector A = Line[s], B = Line[s + 1]; const int32 N = FMath::Max(1, FMath::RoundToInt(FVector::Dist2D(A, B) / 40.f));

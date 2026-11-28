@@ -93,6 +93,8 @@ public:
 	AActor* TestCoachPax(const FVector& At, float Yaw, int32 Trip, bool bBag);
 	/** The gate's jetway (INDEX_NONE: none) and its jetway door in the world (false: no such gate). */
 	int32 GateJetway(int32 Gate) const { return JetwayFor(GateRoom(Gate)); }
+	/** The gates are known (read from the terminal plan a moment after the flow is made): GateJetway / GateDoor work. */
+	bool GatesReady() const { return Gates.Num() > 0; }
 	bool GateDoor(int32 Gate, FVector& Door) const;
 	/** How many are walking now, and how many have gone aboard / out so far. */
 	int32 Walking() const;

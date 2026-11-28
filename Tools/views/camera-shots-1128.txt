@@ -9,6 +9,7 @@
 bus-wide view 276 14 -95 -90 -10
 bus-crane-down fly 276 6 -60 -90 -5 10
 bus-close look 0 0 25 BusStation
+town-station look 0 180 25 SM_TOWN_HUB_0
 bus-bay look 0 0 9 AirportCoach
 # --- 2 terminal landside, from near the car park
 land-whole view 75 16 -130 -90 -6
@@ -42,6 +43,7 @@ jet-side-slide jetway 4 cam side 10
 jet-wide-pull jetway 4 cam wide 10
 jet-cab jetway 4 cam cab
 jet-cabin jetway 4 cam cabin
+jet-console jetway 4 cam console
 jet-gate jetway 4 cam gate
 night-jet-wide jetway 4 cam wide
 night-jet-side jetway 4 cam side

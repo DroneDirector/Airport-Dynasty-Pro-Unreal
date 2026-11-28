@@ -34,7 +34,7 @@
 //   shots <file> / shotcam <name>         named camera shots (Tools/views/camera-shots-1128.txt: "<name> <any step line>"),
 //                                         the named one run as the next step
 //   jetway <gate> park|dock               the gate's jetway driven home quickly / to its aircraft at the real speed (JetwayRigs)
-//   jetway <gate> cam wide|side|cab|cabin|gate [seconds]   a camera by the jetway as it stands now (seconds: flown there)
+//   jetway <gate> cam wide|side|cab|cabin|console|gate [seconds]   a camera by the jetway (cab: in the bridge towards the gate; cabin: in the cab towards the aircraft door; console: at its screen)
 //   jetway <gate> state / jetway beacons auto|on|flash     its state and beacons into the log / the beacons as usual,
 //                                         held lit, or all flashing (JetwayRigs::BeaconForce, bBeaconTest)
 //   board <gate> <n> [gap]                n passengers on free floor before the gate's jetway door, boarding at once (PaxFlow)
@@ -138,6 +138,7 @@ namespace ADPPerfViewsInternal
 	TArray<FFireGo> FireGo; bool bFireGo = false; double FireGoAt = 0.0, FireWaitEnd = 0.0;
 	TArray<FVector> CoachHome; int32 CoachMode = 0; float CoachNear = 0.f; double CoachEnd = 0.0;
 	TArray<int32> CoachSend; TMap<int32, FString> CoachWhy; bool bCoachLed = false; bool bCoachSendTown = false; double CoachSendEnd = 0.0; int32 CoachSent = 0;   // (coaches waiting for their drivers before they are sent)
+	int32 JetTries = 0;   // (a jetway step waiting for the passenger flow to know its gates - it is made by the step itself)
 	double Until = 0.0, FlyStart = 0.0, FlyLen = 0.0; FString Name; TArray<float> Fr, Gp, Rn, Gm; uint64 Shown0 = 0, Made0 = 0; double MStart = 0.0;
 
 	TArray<TStrongObjectPtr<UTextureRenderTarget2D>> Eaten;
@@ -1200,6 +1201,9 @@ namespace ADPPerfViewsInternal
 		{
 			AJetwayRigs* J = AJetwayRigs::Get(W); APaxFlow* Pf = APaxFlow::Get(W);
 			if (V[0] == TEXT("beacons")) { AJetwayRigs::BeaconForce = V[1] == TEXT("on") ? 1 : -1; AJetwayRigs::bBeaconTest = V[1] == TEXT("flash"); ADP_LOG(TEXT("Views: jetway beacons %s"), *V[1]); return true; }
+			// (the flow reads its gates a moment after it is made - 2026-11-28 gate4-area came too early: "no jetway here")
+			if (Pf && !Pf->GatesReady() && JetTries < 40) { ++JetTries; --At; Until = FPlatformTime::Seconds() + 0.25; return true; }
+			JetTries = 0;
 			const int32 Ji = Pf ? Pf->GateJetway(FCString::Atoi(*V[0])) : INDEX_NONE;
 			FVector Ro, Dr;
 			if (!J || Ji == INDEX_NONE || !J->Frame(Ji, Ro, Dr)) { ADP_WARN(TEXT("Views: gate %s has no jetway here%s"), *V[0], Pf ? TEXT("") : TEXT(" (no passenger flow)")); bMissing = true; return true; }
@@ -1211,8 +1215,47 @@ namespace ADPPerfViewsInternal
 				const FString Lb = FString::Printf(TEXT("jetway %d %s"), Ji, *V[2]);
 				if (V[2] == TEXT("wide")) { AimAt(W, PC, Mj + Perp * 3300.f + Dir * 1700.f + FVector(0, 0, 900), Mj + Dir * 1100.f - FVector(0, 0, 200), Sec, Lb); LockFov(PC, 55.f); }
 				else if (V[2] == TEXT("side")) AimAt(W, PC, Mj + Perp * 1600.f + FVector(0, 0, 250), Mj, Sec, Lb);
-				else if (V[2] == TEXT("cab")) { FVector E = Ro + Dir * 450.f; E.Z = Ro.Z + 60.f; AimAt(W, PC, E, FVector(Dr.X, Dr.Y, E.Z), 0.0, Lb); }
-				else if (V[2] == TEXT("cabin")) { FVector Mid, Fw; if (J->CabView(Ji, Mid, Fw)) AimAt(W, PC, Mid - Fw.GetSafeNormal2D() * 150.f + FVector(0, 0, 40), Mid + Fw.GetSafeNormal2D() * 300.f, 0.0, Lb); else { ADP_WARN(TEXT("Views: jetway %d has no cab view"), Ji); bMissing = true; } }
+				else if (V[2] == TEXT("cab") || V[2] == TEXT("cabin") || V[2] == TEXT("console"))
+				{
+					// (2026-11-28: the bridge and cab cameras stood in the passengers' path - "inside something". Now off to one side
+					//  of the walk's own middle line, under the roof, the first spot that is clear and inside the tunnel)
+					ADP_PERF_SCOPE("views: jetway camera spot (once a step)", 1.f);
+					APawn* Me = PC->GetPawn(); FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsJet), false, Me); FHitResult H;
+					auto Floor = [&](FVector P) { if (W->LineTraceSingleByChannel(H, P + FVector(0, 0, 100.f), P - FVector(0, 0, 400.f), ECC_Visibility, Q)) P.Z = H.ImpactPoint.Z; return P; };
+					auto Try = [&](const FVector& Base, const FVector& C) { return !Solid(W, C, Me) && !W->SweepSingleByChannel(H, Base, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(15.f), Q); };
+					FVector Cam, Aim; bool bGot = false;
+					if (V[2] == TEXT("console"))
+					{
+						FVector SM, N, Up; FVector2D Sz;
+						if (J->ScreenView(Ji, SM, N, Up, Sz))
+						{
+							const FVector Rt = FVector::CrossProduct(Up, N).GetSafeNormal(); Aim = SM - Up * 25.f;   // (the screen and the hands on the controls below it)
+							for (float D : {200.f, 160.f, 240.f, 130.f}) for (float Sd : {0.f, 60.f, -60.f}) if (!bGot) { const FVector C = SM + N * D + Up * 40.f + Rt * Sd; if (Try(SM + N * 30.f, C)) { Cam = C; bGot = true; } }
+						}
+					}
+					else
+					{
+						TArray<FVector> Wl; Pf->JetwayLine(Ji, Wl); FVector Mid, Fw;
+						if (Wl.Num() < 5 && J->CabView(Ji, Mid, Fw)) { Wl.Reset(); for (int32 k = 0; k <= 24; ++k) Wl.Add(Floor(FMath::Lerp(Mid + Fw.GetSafeNormal2D() * 95.f, FVector(Ro.X, Ro.Y, Mid.Z), k / 24.f))); }
+						if (Wl.Num() >= 5)
+						{
+							int32 Km = 0, Kr = Wl.Num() - 1;   // (the line runs from the aircraft's door to the gate: the cab's middle, the rotunda)
+							if (J->CabView(Ji, Mid, Fw)) for (int32 k = 0; k < Wl.Num(); ++k) { if (FVector::Dist2D(Wl[k], Mid) < FVector::Dist2D(Wl[Km], Mid)) Km = k; if (FVector::Dist2D(Wl[k], Ro) < FVector::Dist2D(Wl[Kr], Ro)) Kr = k; }
+							const bool bBridge = V[2] == TEXT("cab");   // ("cab": along the bridge towards the gate, the walkers coming; "cabin": in the cab, after them into the door)
+							const int32 B = bBridge ? Km + FMath::Max(2, int32((Kr - Km) * 0.3f)) : Km + 6;
+							Aim = bBridge ? Wl[FMath::Min(B + 25, Wl.Num() - 1)] + FVector(0, 0, 110.f) : Wl[0] + FVector(0, 0, 100.f);
+							for (int32 Sh : {0, 2, -2, 4}) for (float Sd : {70.f, -70.f, 55.f, -55.f, 40.f, -40.f}) for (float Hh : {205.f, 190.f, 220.f})
+							{
+								if (bGot) break;
+								const int32 i = FMath::Clamp(B + Sh, 1, Wl.Num() - 2); const FVector Ln = (Wl[i + 1] - Wl[i - 1]).GetSafeNormal2D(), Rt(-Ln.Y, Ln.X, 0.f);
+								const FVector F = Floor(Wl[i]), C = F + Rt * Sd + FVector(0, 0, Hh);
+								if (Try(F + FVector(0, 0, Hh), C)) { Cam = C; bGot = true; }
+							}
+						}
+					}
+					if (bGot) AimAt(W, PC, Cam, Aim, 0.0, Lb);
+					else { ADP_WARN(TEXT("Views: %s - no clear spot inside the jetway"), *Lb); bMissing = true; }
+				}
 				else if (V[2] == TEXT("gate")) { FVector D; if (Pf->GateDoor(FCString::Atoi(*V[0]), D)) AimAt(W, PC, D + FVector(0, 1000, 260), D + FVector(0, 0, 120), Sec, Lb); else { ADP_WARN(TEXT("Views: gate %s has no door"), *V[0]); bMissing = true; } }
 				else ADP_WARN(TEXT("Views: jetway camera %s not known"), *V[2]);
 			}
