@@ -14,7 +14,8 @@ esac; done
 set -- "${X[@]}" -StallWatch
 N=$(powershell -NoProfile -Command "@(Get-CimInstance Win32_Process | Where-Object { \$_.Name -like 'AirportDynastyPro-Win64*' -or (\$_.Name -like 'UnrealEditor*') }).Count")
 [ "${N//[^0-9]/}" != "0" ] && { echo "STOP: the game or editor is running"; exit 1; }
-# (Unreal's shader/texture cache is on F: (F:/UnrealCache): a full F: kills the game silently mid-run, exit 127 - 11-28, three runs lost)
+# (Unreal's shader/texture cache is on F: (F:/UnrealCache): keep room there. The silent exit-127 deaths of 11-28 were NOT the disk:
+#  graphics memory - HighResShot redrew the scene at 4K on the 8 GB card; shot4k now takes the picture from the screen)
 FREE=$(df -BG --output=avail /f 2>/dev/null | tail -1 | tr -dc 0-9); [ -n "$FREE" ] && [ "$FREE" -lt 20 ] && { echo "STOP: only ${FREE} GB free on F: (Unreal's cache); free space first"; exit 1; }
 S="$(cygpath "$LOCALAPPDATA")/AirportDynastyPro/Saved"
 # (a fresh start forgets the old save point, so a later --resume never goes back to an older run)
