@@ -378,7 +378,7 @@ void ASimTraffic::Pose(FMove& M)
 	// (11-28 owner: it rotates gently as in real life, about 3 degrees a second, and lifts off about 4 s later; the nose comes up
 	//  round the main gear, so the nose tyre - where the actor sits - rises by the wheelbase times the sine of the pitch)
 	//  - the main gear stays on its ground while the nose comes up: the nose tyre's height above it is the wheelbase times the sine)
-	B->SetActorLocationAndRotation(World, FRotator(0.f, Yaw, Up));
+	B->SetActorLocationAndRotation(World, FRotator(-M.Bank, Yaw, Up));   // (the bank: a roll about the fuselage, + right wing down - Surfaces())
 }
 
 bool ASimTraffic::TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg)
@@ -974,6 +974,7 @@ void ASimTraffic::Tick(float Dt)
 		Blink(M);
 		Gear(M, FMath::Min(Dt, 0.1f));
 		Haze(M, FMath::Min(Dt, 0.1f));
+		Surfaces(M, FMath::Min(Dt, 0.1f));
 		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && !M.bYouOff && SlipPoll <= 0.f)
 			if (UADPSim* Sl = UADPSim::Get(this)) if (FADPFlight* Fs = Sl->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == M.FlightId; }))
 				if (Sl->Now() > Fs->DepAt) { Fs->DelayMin += (Sl->Now() - Fs->DepAt).GetTotalMinutes(); Fs->DepAt = Sl->Now(); }   // (waiting for its tug: off blocks when it is pushed)
@@ -1067,6 +1068,184 @@ void ASimTraffic::Haze(FMove& M, float Dt)
 		if (UMaterialInstanceDynamic* Mid = M.HazeM[r].Get()) { Mid->SetScalarParameterValue(TEXT("Strength"), Str[r]); Mid->SetScalarParameterValue(TEXT("Speed"), 0.8f + 2.2f * T); }
 		for (int32 k = 0; k < 2; ++k) if (UMaterialBillboardComponent* Hz = M.HazeB.IsValidIndex(r * 2 + k) ? M.HazeB[r * 2 + k].Get() : nullptr) Hz->SetVisibility(bOn && Str[r] > 0.01f);
 	}
+}
+
+namespace
+{
+	// the control surfaces' hinges (Art/A320/a320_surfaces.py "SURF" lines: FlightGear's own hinge lines of the A320-family
+	// model, carried into the game frame; cm from the actor's root, tail +Y, right +X). Each axis is signed so FQuat(axis,
+	// +deg) is the positive deflection: trailing edge down (flaps, ailerons, elevators, fairings), leading edge down (slats),
+	// the rudder's trailing edge to the left. Trans: the flaps' run aft and down their tracks at full flap (cm)
+	enum ESurfKind : uint8 { SkFlap1, SkFlap2, SkSlat, SkAilL, SkAilR, SkElev, SkRud, SkFair1, SkFair2 };
+	struct FSurfHinge { const TCHAR* Name; ESurfKind Kind; FVector At, Axis, Trans; };
+	const FSurfHinge SurfTab[] = {
+		{TEXT("FlapL1"), SkFlap1, FVector(-197.0f, 1323.4f, 261.7f), FVector(-0.98844f, -0.00060f, 0.15162f), FVector(0.0f, 26.9f, -13.3f)},
+		{TEXT("FlapL2"), SkFlap2, FVector(-644.2f, 1323.5f, 330.1f), FVector(-0.94021f, 0.32493f, 0.10211f), FVector(4.8f, 23.8f, -11.8f)},
+		{TEXT("FlapR1"), SkFlap1, FVector(196.9f, 1323.4f, 261.8f), FVector(-0.98840f, 0.00069f, -0.15187f), FVector(0.0f, 26.9f, -13.3f)},
+		{TEXT("FlapR2"), SkFlap2, FVector(644.1f, 1323.5f, 330.3f), FVector(-0.94021f, -0.32484f, -0.10236f), FVector(-4.8f, 23.8f, -11.8f)},
+		{TEXT("SlatL1"), SkSlat, FVector(-519.2f, 984.4f, 279.6f), FVector(0.89574f, -0.43990f, -0.06437f), FVector::ZeroVector},
+		{TEXT("SlatL2"), SkSlat, FVector(-1634.9f, 1540.6f, 408.9f), FVector(0.88591f, -0.45450f, -0.09275f), FVector::ZeroVector},
+		{TEXT("SlatR1"), SkSlat, FVector(518.9f, 984.3f, 279.7f), FVector(0.89576f, 0.43981f, 0.06460f), FVector::ZeroVector},
+		{TEXT("SlatR2"), SkSlat, FVector(1634.6f, 1540.4f, 409.3f), FVector(0.88592f, 0.45442f, 0.09298f), FVector::ZeroVector},
+		{TEXT("AileronL"), SkAilL, FVector(-1328.4f, 1508.5f, 409.1f), FVector(-0.93649f, 0.33771f, 0.09457f), FVector::ZeroVector},
+		{TEXT("AileronR"), SkAilR, FVector(1328.3f, 1508.4f, 409.4f), FVector(-0.93650f, -0.33762f, -0.09481f), FVector::ZeroVector},
+		{TEXT("ElevatorL"), SkElev, FVector(-90.9f, 2920.6f, 481.9f), FVector(-0.93317f, 0.32714f, 0.14887f), FVector::ZeroVector},
+		{TEXT("ElevatorR"), SkElev, FVector(610.9f, 3102.8f, 565.0f), FVector(-0.93317f, -0.32705f, -0.14912f), FVector::ZeroVector},
+		{TEXT("Rudder"), SkRud, FVector(0.1f, 2926.7f, 804.2f), FVector(-0.00110f, 0.39204f, 0.91995f), FVector::ZeroVector},
+		{TEXT("FairingL1"), SkFair1, FVector(-504.1f, 1228.9f, 288.9f), FVector(-0.99062f, -0.00056f, 0.13663f), FVector::ZeroVector},
+		{TEXT("FairingL2"), SkFair2, FVector(-846.4f, 1288.3f, 329.7f), FVector(-0.99392f, -0.00044f, 0.11012f), FVector::ZeroVector},
+		{TEXT("FairingL3"), SkFair2, FVector(-1206.6f, 1424.5f, 374.8f), FVector(-0.99391f, -0.00044f, 0.11017f), FVector::ZeroVector},
+		{TEXT("FairingR1"), SkFair1, FVector(504.0f, 1228.8f, 289.0f), FVector(-0.99059f, 0.00065f, -0.13688f), FVector::ZeroVector},
+		{TEXT("FairingR2"), SkFair2, FVector(846.3f, 1288.3f, 330.0f), FVector(-0.99389f, 0.00054f, -0.11038f), FVector::ZeroVector},
+		{TEXT("FairingR3"), SkFair2, FVector(1206.5f, 1424.4f, 375.1f), FVector(-0.99388f, 0.00054f, -0.11043f), FVector::ZeroVector},
+	};
+	// the A320's flap lever positions (FCOM): slats / flaps degrees for 0, 1, 1+F, 2, 3, FULL
+	const TCHAR* ConfName[6] = {TEXT("0"), TEXT("1"), TEXT("1+F"), TEXT("2"), TEXT("3"), TEXT("FULL")};
+	const float ConfSlat[6] = {0.f, 18.f, 18.f, 22.f, 22.f, 27.f}, ConfFlap[6] = {0.f, 0.f, 10.f, 15.f, 20.f, 40.f};
+	constexpr float FlapRate = 40.f / 20.f, SlatRate = 27.f / 20.f;   // (about 20 s each for the whole travel, as the real one)
+	constexpr float ElevRate = 15.f, AilRate = 20.f, RudRate = 8.f;   // (degrees a second: smooth hands, well inside the jacks' speed)
+	// FlightGear's tables against the flap's travel (0..1 = 0..40 deg): the tracks' run (fraction of the full run) and the fairings' droop
+	float SurfLerp(const float* X, const float* Y, int32 Cnt, float T)
+	{
+		if (T <= X[0]) return Y[0];
+		for (int32 i = 1; i < Cnt; ++i) if (T <= X[i]) return Y[i - 1] + (Y[i] - Y[i - 1]) * (T - X[i - 1]) / (X[i] - X[i - 1]);
+		return Y[Cnt - 1];
+	}
+	float FlapRun(ESurfKind K, float Travel)
+	{
+		static const float X[3] = {0.f, 0.5f, 1.f}, Y1[3] = {0.f, 0.20f / 0.30f, 1.f}, Y2[3] = {0.f, 0.16f / 0.27f, 1.f};
+		return SurfLerp(X, K == SkFlap1 ? Y1 : Y2, 3, Travel);
+	}
+	float FairDeg(ESurfKind K, float Travel)
+	{
+		static const float X1[5] = {0.f, 0.25f, 0.375f, 0.5f, 1.f}, Y1[5] = {0.f, 7.f, 9.5f, 13.5f, 22.5f};
+		static const float X2[5] = {0.f, 0.2f, 0.5f, 0.75f, 1.f}, Y2[5] = {0.f, 5.75f, 11.75f, 15.25f, 19.f};
+		return K == SkFair1 ? SurfLerp(X1, Y1, 5, Travel) : SurfLerp(X2, Y2, 5, Travel);
+	}
+}
+
+void ASimTraffic::Surfaces(FMove& M, float Dt)
+{
+	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
+	const bool bAir = M.Height > 0.05f;
+	// the lever, as a real A320 crew sets it: 1+F after engine start for the taxi out; 1 at about 200 m in the climb, 0 at about
+	// 900 m; on the approach 1 at about 1,000 m, 2, 3 and FULL set by 300 m; FULL until clear of the runway, then 0
+	int8 Want = 0;
+	if (M.bDeparture)
+	{
+		if (M.Phase == EPhase::Push) Want = M.bEnginesOn ? 2 : 0;
+		else if (M.Phase == EPhase::Taxi || M.Phase == EPhase::Roll) Want = 2;
+		else if (M.Phase == EPhase::Climb) Want = M.Height >= 900.f ? 0 : M.Height >= 200.f ? 1 : 2;
+		if (M.Phase == EPhase::Climb && M.Conf >= 0) Want = FMath::Min<int8>(Want, M.Conf);   // (never out again once going up)
+	}
+	else if (M.Phase == EPhase::Approach)
+	{
+		Want = M.Height > 1000.f ? 0 : M.Height > 700.f ? 1 : M.Height > 480.f ? 3 : M.Height > 340.f ? 4 : 5;
+		if (M.Conf >= 0) Want = FMath::Max<int8>(Want, M.Conf);   // (never back in on the way down)
+	}
+	else if (M.Phase == EPhase::Rollout) Want = 5;
+	// the crosswind on the runway in use (kt, + from the right)
+	double RwHdg = 336.0; if (TSharedPtr<FJsonObject> Ab = ADPSite::AirportBlock()) Ab->TryGetNumberField(TEXT("hdg"), RwHdg);
+	if (!RunwayToX1()) RwHdg += 180.0;
+	const float Xw = AWindSocks::WindKt * FMath::Sin(FMath::DegreesToRadians(AWindSocks::WindFrom - float(RwHdg)));
+	// the track (plan: its angle turns the other way round from the world's heading) and its turn rate
+	const FVector2f Dv = M.Nose - M.Main;
+	const float Trk = FMath::RadiansToDegrees(FMath::Atan2(Dv.Y, Dv.X));
+	if (!M.bSurf)
+	{
+		M.bSurf = true; M.Track = Trk;
+		M.GSurf.Reset();
+		int32 Found = 0;
+		for (const FSurfHinge& H : SurfTab) { const int32 G = B->BindGroup({H.Name}, false, FTransform(H.At)); M.GSurf.Add(G); Found += G != INDEX_NONE; }
+		// (met in the air or on the stand: the surfaces start where the crew has them by now)
+		M.Conf = Want; M.SlatDeg = ConfSlat[Want]; M.FlapDeg = ConfFlap[Want];
+		ADP_LOG(TEXT("Traffic: %s control surfaces - %d of %d parts bound; flaps %s (slats %.0f, flaps %.0f) at %.0f m"), *M.Reg, Found, int32(UE_ARRAY_COUNT(SurfTab)), ConfName[Want], M.SlatDeg, M.FlapDeg, M.Height);
+		for (int32 i = 0; i < M.GSurf.Num(); ++i) if (M.GSurf[i] == INDEX_NONE) ADP_WARN(TEXT("Traffic: %s has no part %s - it stays still"), *M.Reg, SurfTab[i].Name);
+	}
+	if (Want != M.Conf)
+	{
+		ADP_LOG(TEXT("Traffic: %s flaps %s at %.0f m (slats %.0f, flaps %.0f; %s)"), *M.Reg, ConfName[Want], M.Height, ConfSlat[Want], ConfFlap[Want],
+			M.Phase == EPhase::Push ? TEXT("engines running") : M.Phase == EPhase::Climb ? TEXT("climbing") : M.Phase == EPhase::Approach ? TEXT("on the approach") : M.Phase == EPhase::TaxiIn ? TEXT("clear of the runway") : TEXT("taxiing"));
+		M.Conf = Want;
+	}
+	M.SlatDeg = FMath::FInterpConstantTo(M.SlatDeg, ConfSlat[M.Conf], Dt, SlatRate);
+	M.FlapDeg = FMath::FInterpConstantTo(M.FlapDeg, ConfFlap[M.Conf], Dt, FlapRate);
+	M.SurfT += Dt;
+	// the elevators (- = trailing edge up): back stick at rotation, less once the pitch is set for the climb, a little in the
+	// approach, the flare, and held back while the nose comes down after touchdown
+	uint8 ESt = 0; float EWant = 0.f;
+	if (M.Phase == EPhase::Roll && M.RotT >= 0.f && !bAir) { ESt = 1; EWant = -13.f; }
+	else if (M.Phase == EPhase::Roll && M.RotT >= 0.f) { ESt = 2; EWant = -6.f; }
+	else if (M.Phase == EPhase::Climb) { ESt = M.Pitch < 14.5f ? 2 : 3; EWant = M.Pitch < 14.5f ? -6.f : -2.f; }
+	else if (M.Phase == EPhase::Approach) { ESt = M.Height < 15.f ? 5 : 4; EWant = M.Height < 15.f ? -8.f : -1.f; }
+	else if (M.Phase == EPhase::Rollout && M.Pitch > 0.3f) { ESt = 6; EWant = -4.f; }
+	if (ESt != M.ElevSt)
+	{
+		static const TCHAR* EWhy[7] = {TEXT("neutral"), TEXT("rotation"), TEXT("lift-off, pitching up"), TEXT("climb pitch held"), TEXT("approach"), TEXT("the flare"), TEXT("nose lowered onto its wheel")};
+		if (M.ElevSt != 255) ADP_LOG(TEXT("Traffic: %s elevators %.0f deg %s at %.0f m (%s, %.0f kt)"), *M.Reg, FMath::Abs(EWant), EWant < 0.f ? TEXT("up") : TEXT("centred"), M.Height, EWhy[ESt], M.Speed / KtMs);
+		M.ElevSt = ESt;
+	}
+	M.Elev = FMath::FInterpConstantTo(M.Elev, EWant, Dt, ElevRate);
+	// the bank: a turn in the air flown coordinated (tan bank = speed x turn rate / g); the ailerons roll it in and out, droop
+	// 5 deg with the flaps out (the A320's aileron droop) and lean into a crosswind in the flare and on the rollout
+	const float dTrk = FMath::FindDeltaAngleDegrees(M.Track, Trk); M.Track = Trk;
+	M.TurnRate = FMath::FInterpTo(M.TurnRate, -dTrk / Dt, Dt, 2.f);   // (deg/s, + to the right)
+	const float BankWant = bAir ? FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(M.Speed * FMath::DegreesToRadians(M.TurnRate) / 9.81f)), -25.f, 25.f) : 0.f;
+	const float BankWas = M.Bank;
+	M.Bank = FMath::FInterpConstantTo(M.Bank, BankWant, Dt, 5.f);
+	float RollCmd = FMath::Clamp((M.Bank - BankWas) / Dt * 2.f, -15.f, 15.f);   // (+ rolls right: left aileron down, right up)
+	uint8 ASt = FMath::Abs(BankWant) > 3.f ? 3 : 0;
+	if (M.Phase == EPhase::Approach && M.Height < 15.f) { RollCmd += FMath::Clamp(Xw * 0.3f, -6.f, 6.f); if (FMath::Abs(Xw) > 2.f) ASt = 4; }
+	else if (M.Phase == EPhase::Rollout) { RollCmd += FMath::Clamp(Xw * 0.3f, -6.f, 6.f) * FMath::Clamp(M.Speed / (100.f * KtMs), 0.f, 1.f); if (FMath::Abs(Xw) > 2.f) ASt = 5; }
+	const float Droop = FMath::Clamp(M.FlapDeg / 10.f, 0.f, 1.f) * 5.f;
+	if (ASt == 0 && Droop > 4.9f) ASt = 1;
+	if (ASt != M.AilSt)
+	{
+		static const TCHAR* AWhy[6] = {TEXT("centred"), TEXT("drooped 5 deg with the flaps"), TEXT("-"), TEXT("banking"), TEXT("into the wind in the flare"), TEXT("into the wind on the rollout")};
+		if (M.AilSt != 255) ADP_LOG(TEXT("Traffic: %s ailerons %s at %.0f m (bank %.0f deg, crosswind %.0f kt from the %s)"), *M.Reg, AWhy[ASt], M.Height, BankWant, FMath::Abs(Xw), Xw >= 0.f ? TEXT("right") : TEXT("left"));
+		M.AilSt = ASt;
+	}
+	M.AilL = FMath::FInterpConstantTo(M.AilL, FMath::Clamp(Droop + RollCmd, -25.f, 20.f), Dt, AilRate);
+	M.AilR = FMath::FInterpConstantTo(M.AilR, FMath::Clamp(Droop - RollCmd, -25.f, 20.f), Dt, AilRate);
+	// the rudder (+ = trailing edge left, the nose yaws left): small corrections against the crosswind's gusts on final (crabbed,
+	// so centred on average), then the decrab in the flare - the nose yawed from into the wind onto the centre line; centred otherwise
+	uint8 RSt = 0; float RWant = 0.f;
+	if (M.Phase == EPhase::Approach && M.Height < 15.f) { RSt = 2; RWant = FMath::Clamp(Xw * 0.5f, -10.f, 10.f); }
+	else if (M.Phase == EPhase::Approach && M.Height < 300.f && FMath::Abs(Xw) > 2.f)
+	{
+		RSt = 1; RWant = FMath::Clamp(FMath::Abs(Xw) * 0.15f, 0.5f, 2.5f) * FMath::Sin(M.SurfT * 0.9f) * (0.6f + 0.4f * FMath::Sin(M.SurfT * 0.37f + 1.f));
+	}
+	if (RSt != M.RudSt)
+	{
+		static const TCHAR* RWhy[3] = {TEXT("centred"), TEXT("small crosswind corrections on final"), TEXT("decrab in the flare")};
+		if (M.RudSt != 255) ADP_LOG(TEXT("Traffic: %s rudder %s at %.0f m (%.0f deg, crosswind %.0f kt from the %s)"), *M.Reg, RWhy[RSt], M.Height, FMath::Abs(RWant), FMath::Abs(Xw), Xw >= 0.f ? TEXT("right") : TEXT("left"));
+		M.RudSt = RSt;
+	}
+	M.Rud = FMath::FInterpConstantTo(M.Rud, RWant, Dt, RudRate);
+	// draw only what moved (the gear's group moves: each part about its hinge)
+	const float Cur[6] = {M.FlapDeg, M.SlatDeg, M.Elev, M.AilL, M.AilR, M.Rud};
+	bool bMoved = false; for (int32 k = 0; k < 6; ++k) if (FMath::Abs(Cur[k] - M.SurfShown[k]) > 0.01f) { bMoved = true; M.SurfShown[k] = Cur[k]; }
+	if (!bMoved) return;
+	const float Travel = M.FlapDeg / 40.f;
+	for (int32 i = 0; i < M.GSurf.Num() && i < int32(UE_ARRAY_COUNT(SurfTab)); ++i)
+	{
+		if (M.GSurf[i] == INDEX_NONE) continue;
+		const FSurfHinge& H = SurfTab[i];
+		float Deg = 0.f; FVector Run = FVector::ZeroVector;
+		switch (H.Kind)
+		{
+		case SkFlap1: case SkFlap2: Deg = M.FlapDeg; Run = H.Trans * FlapRun(H.Kind, Travel); break;
+		case SkSlat: Deg = M.SlatDeg; break;
+		case SkAilL: Deg = M.AilL; break;
+		case SkAilR: Deg = M.AilR; break;
+		case SkElev: Deg = M.Elev; break;
+		case SkRud: Deg = M.Rud; break;
+		case SkFair1: case SkFair2: Deg = FairDeg(H.Kind, Travel); break;
+		}
+		// (FlightGear's order: the turn about the hinge first, then the run along the track)
+		B->MoveGroup(M.GSurf[i], FTransform(FQuat(H.Axis.GetSafeNormal(), FMath::DegreesToRadians(Deg)), H.At + Run));
+	}
+	B->FlushMoves();
 }
 
 void ASimTraffic::Gear(FMove& M, float Dt)

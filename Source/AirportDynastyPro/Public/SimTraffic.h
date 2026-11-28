@@ -95,6 +95,13 @@ private:
 		// power; Thrust 0 off .. 1 take-off power, eased as the engines spool
 		TArray<TWeakObjectPtr<class UMaterialBillboardComponent>> HazeB; TArray<TWeakObjectPtr<class UMaterialInstanceDynamic>> HazeM;
 		bool bEnginesOn = false; float Thrust = 0.f, HazeShown = -1.f;
+		// its control surfaces (step B, Art/A320/a320_surfaces.py, FlightGear's hinges): flaps (aft on their tracks and down),
+		// slats, ailerons, elevators, rudder and the flap track fairings, each about its hinge, at the moments and speeds a
+		// real A320 moves them. Conf 0, 1, 1+F, 2, 3, FULL (0..5); degrees + = trailing edge down (slats: leading edge down,
+		// rudder: trailing edge left); Bank + = right wing down
+		TArray<int32> GSurf; bool bSurf = false; int8 Conf = -1; uint8 ElevSt = 255, AilSt = 255, RudSt = 255;
+		float FlapDeg = 0.f, SlatDeg = 0.f, Elev = 0.f, AilL = 0.f, AilR = 0.f, Rud = 0.f, Bank = 0.f, Track = 0.f, TurnRate = 0.f, SurfT = 0.f;
+		float SurfShown[6] = {-99.f, -99.f, -99.f, -99.f, -99.f, -99.f};
 	};
 	TSet<FString> TugCalled;   // (arrivals whose tug driver was called)
 	float SlipPoll = 0.f;
@@ -115,6 +122,7 @@ private:
 	void AddLights(FMove& M);
 	void Blink(FMove& M);
 	void Gear(FMove& M, float Dt);
+	void Surfaces(FMove& M, float Dt);   // flaps, slats, ailerons, elevators, rudder: the real schedule (step B)
 	void Haze(FMove& M, float Dt);     // the engines' heat haze: made once, then its strength by the thrust
 	bool RunwayToX1() const;   // the take-off and landing direction from the real wind (true: towards the runway's x1 end)
 };
