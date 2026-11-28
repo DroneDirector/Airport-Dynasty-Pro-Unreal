@@ -48,6 +48,9 @@ public:
 	void Set(const FADPLightState& S) { State = S; bParked = false; }
 	/** Parked: it works out its own state (night, power) from now on. */
 	void SetParked(bool bIsPowered) { bParked = true; bParkPower = bIsPowered; }
+	/** The nose gear's strut now (its retraction turn in the model's own cm, identity when down) and whether it is down and
+	 *  locked: the lamps on it ("on": "nose-gear") follow it and are lit only when down. */
+	void SetNoseGear(const FTransform& Fold, bool bDownLocked);
 	const FADPLightState& Now() const { return State; }
 	virtual void TickComponent(float Dt, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual void OnUnregister() override;
@@ -69,6 +72,7 @@ private:
 	float Near = 0.f;         // 0..1: how much the real lights have taken over from the decals (the nearest aircraft)
 	float NightPoll = 0.f; bool bNight = false;
 	FTransform LastXf; bool bPlaced = false;
+	FTransform NoseXf = FTransform::Identity; bool bNoseDown = true, bNoseMoved = false;
 	UPROPERTY() TArray<TObjectPtr<UObject>> Keep;
 	void MakeReal(FLampRt& R);
 	float NearWanted() const;

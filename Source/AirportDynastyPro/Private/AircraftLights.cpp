@@ -28,6 +28,7 @@ namespace
 		FVector At = FVector::ZeroVector, Dir = FVector::ZeroVector; bool bDir = false; float Cone = 180.f;
 		FLinearColor Col = FLinearColor::White;
 		float Glow = 0.f, Size = 0.f, Skin = 0.f, Reach = 0.f, Lumens = 0.f, Range = 0.f; bool bPool = false;
+		bool bNoseGear = false;   // ("on": "nose-gear": on the nose leg's strut - folds with it, lit only when it is down and locked)
 	};
 	struct FType { FString Name; TArray<FLamp> Lamps; };
 	TArray<FType> GTypes;
@@ -82,6 +83,7 @@ namespace
 				if (O->TryGetNumberField(TEXT("lumens"), D)) L.Lumens = D;
 				if (O->TryGetNumberField(TEXT("range"), D)) L.Range = D;
 				O->TryGetBoolField(TEXT("pool"), L.bPool);
+				FString On; if (O->TryGetStringField(TEXT("on"), On)) L.bNoseGear = On == TEXT("nose-gear");
 				Ty.Lamps.Add(L);
 			}
 			ADP_LOG(TEXT("Aircraft lights: %s - %d lamps"), *Ty.Name, Ty.Lamps.Num());
@@ -180,6 +182,12 @@ UADPAircraftLights* UADPAircraftLights::Fit(AActor* Plane, const FString& Type)
 	return C;
 }
 
+void UADPAircraftLights::SetNoseGear(const FTransform& Fold, bool bDownLocked)
+{
+	bNoseDown = bDownLocked;
+	if (!Fold.Equals(NoseXf, 0.01)) { NoseXf = Fold; bNoseMoved = true; }
+}
+
 void UADPAircraftLights::OnUnregister()
 {
 	GAll.RemoveAll([this](const TWeakObjectPtr<UADPAircraftLights>& P) { return !P.IsValid() || P.Get() == this; });
@@ -216,7 +224,8 @@ void UADPAircraftLights::MakeReal(FLampRt& R)
 	USpotLightComponent* S = NewObject<USpotLightComponent>(O);
 	S->SetMobility(EComponentMobility::Movable);
 	S->SetupAttachment(O->GetRootComponent());
-	S->SetRelativeLocation(L.At); S->SetRelativeRotation(L.Dir.Rotation());
+	const FVector At = L.bNoseGear ? NoseXf.TransformPosition(L.At) : L.At, Dir = L.bNoseGear ? NoseXf.TransformVectorNoScale(L.Dir) : L.Dir;
+	S->SetRelativeLocation(At); S->SetRelativeRotation(Dir.Rotation());
 	S->SetIntensityUnits(ELightUnits::Lumens); S->SetIntensity(0.f); S->SetLightColor(L.Col);
 	S->SetAttenuationRadius(FMath::Max(L.Range, 5.f) * 100.f);
 	S->SetOuterConeAngle(FMath::Clamp(L.Cone, 1.f, 80.f)); S->SetInnerConeAngle(FMath::Clamp(L.Cone * 0.5f, 0.5f, 79.f));
@@ -245,9 +254,18 @@ void UADPAircraftLights::TickComponent(float Dt, ELevelTick TickType, FActorComp
 	const bool bMoved = !bPlaced || !Xf.Equals(LastXf, 0.5);
 	if (bMoved) { LastXf = Xf; bPlaced = true; }
 	const FADPLightState& S = State;
+	const bool bFolded = bNoseMoved; bNoseMoved = false;
 	for (FLampRt& R : Rt)
 	{
 		const FLamp& L = GTypes[TypeIx].Lamps[R.Lamp];
+		// the nose gear's lamps go where the strut is (the retraction's turn about its hinge)
+		const FVector LAt = L.bNoseGear ? NoseXf.TransformPosition(L.At) : L.At, LDir = L.bNoseGear ? NoseXf.TransformVectorNoScale(L.Dir) : L.Dir;
+		if (L.bNoseGear && bFolded)
+		{
+			if (R.Face) R.Face->SetRelativeLocation(LAt);
+			if (R.Decal) R.Decal->SetRelativeLocation(L.bPool && L.bDir ? LAt + LDir * L.Reach * 50.f : LAt);
+			if (R.Real) { R.Real->SetRelativeLocation(LAt); R.Real->SetRelativeRotation(LDir.Rotation()); }
+		}
 		bool b = false;
 		if (S.bPowered)
 			switch (L.G)
@@ -265,6 +283,7 @@ void UADPAircraftLights::TickComponent(float Dt, ELevelTick TickType, FActorComp
 			case GCabin: b = S.bCabin; break;
 			default: break;
 			}
+		if (L.bNoseGear && !bNoseDown) b = false;   // (switched off by the gear lever: not down and locked)
 		const float On = b ? 1.f : 0.f;
 		if (R.Face && On != R.Was) { R.FaceM->SetScalarParameterValue(TEXT("Brightness"), L.Glow * On); R.Face->SetVisibility(b); }
 		R.Was = On;
@@ -272,10 +291,10 @@ void UADPAircraftLights::TickComponent(float Dt, ELevelTick TickType, FActorComp
 		const float Dv = On * (L.bPool && L.Lumens > 0.f ? 1.f - Near : 1.f);
 		if (R.Decal)
 		{
-			if (Dv > 0.001f && (bMoved || R.WasDecal <= 0.001f))
+			if (Dv > 0.001f && (bMoved || R.WasDecal <= 0.001f || (L.bNoseGear && bFolded)))
 			{
-				const FVector P = Xf.TransformPosition(L.At);
-				const FVector Dw = L.bDir ? Xf.TransformVectorNoScale(L.Dir) : FVector::ZeroVector;
+				const FVector P = Xf.TransformPosition(LAt);
+				const FVector Dw = L.bDir ? Xf.TransformVectorNoScale(LDir) : FVector::ZeroVector;
 				R.DecalM->SetVectorParameterValue(TEXT("LampPos"), FLinearColor(P.X, P.Y, P.Z, L.Reach * 100.f));
 				R.DecalM->SetVectorParameterValue(TEXT("LampDir"), FLinearColor(Dw.X, Dw.Y, Dw.Z, L.bDir ? FMath::Cos(FMath::DegreesToRadians(FMath::Min(L.Cone, 179.f))) : -1.f));
 			}

@@ -1,0 +1,504 @@
+{
+"nav_l": {
+"at": [
+-1665.0,
+1552.8,
+442.0
+],
+"dir": null,
+"near": [
+[
+0.0,
+"WingtipFence"
+],
+[
+4.5,
+"navglass"
+]
+],
+"lens": [
+[
+4.5,
+"navglass"
+]
+]
+},
+"nav_r": {
+"at": [
+1664.8,
+1552.8,
+442.0
+],
+"dir": null,
+"near": [
+[
+0.0,
+"WingtipFence"
+],
+[
+4.5,
+"navglass"
+]
+],
+"lens": [
+[
+4.5,
+"navglass"
+]
+]
+},
+"nav_tail": {
+"at": [
+5.0,
+3243.6,
+484.4
+],
+"dir": null,
+"near": [
+[
+0.4,
+"Fuselage"
+],
+[
+226.8,
+"ElevatorR"
+]
+],
+"lens": null
+},
+"strobe_l": {
+"at": [
+-1672.4,
+1567.4,
+442.2
+],
+"dir": null,
+"near": [
+[
+0.0,
+"WingtipFence"
+],
+[
+4.4,
+"navglass"
+]
+],
+"lens": [
+[
+4.4,
+"navglass"
+]
+]
+},
+"strobe_r": {
+"at": [
+1672.2,
+1567.4,
+442.2
+],
+"dir": null,
+"near": [
+[
+0.0,
+"WingtipFence"
+],
+[
+4.4,
+"navglass"
+]
+],
+"lens": [
+[
+4.4,
+"navglass"
+]
+]
+},
+"strobe_tail": {
+"at": [
+-4.9,
+3243.6,
+484.4
+],
+"dir": null,
+"near": [
+[
+0.2,
+"Fuselage"
+],
+[
+226.7,
+"ElevatorL"
+]
+],
+"lens": null
+},
+"beacon_top": {
+"at": [
+-0.1,
+1004.2,
+602.9
+],
+"dir": [
+0.0,
+-0.0,
+1.0
+],
+"near": [
+[
+2.5,
+"Fuselage"
+],
+[
+26.4,
+"Static-Elements"
+]
+],
+"lens": null
+},
+"beacon_belly": {
+"at": [
+-0.1,
+967.7,
+157.4
+],
+"dir": [
+0.0,
+-0.0,
+-1.0
+],
+"near": [
+[
+2.5,
+"Fuselage"
+],
+[
+84.4,
+"Fuselage.Placards"
+]
+],
+"lens": null
+},
+"landing_l": {
+"at": [
+-222.0,
+1156.3,
+239.5
+],
+"dir": [
+-0.172,
+-0.98,
+-0.097
+],
+"near": [
+[
+10.9,
+"LightWingL"
+],
+[
+11.1,
+"Static-Elements"
+]
+],
+"lens": [
+[
+10.9,
+"LightWingL"
+]
+]
+},
+"landing_r": {
+"at": [
+222.0,
+1156.3,
+239.5
+],
+"dir": [
+0.172,
+-0.98,
+-0.097
+],
+"near": [
+[
+10.9,
+"LightWingR"
+],
+[
+11.1,
+"Static-Elements"
+]
+],
+"lens": [
+[
+10.9,
+"LightWingR"
+]
+]
+},
+"takeoff": {
+"at": [
+-18.5,
+13.4,
+173.0
+],
+"dir": [
+0.0,
+-0.988,
+-0.153
+],
+"near": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+6.4,
+"NoseLegUpper.AftDoor_L"
+]
+],
+"lens": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+6.4,
+"NoseLegUpper.AftDoor_L"
+]
+]
+},
+"taxi": {
+"at": [
+20.4,
+18.5,
+174.9
+],
+"dir": [
+0.0,
+-0.98,
+-0.2
+],
+"near": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+4.6,
+"NoseLegUpper.AftDoor_R"
+]
+],
+"lens": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+4.6,
+"NoseLegUpper.AftDoor_R"
+]
+]
+},
+"turnoff_l": {
+"at": [
+-21.0,
+14.5,
+119.8
+],
+"dir": [
+-0.492,
+-0.86,
+-0.133
+],
+"near": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+14.9,
+"NoseLeg"
+]
+],
+"lens": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+23.5,
+"NoseLegUpper.DragStrut2"
+]
+]
+},
+"turnoff_r": {
+"at": [
+20.9,
+14.5,
+119.8
+],
+"dir": [
+0.492,
+-0.86,
+-0.133
+],
+"near": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+11.0,
+"NoseLegUpper.Cable"
+]
+],
+"lens": [
+[
+0.0,
+"NoseLegUpper"
+],
+[
+11.0,
+"NoseLegUpper.Cable"
+]
+]
+},
+"wingscan_l": {
+"at": [
+-197.8,
+364.2,
+385.0
+],
+"dir": [
+-0.673,
+0.739,
+-0.022
+],
+"near": [
+[
+0.0,
+"Fuselage"
+],
+[
+10.6,
+"Static-Elements"
+]
+],
+"lens": null
+},
+"wingscan_r": {
+"at": [
+197.8,
+364.2,
+385.0
+],
+"dir": [
+0.673,
+0.739,
+-0.022
+],
+"near": [
+[
+0.2,
+"Fuselage"
+],
+[
+10.9,
+"Static-Elements"
+]
+],
+"lens": null
+},
+"logo_l": {
+"at": [
+-200.0,
+2826.7,
+508.8
+],
+"dir": [
+0.598,
+0.359,
+0.717
+],
+"near": [
+[
+3.0,
+"Hstabs"
+],
+[
+93.5,
+"Fuselage"
+]
+],
+"lens": null
+},
+"logo_r": {
+"at": [
+200.0,
+2826.7,
+508.7
+],
+"dir": [
+-0.598,
+0.359,
+0.717
+],
+"near": [
+[
+3.0,
+"Hstabs"
+],
+[
+93.7,
+"Fuselage"
+]
+],
+"lens": null
+},
+"enginescan_l": {
+"at": [
+-197.8,
+364.2,
+385.0
+],
+"dir": [
+-0.776,
+0.57,
+-0.27
+],
+"near": [
+[
+0.0,
+"Fuselage"
+],
+[
+10.6,
+"Static-Elements"
+]
+],
+"lens": null
+},
+"enginescan_r": {
+"at": [
+197.8,
+364.2,
+385.0
+],
+"dir": [
+0.776,
+0.57,
+-0.27
+],
+"near": [
+[
+0.2,
+"Fuselage"
+],
+[
+10.9,
+"Static-Elements"
+]
+],
+"lens": null
+}
+}

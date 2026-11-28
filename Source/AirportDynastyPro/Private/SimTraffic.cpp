@@ -1345,6 +1345,7 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 		M.GearSt = 0; M.LegT = 0.f; M.DoorT = 0.f;
 	}
 	const FTransform RetN = About(M.HNose, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-NoseFold * M.LegT)));   // (forwards into the nose)
+	if (UADPAircraftLights* Lm = M.Lamps.Get()) Lm->SetNoseGear(RetN, M.GearSt == 0);   // (taxi, take-off and turn-off lamps sit on the nose strut)
 	FTransform RetM[2];
 	for (int32 s = 0; s < 2; ++s) RetM[s] = About(M.HMain[s], FQuat(FVector::RightVector, FMath::DegreesToRadians((s == 0 ? -1.f : 1.f) * MainFold * M.LegT)));   // (inwards under the belly)
 	const float S = SteerSign * M.Steer;
