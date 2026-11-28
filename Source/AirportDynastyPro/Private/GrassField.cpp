@@ -25,6 +25,9 @@
 #include "Camera/PlayerCameraManager.h"
 #include "CollisionQueryParams.h"
 #include "LandCorridor.h"
+#include "RoadNetwork.h"
+#include "PerfLog.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "Modules/ModuleManager.h"
@@ -164,6 +167,145 @@ namespace
 		return T;
 	}
 
+	/** The forecourt's low lawn (owner, 2026-11-28: "add grass on the flat grass texture, but not super high grass, lower grass
+	 *  than elsewhere ... only put it on the grass texture"). From roads.json, plan metres. Kind 2: on the flat grass itself -
+	 *  a road's grass island (its full-width stretch, 30 cm in from its kerbs, clear of the zebra walkways over it) or a
+	 *  roundabout's grassed middle; kind 1: the lawns and pads within 12 m of those roads' outer edges (the airfield's or the
+	 *  land's grass there, as the normal grass's look down decides); 0: elsewhere - the normal grass. */
+	struct FLawn
+	{
+		struct FLane { FString Type; TArray<FVector2D> W; };   // (W: [metres along, width]; one key with X < 0: the same all along)
+		struct FRoad
+		{
+			TArray<FVector2D> P; TArray<double> S; bool bClosed = false; FVector2D Cn = FVector2D::ZeroVector; double Rad = 0, DiscIn = 0, DiscOut = 0;
+			TArray<FLane> Lanes[2];            // 0 left, 1 right
+			int32 Isl = INDEX_NONE; int32 IslSide = 1; double Full0 = 0, Full1 = -1;   // the island's lane and its full-width stretch
+			TArray<FVector4> Cross;            // at, w, o0, o1
+			FBox2D Box = FBox2D(ForceInit);
+		};
+		TArray<FRoad> Roads; bool bRead = false;
+		static double W(const FLane& L, double D)
+		{
+			if (L.W.Num() == 0) return 0;
+			if (L.W.Num() == 1 || D <= L.W[0].X) return L.W[0].Y;
+			for (int32 k = 0; k + 1 < L.W.Num(); ++k)
+				if (D <= L.W[k + 1].X) { const double T = (D - L.W[k].X) / FMath::Max(1e-3, L.W[k + 1].X - L.W[k].X); return FMath::Lerp(L.W[k].Y, L.W[k + 1].Y, T); }
+			return L.W.Last().Y;
+		}
+		static double Sum(const FRoad& R, int32 Side, int32 Upto, double D) { double A = 0; for (int32 i = 0; i < FMath::Min(Upto, R.Lanes[Side].Num()); ++i) A += W(R.Lanes[Side][i], D); return A; }
+		/** Along an open road: the nearest point's distance along it and its offset (+ right). */
+		static bool Project(const FRoad& R, const FVector2D& Q, double& D, double& O)
+		{
+			double Best = 1e18; bool bGot = false;
+			for (int32 i = 0; i + 1 < R.P.Num(); ++i)
+			{
+				const FVector2D A = R.P[i], V = R.P[i + 1] - A; const double Len = V.Size(); if (Len < 0.01) continue;
+				const FVector2D U = V / Len, Pq = Q - A; const double T = FVector2D::DotProduct(Pq, U);
+				if (T < -0.5 || T > Len + 0.5) continue;
+				const double Off = U.X * Pq.Y - U.Y * Pq.X;
+				if (FMath::Abs(Off) < Best) { Best = FMath::Abs(Off); D = R.S[i] + T; O = -Off; bGot = true; }
+			}
+			return bGot;
+		}
+		int32 Kind(double X, double Y) const
+		{
+			const FVector2D Q(X, Y); int32 K = 0;
+			for (const FRoad& R : Roads)
+			{
+				if (!R.Box.IsInside(Q)) continue;
+				if (R.bClosed)
+				{
+					const double Rq = FVector2D::Distance(Q, R.Cn);
+					if (Rq < R.DiscIn) return 2;
+					if (Rq < R.DiscOut) K = 1;
+					continue;
+				}
+				double D = 0, O = 0; if (!Project(R, Q, D, O)) continue;
+				if (O < -(Sum(R, 0, 99, D) + 12.0) || O > Sum(R, 1, 99, D) + 12.0) continue;
+				K = 1;
+				if (R.Isl == INDEX_NONE || D < R.Full0 || D > R.Full1) continue;
+				const double In = Sum(R, R.IslSide, R.Isl, D), Out = In + W(R.Lanes[R.IslSide][R.Isl], D), Os = R.IslSide ? O : -O;
+				if (Os < In + 0.3 || Os > Out - 0.3) continue;
+				bool bWalk = false;
+				for (const FVector4& C : R.Cross)
+					bWalk |= FMath::Abs(D - C.X) < C.Y / 2 + 0.4 && FMath::Min(C.Z, C.W) <= Out + 0.5 && FMath::Max(C.Z, C.W) >= In - 0.5;
+				if (!bWalk) return 2;
+			}
+			return K;
+		}
+	};
+	const FLawn& Lawn()
+	{
+		static FLawn L;
+		if (L.bRead) return L;
+		L.bRead = true;
+		FString Text; TSharedPtr<FJsonObject> J; const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+		if (!FFileHelper::LoadFileToString(Text, *ADPSite::File(TEXT("roads.json"))) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), J) || !J.IsValid() || !J->TryGetArrayField(TEXT("roads"), A)) return L;
+		for (const TSharedPtr<FJsonValue>& V : *A)
+		{
+			const TSharedPtr<FJsonObject> O = V->AsObject(); FString Id; O->TryGetStringField(TEXT("id"), Id);
+			if (Id != TEXT("AIRPORT-FORECOURT") && Id != TEXT("AIRPORT-ROUNDABOUT")) continue;
+			const TSharedPtr<FJsonObject>* Ln = nullptr; if (!O->TryGetObjectField(TEXT("lanes"), Ln)) continue;
+			FLawn::FRoad R; O->TryGetBoolField(TEXT("closed"), R.bClosed);
+			for (const TSharedPtr<FJsonValue>& Pv : O->GetArrayField(TEXT("pts"))) R.P.Add(FVector2D(Pv->AsArray()[0]->AsNumber(), Pv->AsArray()[1]->AsNumber()));
+			if (R.P.Num() < 2) continue;
+			R.S.Add(0); for (int32 i = 1; i < R.P.Num(); ++i) R.S.Add(R.S.Last() + FVector2D::Distance(R.P[i - 1], R.P[i]));
+			for (int32 s = 0; s < 2; ++s)
+			{
+				const TArray<TSharedPtr<FJsonValue>>* La = nullptr;
+				if (!(*Ln)->TryGetArrayField(s ? TEXT("right") : TEXT("left"), La)) continue;
+				for (const TSharedPtr<FJsonValue>& Lv : *La)
+				{
+					const TSharedPtr<FJsonObject> Lo = Lv->AsObject(); FLawn::FLane Lane; Lane.Type = Lo->GetStringField(TEXT("type"));
+					const TArray<TSharedPtr<FJsonValue>>* Wa = nullptr;
+					if (Lo->TryGetArrayField(TEXT("w"), Wa)) { for (const TSharedPtr<FJsonValue>& Kv : *Wa) Lane.W.Add(FVector2D(Kv->AsArray()[0]->AsNumber(), Kv->AsArray()[1]->AsNumber())); }
+					else { double Wd = 0; Lo->TryGetNumberField(TEXT("w"), Wd); Lane.W.Add(FVector2D(-1, Wd)); }
+					if (Lane.Type == TEXT("Island") && R.Isl == INDEX_NONE) { R.Isl = R.Lanes[s].Num(); R.IslSide = s; }
+					R.Lanes[s].Add(Lane);
+				}
+			}
+			if (R.Isl != INDEX_NONE)
+			{
+				// (only where it is at its full width, 3 m in from where it starts narrowing: no blade over a tapering kerb)
+				const FLawn::FLane& I = R.Lanes[R.IslSide][R.Isl]; double Mx = 0; for (const FVector2D& K : I.W) Mx = FMath::Max(Mx, K.Y);
+				R.Full0 = 1e18; R.Full1 = -1e18;
+				for (const FVector2D& K : I.W) if (K.Y >= Mx - 0.01) { R.Full0 = FMath::Min(R.Full0, K.X); R.Full1 = FMath::Max(R.Full1, K.X); }
+				if (I.W.Num() == 1) { R.Full0 = 0; R.Full1 = R.S.Last(); }
+				R.Full0 += 3.0; R.Full1 -= 3.0;
+			}
+			const TArray<TSharedPtr<FJsonValue>>* CJ = nullptr;
+			if (O->TryGetArrayField(TEXT("crossings"), CJ))
+				for (const TSharedPtr<FJsonValue>& Cv : *CJ)
+				{
+					const TSharedPtr<FJsonObject> C = Cv->AsObject(); double At = 0, Wc = 3, O0 = 0, O1 = 0;
+					C->TryGetNumberField(TEXT("at"), At); C->TryGetNumberField(TEXT("w"), Wc); C->TryGetNumberField(TEXT("o0"), O0); C->TryGetNumberField(TEXT("o1"), O1);
+					R.Cross.Add(FVector4(At, Wc, O0, O1));
+				}
+			if (R.bClosed)
+			{
+				// a roundabout: its ring round its middle; the grass from its inner kerb in (island and disc), its lawns 12 m out
+				const TSharedPtr<FJsonObject>* DJ = nullptr; if (!O->TryGetObjectField(TEXT("disc"), DJ)) continue;
+				for (const FVector2D& Pq : R.P) R.Cn += Pq;
+				R.Cn /= R.P.Num();
+				for (const FVector2D& Pq : R.P) R.Rad += FVector2D::Distance(Pq, R.Cn);
+				R.Rad /= R.P.Num();
+				const int32 In = R.Isl != INDEX_NONE && R.IslSide == 0 ? R.Isl : R.Lanes[0].Num();
+				R.DiscIn = R.Rad - FLawn::Sum(R, 0, In, 0) - 0.3; R.DiscOut = R.Rad + FLawn::Sum(R, 1, 99, 0) + 12.0;
+				R.Box = FBox2D(R.Cn - FVector2D(R.DiscOut), R.Cn + FVector2D(R.DiscOut));
+			}
+			else
+			{
+				double Wm = 0;
+				for (int32 s = 0; s < 2; ++s) for (const FLawn::FLane& La : R.Lanes[s]) { double M = 0; for (const FVector2D& K : La.W) M = FMath::Max(M, K.Y); Wm += M; }
+				for (const FVector2D& Pq : R.P) R.Box += Pq;
+				R.Box = R.Box.ExpandBy(Wm + 13.0);
+			}
+			L.Roads.Add(R);
+		}
+		ADP_LOG(TEXT("Grass: the low lawn along %d forecourt roads"), L.Roads.Num());
+		return L;
+	}
+
 	/** Is what the look down found grass? The airfield's grass slab (its "grass" list) or the model's lawns. */
 	bool IsGrass(const FHitResult& H)
 	{
@@ -214,6 +356,7 @@ void AGrassField::Start(float X0, float Y0, float X1, float Y1)
 
 bool AGrassField::GroundAt(float X, float Y, float& Z) const
 {
+	if (Lawn().Kind(X / 100.0, -Y / 100.0)) return false;   // (the low lawn's ground: LawnAt)
 	FHitResult H;
 	FCollisionQueryParams Q(SCENE_QUERY_STAT(GrassLook), true, this);   // complex: the globe's terrain has only its own shape to hit
 	// (inside the airfield the terrain is cut away: the grass grows on the airfield's own grass there)
@@ -224,18 +367,92 @@ bool AGrassField::GroundAt(float X, float Y, float& Z) const
 	return true;
 }
 
+bool AGrassField::LawnAt(float X, float Y, float& Z) const
+{
+	// the low lawn: on the flat grass by the roads (kind 2) the road network's own grass surface where it should be (within
+	// 80 cm of the ground there), on the lawns beside them (kind 1) the grass the normal look down accepts; looked through
+	// whatever stands 2.5 m or more over it (a roof's overhang, a canopy, a tree's crown), never under paving, a kerb, a bench
+	const int32 K = Lawn().Kind(X / 100.0, -Y / 100.0);
+	if (!K) return false;
+	FCollisionQueryParams Q(SCENE_QUERY_STAT(GrassLawn), true, this);
+	if (!bAway && Field.IsInside(FVector2D(X, Y)))
+		for (TActorIterator<ACesium3DTileset> It(GetWorld()); It; ++It) Q.AddIgnoredActor(*It);
+	const double E = K == 2 ? ARoadNetwork::GroundAt(X / 100.0, -Y / 100.0) * 100.0 : 0.0;
+	float Above = TNumericLimits<float>::Max();
+	for (int32 n = 0; n < 5; ++n)
+	{
+		FHitResult H;
+		if (!GetWorld()->LineTraceSingleByChannel(H, FVector(X, Y, 30000.f), FVector(X, Y, -5000.f), ECC_Visibility, Q) || !H.GetComponent()) return false;
+		const bool bSurf = K == 2
+			? H.ImpactNormal.Z >= 0.85f && !H.GetComponent()->IsA<USkeletalMeshComponent>() && FMath::Abs(H.ImpactPoint.Z - E) < 80.0
+			: IsGrass(H);
+		if (bSurf)
+		{
+			if (Above - H.ImpactPoint.Z < 250.f) return false;
+			Z = H.ImpactPoint.Z;
+			return true;
+		}
+		Above = FMath::Min(Above, float(H.ImpactPoint.Z));
+		Q.AddIgnoredComponent(H.GetComponent());
+	}
+	return false;
+}
+
+void AGrassField::FillLawn(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach)
+{
+	// the same clumps as the near grass at about 40 % of its height and two thirds of its width, 20 a square metre spread
+	// evenly (4 x 5 in every metre, a little jitter: a mown lawn), the same fading over the outer quarter of the reach; on the
+	// lawns beside the roads only where the metre round it is lawn too (no blade over the paving's edge), on the islands
+	// placed one by one inside the island's kerbs
+	ADP_PERF_SCOPE("Grass: low lawn", 2.f);
+	const FPatch& P = Patch(C);
+	const int32 N = int32(Cell / 100.f);
+	const float Lo = TNumericLimits<float>::Lowest();
+	if (P.L.Num() != N * N) return;
+	auto IsL = [&](int32 i, int32 j) { return i < 0 || j < 0 || i >= N || j >= N || P.L[j * N + i] != Lo; };
+	FRandomStream R(5 ^ (C.X * 73856093) ^ (C.Y * 19349663));
+	TArray<FTransform> T;
+	for (int32 j = 0; j < N; ++j)
+		for (int32 i = 0; i < N; ++i)
+		{
+			const float Z = P.L[j * N + i];
+			if (Z == Lo) continue;
+			const bool bRound = IsL(i - 1, j) && IsL(i + 1, j) && IsL(i, j - 1) && IsL(i, j + 1);
+			for (int32 sy = 0; sy < 5; ++sy)
+				for (int32 sx = 0; sx < 4; ++sx)
+				{
+					const FVector At(C.X * Cell + (i + (sx + R.FRandRange(0.15f, 0.85f)) / 4.f) * 100.f, C.Y * Cell + (j + (sy + R.FRandRange(0.15f, 0.85f)) / 5.f) * 100.f, Z - 1.f);
+					const int32 Kd = Lawn().Kind(At.X / 100.0, -At.Y / 100.0);
+					if (Kd == 0 || (Kd == 1 && !bRound)) continue;
+					float F = 1.f;
+					if (Reach > 0.f)
+					{
+						const float D = FVector2D::Distance(FVector2D(At), FVector2D(From));
+						F = FMath::Clamp((Reach - D) / (Reach * 0.25f), 0.f, 1.f);
+						if (F <= 0.f || R.FRand() > F) continue;
+						F = FMath::Lerp(0.55f, 1.f, F);
+					}
+					const float S = R.FRandRange(0.62f, 0.72f) * F;
+					T.Add(FTransform(FRotator(0, R.FRandRange(0, 360), 0), At, FVector(S, S, R.FRandRange(0.38f, 0.45f) * F)));
+				}
+		}
+	if (T.Num()) { K->AddInstances(T, false, true); LawnClumps += T.Num(); }
+}
+
 bool AGrassField::PatchStep(const FIntPoint& C, double Deadline)
 {
 	FPatch& P = Patches.FindOrAdd(C);
 	const int32 N = int32(Cell / 100.f);
-	if (P.H.Num() != N * N) { P.H.SetNumUninitialized(N * N); P.Rows = 0; }
+	if (P.H.Num() != N * N) { P.H.SetNumUninitialized(N * N); P.L.SetNumUninitialized(N * N); P.Rows = 0; }
 	while (P.Rows < N && FPlatformTime::Seconds() < Deadline)
 	{
 		const int32 j = P.Rows++;
 		for (int32 i = 0; i < N; ++i)
 		{
 			float Z;
-			P.H[j * N + i] = GroundAt(C.X * Cell + (i + 0.5f) * 100.f, C.Y * Cell + (j + 0.5f) * 100.f, Z) ? Z : TNumericLimits<float>::Lowest();
+			const float X = C.X * Cell + (i + 0.5f) * 100.f, Y = C.Y * Cell + (j + 0.5f) * 100.f;
+			P.H[j * N + i] = GroundAt(X, Y, Z) ? Z : TNumericLimits<float>::Lowest();
+			P.L[j * N + i] = LawnAt(X, Y, Z) ? Z : TNumericLimits<float>::Lowest();
 		}
 	}
 	return P.Rows >= N;
@@ -414,7 +631,11 @@ void AGrassField::Tick(float Dt)
 				else if (Ly == 2 && FarR > 0 && Missing(FarCells, FarR, FarCell, C)) { Job = FJob(); Job.Layer = 2; Job.C = C; Job.Reach = FarR; Job.Grid.SetNumUninitialized(FarGrid * FarGrid); bGot = true; }
 			}
 			Turn = (Turn + 1) % 3;
-			if (!bGot) break;
+			if (!bGot)
+			{
+				if (!bLawnLogged && LawnClumps > 0) { bLawnLogged = true; ADP_LOG(TEXT("Grass: the low lawn round the camera - %d clumps"), LawnClumps); }
+				break;
+			}
 			Job.From = L;
 		}
 		if (Job.Layer == 0)
@@ -422,6 +643,7 @@ void AGrassField::Tick(float Dt)
 			if (!PatchStep(Job.C, Deadline)) break;
 			UHierarchicalInstancedStaticMeshComponent* K = NewLayer(Near, 5000.f, Job.Reach * 0.85f, Job.Reach);
 			FillCell(K, Job.C, 14.f, 0.85f, 1.2f, 1, Job.From, Job.Reach);
+			FillLawn(K, Job.C, Job.From, Job.Reach);   // (the low lawn in the same pieces: the same mesh, culled with them)
 			NearCells.Add(Job.C, K);
 			Job.Layer = -1;
 		}

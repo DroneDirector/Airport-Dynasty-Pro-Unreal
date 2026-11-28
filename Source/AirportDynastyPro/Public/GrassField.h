@@ -33,7 +33,12 @@ public:
 
 private:
 	/** A patch of ground (25 m square): the grass's height at each metre (none where it isn't grass). */
-	struct FPatch { TArray<float> H; int32 Rows = 0; };
+	/** H: the ground every metre where the normal grass grows; L: where the low lawn grows instead (the forecourt's flat
+	 *  grass - its island, the roundabout's middle, the lawns beside it; owner, 2026-11-28). Lowest where neither. */
+	struct FPatch { TArray<float> H; TArray<float> L; int32 Rows = 0; };
+	bool LawnAt(float X, float Y, float& Z) const;
+	void FillLawn(UHierarchicalInstancedStaticMeshComponent* K, const FIntPoint& C, const FVector& From, float Reach);
+	int32 LawnClumps = 0; bool bLawnLogged = false;
 	/** Measures more of a patch's ground (a row at a time) until the deadline; true once it is all known. */
 	bool PatchStep(const FIntPoint& C, double Deadline);
 	static constexpr float Cell = 2500.f;    // cm
