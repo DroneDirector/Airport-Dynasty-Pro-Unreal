@@ -1008,8 +1008,8 @@ namespace
 	// in about 10 s (bay doors open, the legs fold, the doors close); gear down at 600 m (2,000 ft, about 11 km out), in
 	// about 15 s (doors open, the legs fall and lock, the doors close), so down and locked long before 300 m (1,000 ft)
 	constexpr float GearUpM = 10.f, GearUpAfter = 2.5f, GearDownM = 600.f;
-	constexpr float NoseFold = 95.f, MainFold = 82.f, NoseDoorOpen = 90.f, BayDoorOpen = 90.f;   // (degrees, from the model's hinges)
-	const FVector BraceKnee[2] = {FVector::ZeroVector, FVector::ZeroVector};   // (the side stays' knee, gear down; zero: half way)
+	constexpr float NoseFold = 95.f, MainFold = 80.f, NoseDoorOpen = 90.f, BayDoorOpen = 90.f;   // (degrees, from the model's hinges)
+	const FVector BraceKnee[2] = {FVector(-403.9f, 1307.6f, 281.9f), FVector(403.9f, 1307.6f, 281.9f)};   // (the side stays knee, gear down: glb (-+4.039, 2.819, 13.076))
 	FTransform About(const FVector& H, const FQuat& Q) { return FTransform(Q, H - Q.RotateVector(H)); }   // (a turn about H)
 	float Ease(float X) { X = FMath::Clamp(X, 0.f, 1.f); return X * X * (3.f - 2.f * X); }
 	float AngXZ(const FVector& V) { return float(FMath::Atan2(V.X, V.Z)); }   // (a turn about +Y adds to it)
