@@ -59,6 +59,21 @@ def fuse():
             bx0, bx1, by0, by1 = x0 + xs.min() - 14, x0 + xs.max() + 14, y0 + ys.min() - 10, y0 + ys.max() + 10
             rgb[by0:by1, bx0:bx1] = rgb[by0 - 14, bx0 - 10]
             print('registration cleared', bx0, by0, bx1, by1)
+    # the livery's black radome (its cap and both sides of the nose) and the black belly fairing around the main gear
+    # (four pieces, both sides): white like the fuselage (owner 2026-11-28: no black hole at the nose, no black void at the
+    # wing root). Only the big black areas of the fuselage's part of the sheet - placards, wing lines and grilles stay.
+    from scipy import ndimage
+    dark = rgb.max(axis=2) < 60
+    lab, n = ndimage.label(dark)
+    big = np.zeros(dark.shape, bool)
+    for i, s in enumerate(ndimage.find_objects(lab), 1):
+        if s is None or s[0].stop > 1400 or s[1].start > 2400: continue
+        m = lab[s] == i
+        if m.sum() > 5000:
+            big[s] |= m; print('black area painted', s[1].start, s[0].start, s[1].stop, s[0].stop, int(m.sum()))
+    big = ndimage.binary_dilation(big, iterations=3) & (rgb.mean(axis=2) < 232)   # (with their soft edges)
+    big[430:1340, 30:56] |= rgb[430:1340, 30:56].mean(axis=2) < 236   # (the nose tip's shading strip into the black)
+    rgb[big] = (238, 238, 238)
     Image.fromarray(np.concatenate([np.clip(rgb, 0, 255), alpha], axis=2).astype(np.uint8), 'RGBA').save(OUT / 'Fuse-Main.png')
 
 

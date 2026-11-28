@@ -4,7 +4,7 @@
 // to the fuselage, its flap and rails; the full trolleys in and the empty ones out, one trip after the other; and all back.
 // One stage after the other (FSvcJob::Stage), one of the two working at a time: whoever is left goes on from the stage.
 // The doors (measured on Art/A320/A320.glb, the FlightGear model - make_a320_fg.py FGPOS): R1 0.14 m ahead of the nose
-// wheel, sill 3.76 m, skin 1.96 m out; R2 (R4) 24.49 m behind, sill 3.86 m, skin 1.78 m out and turned 11 deg. The aircraft is one mesh: its doors do not open and there is no
+// wheel, sill 3.46 m, skin 1.96 m out; R2 (R4) 24.49 m behind, sill 3.56 m, skin 1.78 m out and turned 11 deg. The aircraft is one mesh: its doors do not open and there is no
 // cabin (to-do 209) - a knock on it, and with their trolley they are out of sight at the sill, as the cleaners at theirs.
 #include "GSECater.h"
 #include "GSE.h"
@@ -26,7 +26,7 @@ namespace
 	const FVector CtUp(0, 0, 1);
 	const float CtFloor = 150.f, CtDeck = 136.5f, CtSlide = 295.f, CtReach = 531.3f + 3.f, CtCabinSeconds = 14.f, CtLane = -20.43f;
 	const FVector2D CtSkin[2] = {FVector2D(196.0, -14.0), FVector2D(178.0, 2449.0)};   // (right of the centre line, behind the nose wheel)
-	const float CtSill[2] = {376.f, 386.f}, CtTurn[2] = {0.f, 11.f};
+	const float CtSill[2] = {346.f, 356.f}, CtTurn[2] = {0.f, 11.f};
 	const FVector2D CtW[2] = {FVector2D(171.0, -80.0), FVector2D(165.0, 75.0)};        // (where the two wait in the body)
 	// the trolleys' places (Art/CateringTruck/cateringtruck-parts.json stock)
 	struct FCtPlace { float X, Y; };

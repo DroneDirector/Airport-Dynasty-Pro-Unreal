@@ -57,6 +57,45 @@ apply_all(Matrix.Rotation(-ang, 4, 'X'))
 lm, hm = bbox(['MLGWheelsL', 'MLGWheelsR'])
 print('FGPOS pitch %.3f deg, main tyre bottom %.4f m' % (math.degrees(ang), lm.z))
 
+# 2b. the struts compressed as at the stand (owner 2026-11-28: it sat a little high). The model comes with its oleos fully
+# out (in the air); a real A320 at the stand has them pushed in: VT tip about 11.9-12.0 m, door 1 sill about 3.4-3.5 m, the
+# CFM56 nacelles about 0.6 m off the ground (Airbus A320 Aircraft Characteristics, ground clearances). The sliding tubes
+# and wheels go up into their cylinders by STATIC_M, the torque and slave links fold their knees to stay on both ends, and
+# the whole aircraft comes down by the same: the tyres stay on the ground, the attitude is unchanged. (SimTraffic.cpp's
+# ExtMain / ExtNose = this in cm: in the air the struts hang out to the model's full length again.)
+STATIC_M = 0.30
+def _ends(o):
+    vs = [v.co.copy() for v in o.data.vertices]; c = sum(vs, Vector()) / len(vs)
+    far = max(vs, key=lambda v: (v - c).length); other = max(vs, key=lambda v: (v - far).length)
+    a = [v for v in vs if (v - far).length < 0.03]; b = [v for v in vs if (v - other).length < 0.03]
+    return sum(a, Vector()) / len(a), sum(b, Vector()) / len(b)
+def _turn(o, pivot, q, move=Vector()):
+    o.data.transform(Matrix.Translation(pivot + move) @ q.to_matrix().to_4x4() @ Matrix.Translation(-pivot))
+def fold(upper, lower, up):
+    U, L = O[upper], O[lower]; u1, u2 = _ends(U); l1, l2 = _ends(L)
+    uk, lk = min([(a, b) for a in (u1, u2) for b in (l1, l2)], key=lambda p: (p[0] - p[1]).length)
+    A = u2 if uk is u1 else u1; B = l2 if lk is l1 else l1; K = (uk + lk) / 2
+    B2 = B + up; La, Lb = (K - A).length, (K - B).length; D = (B2 - A).length
+    e1 = (B2 - A).normalized(); nrm = (B - A).cross(K - A).normalized(); e2 = nrm.cross(e1)
+    if (K - A).dot(e2) < 0: e2 = -e2
+    a = (La * La - Lb * Lb + D * D) / (2 * D); h = math.sqrt(max(La * La - a * a, 0.0))
+    K2 = A + e1 * a + e2 * h
+    _turn(U, A, (K - A).rotation_difference(K2 - A))
+    _turn(L, B, (K - B).rotation_difference(K2 - B2), up)
+    print('FGPOS fold %s/%s A %s B %s knee %s -> %s' % (upper, lower, tuple(round(x, 2) for x in A), tuple(round(x, 2) for x in B),
+                                                     tuple(round(x, 2) for x in K), tuple(round(x, 2) for x in K2)))
+up = Vector((0, 0, STATIC_M))
+for s in ('L', 'R'):
+    for n in ('MLGWheels' + s, 'MLGSlidingTubeAxle' + s, 'MLGCables%s2' % s):
+        O[n].data.transform(Matrix.Translation(up))
+    fold('MLGTorqueLink%s1' % s, 'MLGTorqueLink%s2' % s, up)
+    fold('MLGSlaveLink%s1' % s, 'MLGSlaveLink%s2' % s, up)
+for n in ('NLGWheels', 'NLGSlidingTubeAxle'):
+    O[n].data.transform(Matrix.Translation(up))
+fold('NLGTorqueLink1', 'NLGTorqueLink2', up)
+apply_all(Matrix.Translation(-up))
+lo, hi = bbox(['Fuselage']); print('FGPOS static: fuselage top %.3f m, bottom %.3f m' % (hi.z, lo.z))
+
 # 3. the plain paint
 for img in bpy.data.images:
     p = os.path.join(TEX, img.name + '.png')
@@ -165,7 +204,10 @@ for o in obs:
                 if hit[0] is not None: n = hit[1]
             v.co += Mi @ (n.normalized() * 0.002)
         bm.to_mesh(o.data); bm.free()
-# 7. the parts Tools/find_zfight.py found fighting, moved by its hair (glTF y-up vectors, summed over its rounds)
+# 7. the doubled faces Tools/find_zfight.py found (faces lying on another part's, facing the same way):
+# the parts fg-nudge.json moves by a millimetre or two (the tool's own suggestions, summed), and the gear placard's
+# faces lifted 2 mm off its fitting along their own normals, so too the outflow valve door's off the skin and the
+# spoilers' off the flaps (curved, where a whole-part move does not clear them).
 NUDGE = os.path.join(HERE, 'fg-nudge.json')
 if os.path.exists(NUDGE):
     import json
@@ -175,6 +217,51 @@ if os.path.exists(NUDGE):
         w = mathutils.Vector((d[0], -d[2], d[1]))
         loc = o.matrix_basis.to_3x3().inverted() @ w
         for v in o.data.vertices: v.co += loc
+def lift_doubled(top, under, gap=0.002, near=0.0012):
+    T, Un = bpy.data.objects[top], bpy.data.objects[under]
+    ub = bmesh.new(); ub.from_mesh(Un.data); ub.transform(Un.matrix_basis); ub.normal_update()
+    tree = mathutils.bvhtree.BVHTree.FromBMesh(ub); ub.free()
+    bm = bmesh.new(); bm.from_mesh(T.data); bm.normal_update()
+    M = T.matrix_basis; R = M.to_3x3(); Ri = R.inverted(); move = {}
+    for f in bm.faces:
+        n = (R @ f.normal).normalized()
+        pts = [M @ v.co for v in f.verts] + [M @ f.calc_center_median()]
+        hits = [tree.find_nearest(p) for p in pts]
+        if any(h[0] is not None and h[3] < near and abs(h[1].dot(n)) > 0.8 for h in hits):
+            for v in f.verts:
+                d = Ri @ (n * gap); move[v] = d if v not in move or d.length > move[v].length else move[v]
+    for v, d in move.items(): v.co += d
+    bm.to_mesh(T.data); bm.free(); print('FGPOS lifted %d verts of %s off %s' % (len(move), top, under))
+for top, under in (('MainLegUpper_R.Placards', 'MainLegUpper_R'), ('OutflowValveDoor1', 'Fuselage'), ('SpoilerL4', 'FlapL2'),
+                   ):
+    lift_doubled(top, under)
+lift_doubled('SpoilerR4', 'FlapR2', near=0.004)   # (its big faces lie on the flap away from their corners)
+
+# 8. the cockpit windows: dark tinted glass (opaque: there is no flight deck behind it) in a dark frame, each of the six
+# panes inset 3.5 cm for its frame, as on a real A320's windshield and side windows
+glass = bpy.data.materials.new('CockpitGlass'); glass.use_nodes = True
+b = glass.node_tree.nodes['Principled BSDF']
+b.inputs['Base Color'].default_value = (0.010, 0.014, 0.020, 1); b.inputs['Roughness'].default_value = 0.04
+b.inputs['Specular'].default_value = 0.9; b.inputs['Metallic'].default_value = 0.0
+frame = bpy.data.materials.new('CockpitFrame'); frame.use_nodes = True
+b = frame.node_tree.nodes['Principled BSDF']
+b.inputs['Base Color'].default_value = (0.045, 0.047, 0.05, 1); b.inputs['Roughness'].default_value = 0.5
+ws = bpy.data.objects['Windsheild']; ws.data.materials.clear(); ws.data.materials.append(glass); ws.data.materials.append(frame)
+bm = bmesh.new(); bm.from_mesh(ws.data)
+for f in bm.faces: f.material_index = 1
+seen = set()
+for f in list(bm.faces):
+    if f in seen: continue
+    isl, st = [], [f]; seen.add(f)
+    while st:
+        g = st.pop(); isl.append(g)
+        for e in g.edges:
+            for h in e.link_faces:
+                if h not in seen: seen.add(h); st.append(h)
+    bmesh.ops.inset_region(bm, faces=isl, thickness=0.035, depth=0.0, use_even_offset=True)
+    for g in isl: g.material_index = 0
+bm.to_mesh(ws.data); bm.free()
+print('FGPOS cockpit windows: 6 panes framed')
 empty = sum(1 for o in obs for s in o.material_slots if s.material is None)
 assert empty == 0, 'empty material slots: %d' % empty
 for o in obs: o.select_set(True)

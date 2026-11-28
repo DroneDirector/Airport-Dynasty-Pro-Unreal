@@ -1010,7 +1010,7 @@ namespace
 	// about 15 s (doors open, the legs fall and lock, the doors close), so down and locked long before 300 m (1,000 ft)
 	constexpr float GearUpM = 10.f, GearUpAfter = 2.5f, GearDownM = 600.f;
 	constexpr float NoseFold = 95.f, MainFold = 80.f, NoseDoorOpen = 90.f, BayDoorOpen = 90.f;   // (degrees, from the model's hinges)
-	const FVector BraceKnee[2] = {FVector(-321.1f, 1187.4f, 243.6f), FVector(320.9f, 1187.4f, 243.6f)};   // (the side stays' knee, gear down: make_a320_fg.py FGPOS)
+	const FVector BraceKnee[2] = {FVector(-321.1f, 1187.4f, 213.6f), FVector(320.9f, 1187.4f, 213.6f)};   // (the side stays' knee, gear down: make_a320_fg.py FGPOS)
 	FTransform About(const FVector& H, const FQuat& Q) { return FTransform(Q, H - Q.RotateVector(H)); }   // (a turn about H)
 	float Ease(float X) { X = FMath::Clamp(X, 0.f, 1.f); return X * X * (3.f - 2.f * X); }
 	float AngXZ(const FVector& V) { return float(FMath::Atan2(V.X, V.Z)); }   // (a turn about +Y adds to it)
@@ -1019,7 +1019,7 @@ namespace
 void ASimTraffic::Haze(FMove& M, float Dt)
 {
 	// (to-do 379, owner 2026-11-28) the hot exhaust shimmering behind each running engine. The A320's nacelles measured on
-	// Art/A320/A320.glb (the FlightGear CFM56 model): centres 5.62 m either side, 2.09 m up, the core nozzle's end 11.1 m behind the nose wheel (the
+	// Art/A320/A320.glb (the FlightGear CFM56 model): centres 5.62 m either side, 1.79 m up, the core nozzle's end 11.1 m behind the nose wheel (the
 	// actor's root; its tail is the actor's +Y). Ring 0 just behind the nozzle at any power; rings 1 and 2 further back,
 	// bigger, only with power (take-off) - the plume grows longer and stronger as the engines spool up, and fades again
 	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
@@ -1027,7 +1027,7 @@ void ASimTraffic::Haze(FMove& M, float Dt)
 	if (!Mat) return;
 	if (!M.HazeB.Num())
 	{
-		static const float RingY[3] = {1260.f, 1760.f, 2610.f}, RingW[3] = {260.f, 420.f, 640.f}, RingH[3] = {200.f, 260.f, 330.f}, RingZ[3] = {209.f, 224.f, 254.f};
+		static const float RingY[3] = {1260.f, 1760.f, 2610.f}, RingW[3] = {260.f, 420.f, 640.f}, RingH[3] = {200.f, 260.f, 330.f}, RingZ[3] = {179.f, 194.f, 224.f};
 		for (int32 r = 0; r < 3; ++r)
 		{
 			UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Mat, B, FName(*FString::Printf(TEXT("HeatHaze_Engine%d"), r)));   // (the name keeps "HeatHaze": Effects.cpp finds it)
