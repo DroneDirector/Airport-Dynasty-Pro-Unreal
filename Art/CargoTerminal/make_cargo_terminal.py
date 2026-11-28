@@ -77,7 +77,10 @@ M = dict(
     fl_bcp=mat('M_Cargo_Floor_BCP', (0.50, 0.50, 0.49), tex='FloorConcrete'),
     shelter=mat('M_Cargo_DockShelter', (0.03, 0.03, 0.03), 0.8, tex='Rubber'),
     canopy=mat('M_Cargo_Canopy', (0.86, 0.88, 0.88), tex='CladdingWhite'),
-    steel=mat('M_Cargo_Steel', (0.55, 0.57, 0.59), 0.4, 1.0, tex='Galvanised'),
+    # (Galvanised's scan colour is near black: see steel_sets. A reimport keeps existing materials: after changing a set
+    #  here run Tools/repoint_mi_textures.py on them, else they keep the old pictures)
+    steel=mat('M_Cargo_Steel', (0.62, 0.64, 0.66), 0.4, 1.0, tex='SteelGalv'),
+    chequer=mat('M_Cargo_ChequerPlate', (0.55, 0.57, 0.59), 0.45, 1.0, tex='ChequerPlate'),
     apron=mat('M_Cargo_Apron', (0.50, 0.50, 0.49), tex='FloorConcrete'),
     yard=mat('M_Cargo_TruckCourt', (0.16, 0.16, 0.16), tex='Asphalt'),
     slab=mat('M_Cargo_Slab', (0.50, 0.50, 0.49), tex='FloorConcrete'),
@@ -91,7 +94,7 @@ M = dict(
     uld=mat('M_Cargo_ULD', (0.70, 0.72, 0.74), 0.4, 1.0, tex='Aluminium'),
     truck=mat('M_Cargo_Truck', (0.82, 0.83, 0.83), tex='PaintWhite'),
     cab=mat('M_Cargo_TruckCab', (0.10, 0.25, 0.50), tex='PaintBlue'),
-    fence=mat('M_Cargo_Fence', (0.55, 0.57, 0.59), 0.5, 1.0, tex='Galvanised'),
+    fence=mat('M_Cargo_Fence', (0.62, 0.64, 0.66), 0.5, 1.0, tex='SteelGalv'),
     sign=mat('M_Cargo_Sign', (0.95, 0.97, 1.0), emit=1.0),
     part=mat('M_Cargo_Partition', (0.86, 0.88, 0.88), tex='CladdingWhite'),
     cold=mat('M_Cargo_InsulatedPanel', (0.86, 0.88, 0.88), tex='CladdingWhite'),
@@ -149,6 +152,15 @@ def cyl(name, cx, cy, z0, r, h, m, seg=16):
     """An upright cylinder (fans, pipes)."""
     bm = bmesh.new(); bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=r, radius2=r, depth=h)
     for v in bm.verts: v.co = Vector((v.co.x + cx, v.co.y + cy, v.co.z + z0 + h / 2))
+    me = bpy.data.meshes.new('SM_Cargo_' + name); bm.to_mesh(me); bm.free(); me.materials.append(M[m])
+    o = bpy.data.objects.new(name, me); COL.objects.link(o)
+    return o
+
+
+def hcyl(name, x0, x1, cy, cz, r, m, seg=12):
+    """A cylinder lying along x from x0 to x1 (rollers)."""
+    bm = bmesh.new(); bmesh.ops.create_cone(bm, cap_ends=True, segments=seg, radius1=r, radius2=r, depth=x1 - x0)
+    for v in bm.verts: v.co = Vector((v.co.z + (x0 + x1) / 2, v.co.y + cy, v.co.x + cz))
     me = bpy.data.meshes.new('SM_Cargo_' + name); bm.to_mesh(me); bm.free(); me.materials.append(M[m])
     o = bpy.data.objects.new(name, me); COL.objects.link(o)
     return o
@@ -431,7 +443,15 @@ box('AirsideCanopy', EXP[0], -CANOPY_D, CANOPY_H, IMP[1], -0.3, CANOPY_H + 1.0, 
 join('CanopyColumns', [box('CC', x - 0.4, -CANOPY_D + 0.6, 0, x + 0.4, -CANOPY_D + 1.4, CANOPY_H, 'steel')
                        for x in [EXP[0] + i * CL.BAY for i in range(int((IMP[1] - EXP[0]) / CL.BAY) + 1)]])
 # (the ULD doors' curtains are the game's roller doors: Data/cargo-doors.json R-CARGO-AIR/SPC/HORSE-..)
-join('RollerDecks', [box('RD', x - 2.0, -6.0, 0, x + 2.0, -0.5, 0.5, 'steel') for x in CL.AIR_DOORS])
+# ULD roller decks in front of the doors (2026-11-28: were bare 0.5 m slabs): a steel bed between two side rails, and
+# rollers (70 mm, every 250 mm) running across between the rails, their tops 10 mm under the rails' tops
+rd, rr = [], []
+for x in CL.AIR_DOORS:
+    rd += [box('RD', x - 1.9, -6.0, 0, x + 1.9, -0.5, 0.40, 'steel'),
+           box('RDr', x - 2.0, -6.0, 0, x - 1.9, -0.5, 0.5, 'steel'), box('RDr', x + 1.9, -6.0, 0, x + 2.0, -0.5, 0.5, 'steel')]
+    rr += [hcyl('RDt', x - 1.9, x + 1.9, -5.8 + k * 0.25, 0.455, 0.035, 'steel') for k in range(21)]
+joinm('RollerDecks', rd)
+join('RollerDeckRollers', rr)
 # escape doors (1.0 x 2.1 m) on every face, a green exit light above each
 esc, sig = [], []
 for x in CL.ESC_AIR:
@@ -444,9 +464,11 @@ join('EscapeSigns', sig)   # (the leaves: hinged D-CARGO-ESC-.. doors)
 box('AirsideRoad', -40, -40, -0.05, L + 60, 0, 0.0, 'yard')
 join('ULDLanes', [box('UL', x - 2.5, -38, 0.0, x + 2.5, -30, 0.02, 'white') for x in CL.AIR_DOORS] +
      [box('ULb', -40, -40.2, 0.0, L + 60, -39.9, 0.02, 'yellow'), box('ULc', -40, -14.2, 0.0, L + 60, -13.9, 0.02, 'yellow')])
+# staged ULDs on their lanes, standing on their own base (2026-11-28: they stood on a floating 'box dolly' slab and,
+# joined under that slab's steel material, rendered as one black box; owner: no box dollies - real ones come later)
 uld = []
 for i, x in enumerate(CL.AIR_DOORS[::3]):
-    uld += [box('DL', x - 1.6, -37.5, 0.4, x + 1.6, -31, 0.7, 'steel'), box('U', x - 1.5, -37, 0.7, x + 1.5, -31.5, 3.2 if i % 2 else 2.3, 'uld')]
+    uld += [box('U', x - 1.5, -37, 0.0, x + 1.5, -31.5, 2.5 if i % 2 else 1.6, 'uld')]
 # outside the east end: the empty ULD store (stacked) and the ULD repair shed; dollies and GSE at the west end
 ex = CL.OUTSIDE
 for i in range(8):
@@ -482,7 +504,7 @@ for x in DK:
         bp += [box('DBr', a - 0.13, D + 0.32, 0.64 + k * 0.1, a + 0.13, D + 0.46, 0.72 + k * 0.1, 'shelter') for k in range(5)]
         bp.append(box('DBf', a - 0.14, D + 0.46, 0.62, a + 0.14, D + 0.47, 1.13, 'steel'))
 joinm('DockBumpers', bp)
-join('DockLevellers', [box('DL', x - 1.4, D - 3.0, 0.0, x + 1.4, D, 0.08, 'steel') for x in DK])
+join('DockLevellers', [box('DL', x - 1.4, D - 3.0, 0.0, x + 1.4, D, 0.08, 'chequer') for x in DK])
 box('LandsideCanopy', EXP[0], D + 0.3, 6.0, L, D + 6.0, 6.6, 'canopy')
 box('TruckCourt', -10, D, -0.05, L + 10, D + YARD_D, 0.0, 'yard')
 marks = [box('TM', x - 0.1, D + 2, 0.0, x + 0.1, D + 22, 0.02, 'white') for x in [d + 6.5 for d in DK[:-1]]]
@@ -671,6 +693,9 @@ def door_nodes():
 drop_contacts()
 for o in COL.objects:
     if o.type == 'MESH': world_uvs(o)
+for o in COL.objects:                      # round parts shade smooth (world_uvs set every face flat)
+    if o.name in ('RollerDeckRollers',):
+        for f in o.data.polygons: f.use_smooth = abs(f.normal.x) < 0.9
 door_nodes()
 # the gate boom's origin on its pivot (the boom swings up about the model's y axis there)
 from mathutils import Matrix

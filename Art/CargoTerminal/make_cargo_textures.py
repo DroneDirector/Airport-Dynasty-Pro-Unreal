@@ -25,7 +25,8 @@ TILE = dict(Cladding=4.0, CladdingBand=4.0, CladdingWhite=4.0, Roof=4.0, Section
             Galvanised=2.0, Aluminium=2.0, LeadSheet=2.0, Rubber=1.5, OfficeFloor=3.0,
             PaintGrey=2.0, PaintWhite=2.0, PaintOrange=2.0, PaintYellow=2.0, PaintTeal=2.0, PaintBlue=2.0,
             Cardboard=1.5, LineYellow=1.0, LineWhite=1.0, LineRed=1.0, LineGreen=1.0,
-            CladdingAged=4.0, CladdingBandAged=4.0, Grime=0.6)   # (the last three: make_cargo_aged_textures.py)
+            CladdingAged=4.0, CladdingBandAged=4.0, Grime=0.6,   # (these three: make_cargo_aged_textures.py)
+            SteelGalv=2.0, ChequerPlate=0.6)                     # (these two: steel_sets() below)
 
 
 def load(path, size, gray=False):
@@ -178,5 +179,40 @@ def main():
     print('textures written:', len(os.listdir(OUT)))
 
 
+def steel_sets():
+    """The terminal's own steel (2026-11-28). Metal027's colour scan is a dark, almost black zinc (mean sRGB 0.18): as a
+    full metal it reflects next to nothing and the canopy columns, roller decks and staged ULD dollies rendered black.
+    Hot-dip galvanised steel reads a light grey (about sRGB 0.64): its spangle grain is kept, the shade raised to that.
+    ChequerPlate: diamond tread plate (the dock levellers): raised lozenges on a 30 mm pitch, alternating +-45 degrees,
+    tops worn shiny, dirt in the grooves. Own names (not Galvanised): the CargoLamps import owns those texture assets.
+      python Art/CargoTerminal/make_cargo_textures.py steel"""
+    G = 1024
+    sp = os.path.join(GPU, 'Metal027', 'Metal027_2K-JPG_')
+    c = load(sp + 'Color.jpg', G); r = load(sp + 'Roughness.jpg', G, True); n = scan_normal(sp + 'NormalGL.jpg', G)
+    grain = detail(c, 0.10)[..., None]
+    galv = srgb((0.62, 0.64, 0.66))[None, None, :] * grain
+    rough = np.clip(0.38 + 0.6 * (r - r.mean()), 0.2, 0.7)
+    write('SteelGalv', galv, n, rough, 1.0)
+    # tread plate: tile 0.6 m = 20 x 20 cells of 30 mm, one lozenge per cell, the next cell turned the other way
+    tm = TILE['ChequerPlate']; t = (np.arange(G) + 0.5) / G * tm
+    u, v = np.meshgrid(t, t[::-1])
+    pitch = 0.03
+    cu, cv = (u % pitch) / pitch - 0.5, (v % pitch) / pitch - 0.5
+    flip = ((np.floor(u / pitch) + np.floor(v / pitch)) % 2) * 2 - 1
+    a = (cu + flip * cv) / np.sqrt(2); b = (cu - flip * cv) / np.sqrt(2)           # along / across the lozenge
+    e = (a / 0.36) ** 2 + (b / 0.07) ** 2                                           # 22 x 4 mm lozenge
+    h = np.clip((1.0 - e) * 3.0, 0, 1)
+    h = h * 0.85 + 0.15 * np.clip(1.0 - e * 0.8, 0, 1)
+    nrm = blend_normals(height_to_normal(h, G / tm, 0.0018), n)
+    wear = np.clip(h * 1.2, 0, 1)[..., None]
+    col = srgb((0.50, 0.52, 0.54))[None, None, :] * grain * (1 - wear) + srgb((0.70, 0.71, 0.72))[None, None, :] * grain * wear
+    dirt = np.clip(1.0 - h * 2.0, 0, 1)[..., None] * 0.18
+    col = col * (1 - dirt)
+    rgh = np.clip(0.48 - 0.18 * h + 0.3 * (r - r.mean()), 0.15, 0.8)
+    write('ChequerPlate', col, nrm, rgh, 1.0, ao=np.clip(0.8 + 0.2 * h, 0, 1))
+    print('steel sets written')
+
+
 if __name__ == '__main__':
-    main()
+    import sys
+    steel_sets() if sys.argv[1:] == ['steel'] else main()
