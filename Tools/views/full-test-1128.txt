@@ -1,0 +1,244 @@
+# The owner's whole visual test in one start (2026-11-28), Chablais:  bash Tools/perf_views.sh Tools/views/full-test-1128.txt editor
+# Cameras by name from Tools/views/camera-shots-1128.txt (shotcam); a measure (drawn and shown fps) and a 4K picture at each held place.
+cmd r.VSync 0
+framegen on
+speed 1 1
+hour 13
+weather 2
+wait 25
+lives
+shots Tools/views/camera-shots-1128.txt
+park
+wait 5
+# ===== 1 town bus station (coaches still on their stands)
+shotcam bus-wide
+wait 2
+measure 10 bus-wide
+shot4k bus-wide
+shotcam bus-crane-down
+shotcam bus-close
+wait 2
+measure 10 bus-close
+shot4k bus-close
+shotcam bus-bay
+wait 2
+measure 10 bus-bay
+shot4k bus-bay
+# the coaches away to the town hub, so none stands outside the Grand Hall when they come in
+coach town
+# ===== 2 terminal landside, from near the car park
+shotcam land-whole
+wait 2
+measure 10 land-whole
+shot4k land-whole
+shotcam land-pushin
+shotcam land-closer
+wait 2
+measure 10 land-closer
+shot4k land-closer
+shotcam land-much-closer
+wait 2
+measure 10 land-much-closer
+shot4k land-much-closer
+shotcam land-crane-up
+shotcam land-whole
+wait 2
+shot4k land-whole-again
+shotcam land-orbit-west
+shot4k land-orbit-west
+shotcam land-orbit-east
+shot4k land-orbit-east
+shotcam land-orbit-home
+# ===== coaches arriving: from the hub, picked up on the road 500 m out, tracked in, parked on their own stands
+coachwait 420 hub
+coach terminal
+coachwait 420 near 500
+shotcam coach-road-wide
+wait 2
+shot4k coach-road
+shotcam coach-track
+wait 8
+measure 10 coach-track
+shot4k coach-track
+coachwait 240 near 120
+shotcam coach-turn-crane
+shot4k coach-turn-in
+coachwait 240 home
+shotcam coach-parked-wide
+wait 2
+measure 10 coach-parked
+shot4k coach-parked
+# ===== 3 terminal inside
+shotcam hall-wide
+wait 3
+measure 10 hall-wide
+shot4k hall-wide
+shotcam hall-turn
+wait 2
+shot4k hall-turn
+shotcam hall-deep
+wait 2
+shot4k hall-deep
+shotcam gate4-area
+wait 2
+measure 10 gate4-area
+shot4k gate4-area
+# ===== 4 apron side
+shotcam apron-whole
+wait 2
+measure 10 apron-whole
+shot4k apron-whole
+shotcam apron-pushin
+shotcam apron-closer
+wait 2
+shot4k apron-closer
+shotcam apron-much-closer
+wait 2
+measure 10 apron-much-closer
+shot4k apron-much-closer
+shotcam apron-crane-down
+# ===== 5 gate 4 by day: the A320 on the stand, the jetway from rest to the door, passengers through it
+jetway 4 park
+wait 15
+shotcam jet-wide
+wait 2
+measure 10 gate4-a320
+shot4k gate4-a320-jetway-at-rest
+jetway 4 dock
+shotcam jet-side
+wait 6
+shot4k jetway-moving-1
+shotcam jet-side-slide
+shot4k jetway-moving-2
+shotcam jet-wide-pull
+wait 4
+shot4k jetway-docking
+hmi g4
+wait 3
+shot4k jetway-console
+hmi close
+wait 30
+jetway 4 state
+shotcam jet-wide
+wait 2
+measure 10 jetway-docked
+shot4k jetway-docked
+board 4 10 3
+shotcam jet-gate
+wait 6
+measure 10 gate4-passengers
+shot4k gate4-passengers-at-gate
+wait 8
+shot4k gate4-passengers-through
+shotcam jet-cab
+wait 6
+shot4k jetway-passengers-bridge
+shotcam jet-cabin
+wait 6
+shot4k jetway-passengers-cab
+wait 20
+# ===== 5b gate 4 by night: moving with its beacons flashing and its lights lit, docking, docked
+hour 22
+jetway beacons auto
+jetway 4 park
+wait 15
+shotcam night-jet-wide
+wait 2
+shot4k night-jetway-at-rest
+jetway 4 dock
+shotcam night-jet-side
+wait 6
+jetway 4 state
+measure 10 night-jetway-moving
+shot4k night-jetway-moving
+shotcam night-jet-side-slide
+shot4k night-jetway-docking
+wait 30
+jetway 4 state
+shotcam night-jet-wide
+wait 2
+measure 10 night-jetway-docked
+shot4k night-jetway-docked
+shotcam night-jet-cab
+wait 2
+shot4k night-jetway-bridge
+hour 13
+wait 5
+# ===== 6 fire station: doors up, trucks started with their lights, one driven out about 30 s
+shotcam fire-wide
+wait 2
+measure 10 fire-wide
+shot4k fire-doors-shut
+fire doors open
+wait 12
+shot4k fire-doors-open
+fire lights on
+shotcam fire-crane
+shotcam fire-high
+wait 2
+shot4k fire-lights
+fire drive
+wait 10
+measure 10 fire-drive
+shot4k fire-drive-1
+wait 8
+shot4k fire-drive-2
+wait 8
+shot4k fire-drive-3
+fire park
+wait 4
+wait 6
+fire lights off
+shotcam fire-side
+wait 2
+shot4k fire-parked
+fire doors shut
+# ===== 7 big hangar H1: shut, then opening slowly, from outside, inside and above
+hangar -430 shut 30
+wait 25
+shotcam hangar-overview
+wait 2
+measure 10 hangar-overview
+shot4k hangar-shut
+hangar -430 open 5
+shotcam hangar-door
+wait 15
+shot4k hangar-opening-outside
+shotcam hangar-crane-up
+shotcam hangar-high
+shot4k hangar-opening-high
+shotcam hangar-inside
+wait 10
+measure 10 hangar-inside
+shot4k hangar-opening-inside
+wait 30
+shotcam hangar-orbit
+shotcam hangar-overview
+wait 2
+shot4k hangar-open-overview
+shotcam hangar-inside-deep
+wait 2
+shot4k hangar-inside-deep
+hangar -430 open 1
+# ===== 8 cargo terminal, both sides
+shotcam cargo-whole
+wait 2
+measure 10 cargo-whole
+shot4k cargo-whole
+shotcam cargo-airside
+wait 2
+shot4k cargo-airside
+shotcam cargo-airside-angle
+wait 2
+shot4k cargo-airside-angle
+shotcam cargo-orbit
+shotcam cargo-court
+wait 2
+measure 10 cargo-court
+shot4k cargo-truck-court
+# ===== end
+lives
+parkoff
+hour live
+weather live
+quit

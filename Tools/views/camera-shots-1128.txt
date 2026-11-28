@@ -1,0 +1,68 @@
+# Named camera shots of the 2026-11-28 full visual test (Tools/views/full-test-1128.txt), kept for later video recordings.
+# One shot a line: <name> <step>, the step as in a views run (PerfViews.cpp header):
+#   view <x> <height> <z> <yaw> <pitch>            held (plan metres; yaw 0 east, -90 north; pitch + up)
+#   fly <x> <height> <z> <yaw> <pitch> <seconds>   flown there from wherever the camera is (eased), measured on the way
+#   look <a> <b> <metres> <model>                  held on a model, following it if it moves (tracking)
+#   jetway <gate> cam <wide|side|cab|cabin|gate> [seconds]   placed by the jetway as it stands then
+# Run one with: shotcam <name>.
+# --- 1 town bus station (bays A1-A12, plan 275.8 / -14.4)
+bus-wide view 276 14 -95 -90 -10
+bus-crane-down fly 276 6 -60 -90 -5 10
+bus-close look 0 0 25 BusStation
+bus-bay look 0 0 9 AirportCoach
+# --- 2 terminal landside, from near the car park
+land-whole view 75 16 -130 -90 -6
+land-pushin fly 75 7 -80 -90 -3 12
+land-closer view 75 7 -80 -90 -3
+land-much-closer view 75 1.7 -45 -90 0
+land-crane-up fly 75 18 -135 -90 -7 12
+land-orbit-west fly 0 9 -70 -60 -5 14
+land-orbit-east fly 160 9 -70 -120 -5 20
+land-orbit-home fly 75 16 -130 -90 -6 12
+# --- coaches arriving at their stands
+coach-road-wide view 150 20 -160 -120 -12
+coach-track look 0 0 14 AirportCoach
+coach-turn-crane fly 276 12 -70 -90 -14 10
+coach-parked-wide view 276 10 -85 -90 -9
+# --- 3 terminal inside
+hall-wide view 79 1.6 2.9 -90 0
+hall-turn view 76 1.6 1.8 -132 8
+hall-deep view 70 1.7 6.5 -90 0
+gate4-area jetway 4 cam gate
+# --- 4 apron side
+apron-whole view 80 32 180 90 -10
+apron-pushin fly 80 13 110 90 -6 14
+apron-closer view 80 13 110 90 -6
+apron-much-closer view 87.5 7.7 60 0 0
+apron-crane-down fly 87.5 4 70 60 -2 10
+# --- 5 gate 4 by day (and by night: the same shots, the hour 22)
+jet-wide jetway 4 cam wide
+jet-side jetway 4 cam side
+jet-side-slide jetway 4 cam side 10
+jet-wide-pull jetway 4 cam wide 10
+jet-cab jetway 4 cam cab
+jet-cabin jetway 4 cam cabin
+jet-gate jetway 4 cam gate
+night-jet-wide jetway 4 cam wide
+night-jet-side jetway 4 cam side
+night-jet-side-slide jetway 4 cam side 10
+night-jet-cab jetway 4 cam cab
+# --- 6 fire station (forecourt north of the bays)
+fire-wide view -1209 1.6 55.9 90 7
+fire-crane fly -1185 9 75 100 -8 12
+fire-high view -1185 9 75 100 -8
+fire-side view -1130 1.6 44.8 -5 -5
+# --- 7 big hangar H1 (door line plan 1231)
+hangar-overview view -620 3.0 1180 -40 4
+hangar-door view -430 2.0 1196 -90 3
+hangar-crane-up fly -430 14 1160 -90 -8 12
+hangar-high view -430 14 1160 -90 -8
+hangar-inside view -430 1.8 1255 90 0
+hangar-inside-deep view -430 2.2 1242 -90 4
+hangar-orbit fly -330 6 1170 -120 -2 14
+# --- 8 cargo terminal, both sides (Tools/views/pics-cargo-hangar.txt)
+cargo-whole look 0 0 8 CargoTerminal
+cargo-airside view 430 2.0 1185 -90 3
+cargo-airside-angle view 230 2.0 1180 -55 3
+cargo-orbit fly 330 10 1150 -70 -6 14
+cargo-court view 430 2.0 1380 90 2

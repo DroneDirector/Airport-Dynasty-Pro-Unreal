@@ -2470,6 +2470,51 @@ void APaxFlow::Scenes(TArray<FScene>& Out) const
 
 int32 APaxFlow::Walking() const { int32 N = 0; for (const FPx& P : Pax) if (P.St != EPx::Gone) ++N; return N; }
 
+bool APaxFlow::GateDoor(int32 Gate, FVector& Door) const
+{
+	const int32 Gi = GateRoom(Gate);
+	if (!Gates.IsValidIndex(Gi) || Gates[Gi].N != Gate) return false;
+	Door = PW(Gates[Gi].Jw.X, Gates[Gi].bF2 ? F2Y : 0.f, Gates[Gi].Jw.Y);
+	return true;
+}
+
+bool APaxFlow::TestBoard(int32 Gate, int32 N, float Gap, FString& Why)
+{
+	const int32 Gi = GateRoom(Gate);
+	if (!Gates.IsValidIndex(Gi) || Gates[Gi].N != Gate) { Why = FString::Printf(TEXT("there is no gate %d"), Gate); return false; }
+	if (!AADPPeople::Get(GetWorld())) { Why = TEXT("no people system"); return false; }
+	const FGate& G = Gates[Gi];
+	FRun R; R.Key = FString::Printf(TEXT("T:VIEW%d"), Gate); R.Label = FString::Printf(TEXT("VIEW G%d"), Gate); R.bTest = true;
+	R.Gate = Gate; R.Pax = N; R.Visible = N; R.DepT = RealT + 20.0 * 60.0; R.Jet = JetwayFor(Gi);
+	const int32 Ri = Runs.Add(R);
+	// free floor in rows on the hall side of the door (plan z lower), each spot clear of walls, things and other people
+	UWorld* W = GetWorld(); FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewBoard), false);
+	int32 Made = 0;
+	for (int32 k = 0; k < 40 && Made < N; ++k)
+	{
+		const float Px = G.Jw.X + (float(k % 5) - 2.f) * 1.1f, Pz = G.Jw.Y - 5.f - float(k / 5) * 1.2f;
+		const FVector At = PW(Px, G.bF2 ? F2Y : 0.f, Pz);
+		if (W->OverlapAnyTestByChannel(At + FVector(0, 0, 100), FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(34.f, 80.f), Q)) continue;
+		FHitResult H;
+		if (!W->LineTraceSingleByChannel(H, At + FVector(0, 0, 60), At - FVector(0, 0, 60), ECC_Visibility, Q)) continue;   // (no floor there)
+		bool bNear = false; for (const FPx& O : Pax) if (O.St != EPx::Gone && O.A.IsValid() && FVector::Dist2D(O.A->GetActorLocation(), At) < 80.f) { bNear = true; break; }
+		if (bNear) continue;
+		++Runs[Ri].Spawned;
+		const int32 i = NewPx(); FPx& P = Pax[i];
+		P.Run = Ri; P.Id = FString::Printf(TEXT("%s-%02d"), *Runs[Ri].Label, Runs[Ri].Spawned);
+		if (!Body(At, -90.f, P)) { P.St = EPx::Gone; FreePx.Add(i); --Runs[Ri].Spawned; continue; }
+		P.St = EPx::Wait; P.Do = EDo::AtGateSpot; P.Stage = TEXT("at the gate, waiting their turn to board");
+		++Made;
+	}
+	if (!Made) { Why = TEXT("no free floor in front of the gate door"); return false; }
+	Runs[Ri].Visible = Runs[Ri].Pax = Made;
+	CallBoarding(Ri);
+	int32 k = 0; for (FPx& P : Pax) if (P.St != EPx::Gone && P.Run == Ri) P.BoardAt = RealT + 4.0 + (k++) * Gap;
+	ADP_LOG(TEXT("PaxFlow: %d of %d passengers at gate %d for the views run, boarding one every %.0f s through jetway %d"), Made, N, Gate, Gap, Runs[Ri].Jet);
+	if (Made < N) Why = FString::Printf(TEXT("only %d free spots"), Made);
+	return true;
+}
+
 bool APaxFlow::TestDone() const
 {
 	const FRun* D = Runs.FindByPredicate([](const FRun& R) { return R.Key == TEXT("T:DEP"); });

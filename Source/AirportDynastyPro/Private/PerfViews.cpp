@@ -8,7 +8,7 @@
 //   gpu                                   every pass of one frame into the log (ProfileGPU; not in the packaged game)
 //   census                                instances in the distance field scene, by mesh
 //   shot <name>
-//   hmi <jetway> [tab]  /  hmi close      the jetway's screen used (its camera page: hmi 0 cam)
+//   hmi <jetway> [tab]  /  hmi close      the jetway's screen used (its camera page: hmi 0 cam; g4: gate 4 jetway)
 //   eat <MB>                              so much graphics memory taken and used every frame, as another program would
 //   speed <career> <world>                the career's clock and the world's (1 1: as played)
 //   follow <seconds> <name>               beside a walking passenger with most people around, clear of walls and people, measured
@@ -25,6 +25,21 @@
 //   weather live                          the real weather again (hour live: the real time)
 // The camera never stands in or goes through anything: a view in something solid is left out, a flight ends before it.
 //   park / parkoff                        an A320 on every free narrow-body stand at the terminal, for a picture; away again
+// (2026-11-28, the owner's whole visual test in one start, Tools/views/full-test-1128.txt:)
+//   framegen on|off                       our own frame generation switched live (ADPFrameGen::SetActive); its state into the log
+//   shots <file> / shotcam <name>         named camera shots (Tools/views/camera-shots-1128.txt: "<name> <any step line>"),
+//                                         the named one run as the next step
+//   jetway <gate> park|dock               the gate's jetway driven home quickly / to its aircraft at the real speed (JetwayRigs)
+//   jetway <gate> cam wide|side|cab|cabin|gate [seconds]   a camera by the jetway as it stands now (seconds: flown there)
+//   jetway <gate> state / jetway beacons auto|on|flash     its state and beacons into the log / the beacons as usual,
+//                                         held lit, or all flashing (JetwayRigs::BeaconForce, bBeaconTest)
+//   board <gate> <n> [gap]                n passengers on free floor before the gate's jetway door, boarding at once (PaxFlow)
+//   fire doors open|shut / fire lights on|off   the bay doors (their own motors) / every truck's blue lights and beams
+//   fire drive / fire park                the first truck taken from its door, out along the UIDrive route at 30 km/h in its
+//                                         chase view; stopped and left again (camera steps are left out while in it)
+//   hangar <plan x> open|shut [speed]     the hangar nearest that x, its doors sent; speed: how many times the real 10 min
+//   coach town|terminal                   every coach sent to the town hub / back to its own stand (Coaches::SendOnRoute)
+//   coachwait <seconds> hub|home|near <m> waits until no coach is on its way / one is that near its stand
 //   quit
 #include "PerfViews.h"
 #include "PeopleLayers.h"
@@ -48,6 +63,10 @@
 #include "UnrealClient.h"
 #include "ADPFrameGen.h"
 #include "SunClock.h"
+#include "PaxFlow.h"
+#include "FireTruck.h"
+#include "Hangar.h"
+#include "Coaches.h"
 #include "GraphicsMemory.h"
 #include "Sim/ADPSim.h"
 #include "Kismet/GameplayStatics.h"
@@ -80,6 +99,8 @@ namespace ADPPerfViewsInternal
 {
 	TArray<FString> Steps; int32 At = 0;
 	bool bHeld = false; FVector Want = FVector::ZeroVector, From = FVector::ZeroVector; FRotator Rot = FRotator::ZeroRotator, RotFrom = FRotator::ZeroRotator;
+	TMap<FString, FString> Shots; TWeakObjectPtr<AFireTruck> FireT; double FireEnterAt = 0.0, FireRouteAt = 0.0, FireExitAt = 0.0;
+	TArray<FVector> CoachHome; int32 CoachMode = 0; float CoachNear = 0.f; double CoachEnd = 0.0;
 	double Until = 0.0, FlyStart = 0.0, FlyLen = 0.0; FString Name; TArray<float> Fr, Gp, Rn, Gm; uint64 Shown0 = 0, Made0 = 0; double MStart = 0.0;
 
 	TArray<TStrongObjectPtr<UTextureRenderTarget2D>> Eaten;
@@ -190,7 +211,7 @@ namespace ADPPerfViewsInternal
 		FVector W = Want; FRotator R = Rot;
 		if (FlyLen > 0.0)
 		{
-			const double T = FMath::Clamp((FPlatformTime::Seconds() - FlyStart) / FlyLen, 0.0, 1.0); W = FMath::Lerp(From, Want, T); R = FMath::Lerp(RotFrom, Rot, (float)T);
+			const double T0 = FMath::Clamp((FPlatformTime::Seconds() - FlyStart) / FlyLen, 0.0, 1.0), T = T0 * T0 * (3.0 - 2.0 * T0); W = FMath::Lerp(From, Want, T); R = FMath::Lerp(RotFrom, Rot, (float)T);
 			FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, P);
 			const FVector Ahead = W + (Want - From).GetSafeNormal() * 60.0;
 			if (P->GetWorld()->SweepSingleByChannel(H, W, Ahead, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(22.f), Q) || Around(Ahead - FVector(0, 0, 90.f), 70.0) > 0)
@@ -480,6 +501,70 @@ namespace ADPPerfViewsInternal
 		ADP_LOG(TEXT("Views: lives: the feet: see the Feet: lines (-FeetCheck)"));
 	}
 
+	// the views run's own timed actions (fire truck, coach waits); false while a wait holds the steps
+	bool Pending(UWorld* W, APlayerController* PC)
+	{
+		const double Now = FPlatformTime::Seconds();
+		if (FireEnterAt > 0.0 && Now >= FireEnterAt)
+		{
+			FireEnterAt = 0.0;
+			if (AFireTruck* T = FireT.Get(); T && PC->GetPawn()) { T->Enter(PC->GetPawn()); FireRouteAt = Now + 5.0; ADP_LOG(TEXT("Views: fire truck %s: in by its door"), *T->GetName()); }
+			else ADP_WARN(TEXT("Views: fire truck gone before it could be entered"));
+		}
+		if (FireRouteAt > 0.0 && Now >= FireRouteAt)
+		{
+			FireRouteAt = 0.0;
+			if (AFireTruck* T = Cast<AFireTruck>(PC->GetPawn()))
+			{
+				const FVector2D S(T->GetActorLocation().X / 100.0, -T->GetActorLocation().Y / 100.0);
+				T->SetTestRoute({S, FVector2D(S.X, 26.0), FVector2D(-1205.0, 40.0), FVector2D(-1205.0, 190.0), FVector2D(-1190.0, 196.0), FVector2D(-420.0, 196.0), FVector2D(-230.0, 196.0)}, 30.f);
+				T->SetView(true); ADP_LOG(TEXT("Views: fire drive: out along the route at 30 km/h, chase view"));
+			}
+			else ADP_WARN(TEXT("Views: fire drive: not in the truck after 5 s (too far from its door?) - it stays"));
+		}
+		if (FireExitAt > 0.0 && Now >= FireExitAt)
+		{
+			FireExitAt = 0.0;
+			if (AFireTruck* T = Cast<AFireTruck>(PC->GetPawn())) { ADP_LOG(TEXT("Views: fire park: stopped at %.0f km/h, out"), T->SpeedKmh()); T->Exit(); }
+		}
+		if (CoachMode)
+		{
+			ACoaches* C = ACoaches::Find(); bool bDone = !C; float Best = 1e9f;
+			if (C)
+			{
+				bool bAny = false;
+				for (int32 c = 0; c < C->Num(); ++c)
+				{
+					bAny |= C->OnRoute(c);
+					if (C->ModelOf(c) && CoachHome.IsValidIndex(c)) Best = FMath::Min(Best, float(FVector::Dist2D(C->ModelOf(c)->GetActorLocation(), CoachHome[c]) / 100.0));
+				}
+				bDone = CoachMode == 3 ? Best <= CoachNear : !bAny;
+			}
+			if (bDone) ADP_LOG(TEXT("Views: coachwait done (%s; the nearest coach %.0f m from its stand)"), CoachMode == 3 ? TEXT("near") : CoachMode == 1 ? TEXT("at the hub") : TEXT("home"), Best);
+			else if (Now >= CoachEnd) { ADP_WARN(TEXT("Views: coachwait timed out - the coaches still on their way (nearest %.0f m from its stand)"), Best); bDone = true; }
+			if (bDone) CoachMode = 0;
+			return bDone;
+		}
+		return true;
+	}
+	// the camera put at To, looking at Aim, held or flown there in Sec
+	void AimAt(UWorld* W, APlayerController* PC, const FVector& To, const FVector& Aim, double Sec, const FString& Label)
+	{
+		bSub = bRel = bMissing = false; FreeFov(PC);
+		if (Sec <= 0.0 && Solid(W, To, PC->GetPawn())) { ADP_WARN(TEXT("Views: %s is inside something - left out"), *Label); bMissing = true; return; }
+		From = PC->PlayerCameraManager->GetCameraLocation(); RotFrom = Rot; Want = To; Rot = (Aim - To).Rotation(); Rot.Roll = 0.f; bHeld = true; FlyLen = 0.0;
+		ADP_LOG(TEXT("Views: %s at %.1f %.1f %.1f %.0f %.0f"), *Label, To.X / 100.0, To.Z / 100.0, -To.Y / 100.0, Rot.Yaw, Rot.Pitch);
+		if (Sec > 0.0) { FlyLen = Sec; FlyStart = FPlatformTime::Seconds(); BeginMeasure(Sec, TEXT("fly ") + Label); }
+	}
+	void JetLog(AJetwayRigs* J, int32 Ji)
+	{
+		static const TCHAR* St[] = { TEXT("parked"), TEXT("docking"), TEXT("docked"), TEXT("undocking"), TEXT("manual") };
+		const int32 S = int32(J->State(Ji));
+		ADP_LOG(TEXT("Views: jetway %d %s, beacons %s%s, hour %.1f"), Ji, S >= 0 && S < 5 ? St[S] : TEXT("?"),
+			AJetwayRigs::BeaconForce == 1 ? TEXT("held lit") : AJetwayRigs::BeaconForce == 0 ? TEXT("held dark") : TEXT("as usual (flashing while it moves)"),
+			AJetwayRigs::bBeaconTest ? TEXT(", all flashing (test)") : TEXT(""), ASunClock::HourOverride);
+	}
+
 	bool Tick(float Dt)
 	{
 		UWorld* W = ViewsWorld(); APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr;
@@ -488,6 +573,7 @@ namespace ADPPerfViewsInternal
 		if (bFollow) FollowAt(W, PC->GetPawn(), Dt);
 		else if (bSub && bHeld) KeepSub(W, PC->GetPawn());
 		if (bHeld) Place(PC);
+		if (!Pending(W, PC)) return true;
 		for (TStrongObjectPtr<UTextureRenderTarget2D>& T : Eaten) UKismetRenderingLibrary::ClearRenderTarget2D(W, T.Get(), FLinearColor::Black);
 		if (!Name.IsEmpty()) { Fr.Add(Dt * 1000.f); Gp.Add(FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles())); Rn.Add(FPlatformTime::ToMilliseconds(GRenderThreadTime)); Gm.Add(FPlatformTime::ToMilliseconds(GGameThreadTime)); }
 		if (Need > 0)
@@ -531,6 +617,8 @@ namespace ADPPerfViewsInternal
 		const FString L = Steps[At++].TrimStartAndEnd();
 		FString K, A; if (!L.Split(TEXT(" "), &K, &A)) K = L;
 		TArray<FString> V; A.ParseIntoArrayWS(V);
+		if (Cast<AFireTruck>(PC->GetPawn()) && (K == TEXT("view") || K == TEXT("fly") || K == TEXT("look") || K == TEXT("rel") || K == TEXT("shotcam") || (K == TEXT("jetway") && A.Contains(TEXT(" cam")))))
+		{ ADP_WARN(TEXT("Views: %s left out - the camera is in the fire truck (fire park first)"), *L); return true; }
 		if ((K == TEXT("view") && V.Num() >= 5) || (K == TEXT("fly") && V.Num() >= 6))
 		{
 			const FVector To(FCString::Atof(*V[0]) * 100.f, -FCString::Atof(*V[2]) * 100.f, FCString::Atof(*V[1]) * 100.f);
@@ -614,7 +702,7 @@ namespace ADPPerfViewsInternal
 		{
 			AADPHUD* H = Cast<AADPHUD>(PC->GetHUD());
 			if (H && V[0] == TEXT("close")) H->EndHmi();
-			else if (H) { bHeld = false; H->OpenHmi(FCString::Atoi(*V[0])); if (AJetwayHmi* M = AJetwayHmi::Get(W); M && V.Num() > 1) M->Command(TEXT("tab:") + V[1]); }
+			else if (H) { bHeld = false; APaxFlow* Pg = APaxFlow::Get(W); H->OpenHmi(V[0].StartsWith(TEXT("g")) && Pg ? Pg->GateJetway(FCString::Atoi(*V[0].Mid(1))) : FCString::Atoi(*V[0])); if (AJetwayHmi* M = AJetwayHmi::Get(W); M && V.Num() > 1) M->Command(TEXT("tab:") + V[1]); }
 			ADP_LOG(TEXT("Views: hmi %s"), *A);
 		}
 		else if (K == TEXT("eat"))
@@ -705,6 +793,95 @@ namespace ADPPerfViewsInternal
 			ADP_LOG(TEXT("Views: %d aircraft parked for the picture"), N);
 		}
 		else if (K == TEXT("parkoff")) { for (const auto& M : ForPicture) if (M.IsValid()) M->Destroy(); ForPicture.Reset(); }
+		else if (K == TEXT("framegen"))
+		{
+			const bool bOn = A != TEXT("off");
+			if (ADPFrameGen::Installed()) ADPFrameGen::SetActive(bOn); else ADP_WARN(TEXT("Views: framegen: not in place this start (AMD frame generation chosen?) - not switched"));
+			ADP_LOG(TEXT("Views: frame generation asked %s - in place %d, on %d, %d shown per frame drawn"), bOn ? TEXT("ON") : TEXT("OFF"), ADPFrameGen::Installed() ? 1 : 0, ADPFrameGen::Enabled() ? 1 : 0, ADPFrameGen::Multiplier());
+		}
+		else if (K == TEXT("shots") || (K == TEXT("shotcam") && !Shots.Num()))
+		{
+			const FString F = FPaths::ProjectDir() / (K == TEXT("shots") ? A : FString(TEXT("Tools/views/camera-shots-1128.txt")));
+			TArray<FString> Ls; FFileHelper::LoadFileToStringArray(Ls, *F); Shots.Reset();
+			for (const FString& X : Ls) { FString Nm, Do; const FString T = X.TrimStartAndEnd(); if (!T.StartsWith(TEXT("#")) && T.Split(TEXT(" "), &Nm, &Do)) Shots.Add(Nm, Do.TrimStartAndEnd()); }
+			ADP_LOG(TEXT("Views: %d camera shots from %s"), Shots.Num(), *F);
+			if (K == TEXT("shotcam") && Shots.Num()) --At;   // (and the shot itself now)
+			else if (K == TEXT("shotcam")) { ADP_WARN(TEXT("Views: no camera shots - %s left out"), *A); bMissing = true; }
+		}
+		else if (K == TEXT("shotcam"))
+		{
+			if (const FString* Do = Shots.Find(A)) { ADP_LOG(TEXT("Views: shot %s"), *A); Steps.Insert(*Do, At); }
+			else { ADP_WARN(TEXT("Views: no camera shot called %s"), *A); bMissing = true; }
+		}
+		else if (K == TEXT("jetway") && V.Num() > 1)
+		{
+			AJetwayRigs* J = AJetwayRigs::Get(W); APaxFlow* Pf = APaxFlow::Get(W);
+			if (V[0] == TEXT("beacons")) { AJetwayRigs::BeaconForce = V[1] == TEXT("on") ? 1 : -1; AJetwayRigs::bBeaconTest = V[1] == TEXT("flash"); ADP_LOG(TEXT("Views: jetway beacons %s"), *V[1]); return true; }
+			const int32 Ji = Pf ? Pf->GateJetway(FCString::Atoi(*V[0])) : INDEX_NONE;
+			FVector Ro, Dr;
+			if (!J || Ji == INDEX_NONE || !J->Frame(Ji, Ro, Dr)) { ADP_WARN(TEXT("Views: gate %s has no jetway here%s"), *V[0], Pf ? TEXT("") : TEXT(" (no passenger flow)")); bMissing = true; return true; }
+			if (V[1] == TEXT("park")) { AJetwayRigs::Speed = 12.f; if (J->Undock(Ji)) ADP_LOG(TEXT("Views: jetway %d driving home"), Ji); else ADP_LOG(TEXT("Views: jetway %d not sent home: %s"), Ji, *AJetwayRigs::LastNote); }
+			else if (V[1] == TEXT("dock")) { AJetwayRigs::Speed = 1.f; if (J->Dock(Ji)) ADP_LOG(TEXT("Views: jetway %d docking from rest, real speed"), Ji); else ADP_WARN(TEXT("Views: jetway %d does not dock: %s"), Ji, *AJetwayRigs::LastNote); }
+			else if (V[1] == TEXT("cam") && V.Num() > 2)
+			{
+				const FVector Dir = (Dr - Ro).GetSafeNormal2D(), Perp(-Dir.Y, Dir.X, 0.f), Mj = (Ro + Dr) / 2.f; const double Sec = V.Num() > 3 ? FCString::Atof(*V[3]) : 0.0;
+				const FString Lb = FString::Printf(TEXT("jetway %d %s"), Ji, *V[2]);
+				if (V[2] == TEXT("wide")) { AimAt(W, PC, Mj + Perp * 3300.f + Dir * 1700.f + FVector(0, 0, 900), Mj + Dir * 1100.f - FVector(0, 0, 200), Sec, Lb); LockFov(PC, 55.f); }
+				else if (V[2] == TEXT("side")) AimAt(W, PC, Mj + Perp * 1600.f + FVector(0, 0, 250), Mj, Sec, Lb);
+				else if (V[2] == TEXT("cab")) { FVector E = Ro + Dir * 450.f; E.Z = Ro.Z + 60.f; AimAt(W, PC, E, FVector(Dr.X, Dr.Y, E.Z), 0.0, Lb); }
+				else if (V[2] == TEXT("cabin")) { FVector Mid, Fw; if (J->CabView(Ji, Mid, Fw)) AimAt(W, PC, Mid - Fw.GetSafeNormal2D() * 150.f + FVector(0, 0, 40), Mid + Fw.GetSafeNormal2D() * 300.f, 0.0, Lb); else { ADP_WARN(TEXT("Views: jetway %d has no cab view"), Ji); bMissing = true; } }
+				else if (V[2] == TEXT("gate")) { FVector D; if (Pf->GateDoor(FCString::Atoi(*V[0]), D)) AimAt(W, PC, D + FVector(0, 1000, 260), D + FVector(0, 0, 120), Sec, Lb); else { ADP_WARN(TEXT("Views: gate %s has no door"), *V[0]); bMissing = true; } }
+				else ADP_WARN(TEXT("Views: jetway camera %s not known"), *V[2]);
+			}
+			JetLog(J, Ji);
+		}
+		else if (K == TEXT("board") && V.Num() > 1)
+		{
+			APaxFlow* Pf = APaxFlow::Get(W); FString Why;
+			if (!Pf) ADP_WARN(TEXT("Views: board: no passenger flow here"));
+			else if (!Pf->TestBoard(FCString::Atoi(*V[0]), FCString::Atoi(*V[1]), V.Num() > 2 ? FCString::Atof(*V[2]) : 3.f, Why)) ADP_WARN(TEXT("Views: board: nobody - %s"), *Why);
+			else ADP_LOG(TEXT("Views: board: passengers at gate %s%s%s"), *V[0], Why.IsEmpty() ? TEXT("") : TEXT(" - "), *Why);
+		}
+		else if (K == TEXT("fire") && V.Num())
+		{
+			AFireTruck* T = nullptr; int32 Nt = 0; for (const TWeakObjectPtr<AFireTruck>& X : AFireTruck::All) if (X.IsValid()) { ++Nt; if (!T) T = X.Get(); }
+			if (V[0] == TEXT("doors")) { const bool bOpen = A.Contains(TEXT("open")); AFireStationDoors::CommandAll(bOpen); ADP_LOG(TEXT("Views: fire station doors %s"), bOpen ? TEXT("opening") : TEXT("shutting")); }
+			else if (!T) ADP_WARN(TEXT("Views: no fire truck here"));
+			else if (V[0] == TEXT("lights")) { const bool bOn = A.Contains(TEXT("on")); for (const TWeakObjectPtr<AFireTruck>& X : AFireTruck::All) if (X.IsValid()) X->SetTestLights(bOn, bOn); ADP_LOG(TEXT("Views: %d fire trucks' lights %s"), Nt, bOn ? TEXT("on, blue flashing") : TEXT("off")); }
+			else if (V[0] == TEXT("drive"))
+			{
+				if (APawn* Me = PC->GetPawn())
+				{
+					bHeld = bSub = bRel = false; FlyLen = 0.0; FreeFov(PC); const FVector D = T->DoorSpot(); const FRotator Face(0.f, (T->GetActorLocation() - D).Rotation().Yaw, 0.f);
+					Me->SetActorEnableCollision(true); Me->TeleportTo(D, Face); PC->SetControlRotation(Face);
+				}
+				FireT = T; FireEnterAt = FPlatformTime::Seconds() + 1.0; ADP_LOG(TEXT("Views: fire drive: at truck %s's door (%d trucks; only this one is driven, the others light up where they stand)"), *T->GetName(), Nt);
+			}
+			else if (V[0] == TEXT("park")) { if (AFireTruck* In = Cast<AFireTruck>(PC->GetPawn())) { In->SetTestInput(0.f, 1.f, 0.f); FireExitAt = FPlatformTime::Seconds() + 4.0; ADP_LOG(TEXT("Views: fire park: braking")); } else ADP_WARN(TEXT("Views: fire park: not in a truck")); }
+		}
+		else if (K == TEXT("hangar") && V.Num() > 1)
+		{
+			AHangar* Best = nullptr; double Bd = 1e9; const double Hx = FCString::Atof(*V[0]) * 100.0;
+			for (TActorIterator<AHangar> It(W); It; ++It) if (FMath::Abs(It->GetActorLocation().X - Hx) < Bd) { Bd = FMath::Abs(It->GetActorLocation().X - Hx); Best = *It; }
+			if (!Best) { ADP_WARN(TEXT("Views: no hangar here")); return true; }
+			AHangar::DoorSpeed = V.Num() > 2 ? FMath::Max(0.1f, (float)FCString::Atof(*V[2])) : 1.f;
+			Best->Command(V[1] == TEXT("open"));
+			ADP_LOG(TEXT("Views: hangar %s (%.0f m off) doors %s at %.0fx, now %.0f %% open"), *Best->GetName(), Bd / 100.0, *V[1], AHangar::DoorSpeed, Best->DoorOpen() * 100.f);
+		}
+		else if (K == TEXT("coach") && V.Num())
+		{
+			ACoaches* C = ACoaches::Get(W);
+			if (!C || !C->Num()) { ADP_WARN(TEXT("Views: no coaches here")); return true; }
+			const bool bTown = V[0] == TEXT("town"); int32 Sent = 0;
+			if (bTown) { CoachHome.Reset(); for (int32 c = 0; c < C->Num(); ++c) CoachHome.Add(C->ModelOf(c) ? C->ModelOf(c)->GetActorLocation() : FVector::ZeroVector); }
+			for (int32 c = 0; c < C->Num(); ++c) Sent += C->SendOnRoute(c, bTown) ? 1 : 0;   // (each one that can not go says why itself)
+			ADP_LOG(TEXT("Views: %d of %d coaches sent %s"), Sent, C->Num(), bTown ? TEXT("to the town hub") : TEXT("back to their stands"));
+		}
+		else if (K == TEXT("coachwait") && V.Num() > 1)
+		{
+			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
+			CoachEnd = FPlatformTime::Seconds() + FCString::Atof(*V[0]); ADP_LOG(TEXT("Views: waiting for the coaches (%s)"), *A);
+		}
 		else if (K == TEXT("quit")) { ADP_LOG(TEXT("Views: done")); FPlatformMisc::RequestExit(false); return false; }
 		else if (!L.IsEmpty() && !L.StartsWith(TEXT("#"))) ADP_WARN(TEXT("Views: not understood: %s"), *L);
 		return true;

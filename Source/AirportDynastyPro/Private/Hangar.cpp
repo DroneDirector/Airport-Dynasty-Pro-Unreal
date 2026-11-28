@@ -20,6 +20,8 @@
 #include "GameFramework/Pawn.h"
 #include "Components/StaticMeshComponent.h"
 
+float AHangar::DoorSpeed = 1.f;
+
 #pragma region Sizes
 namespace
 {
@@ -352,7 +354,7 @@ void AHangar::Tick(float Dt)
 	// the main door: 10 minutes from shut to fully open, held by STOP; the beacons flash while it moves
 	if (DoorRun != 0)
 	{
-		DoorK = FMath::Clamp(DoorK + DoorRun * Dt / 600.f, 0.f, 1.f);
+		DoorK = FMath::Clamp(DoorK + DoorRun * Dt * DoorSpeed / 600.f, 0.f, 1.f);
 		if (DoorK <= 0.f || DoorK >= 1.f) DoorRun = 0;
 		for (const FLeaf& L : Leaves) if (L.Node) L.Node->SetRelativeLocation(FVector(L.Travel * DoorK, 0, 0));
 	}

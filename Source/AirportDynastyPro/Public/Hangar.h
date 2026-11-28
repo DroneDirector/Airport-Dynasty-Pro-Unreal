@@ -73,6 +73,8 @@ public:
 	/** Its door panel's button (DoorPanelUse.h): open or shut, and stays so; changing its way mid-move it stops about a
 	 *  second first. */
 	void Command(bool bOpen);
+	/** How fast the doors run (1 = the real 10 minutes; the fixed-views run speeds them up). */
+	static float DoorSpeed;
 	/** Its door buttons (the interaction outline, InteractOutline.h). */
 	TArray<UStaticMeshComponent*> ButtonList() const { TArray<UStaticMeshComponent*> L; for (const auto& B : Buttons) L.Add(B.Get()); return L; }
 	/** How far the main door is open (0 shut, 1 open), and where it is going (-1 closing, 0 still, 1 opening). */

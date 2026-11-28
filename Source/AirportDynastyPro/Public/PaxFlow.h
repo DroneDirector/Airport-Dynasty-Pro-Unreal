@@ -85,6 +85,12 @@ public:
 	bool IsTest() const { return bTest; }
 	/** Tests: both test flights are through (the departure all aboard, the arrival all out at the car park). */
 	bool TestDone() const;
+	/** The fixed-views run (PerfViews "board"): N passengers on free floor a few metres in front of the gate's jetway door,
+	 *  boarding called at once, one every Gap seconds through the door once the jetway is docked. False and Why if not. */
+	bool TestBoard(int32 Gate, int32 N, float Gap, FString& Why);
+	/** The gate's jetway (INDEX_NONE: none) and its jetway door in the world (false: no such gate). */
+	int32 GateJetway(int32 Gate) const { return JetwayFor(GateRoom(Gate)); }
+	bool GateDoor(int32 Gate, FVector& Door) const;
 	/** How many are walking now, and how many have gone aboard / out so far. */
 	int32 Walking() const;
 	/** One flight's passengers in numbers (the functional test, the tracking map): its label; false when nobody walks for it. */
