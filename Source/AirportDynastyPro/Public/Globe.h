@@ -39,6 +39,8 @@ class AIRPORTDYNASTYPRO_API AGlobe : public AActor
 	bool bNoBuoyancy = false; double NextBuoyancy = 0.0;
 
 public:
+	/** Inside the airfield's terrain cut (a world point)? There the terrain is hidden; its collision is no ground to stand on. */
+	static bool InAirfieldCut(const FVector& World) { const AGlobe* G = Current.Get(); return G && G->Airfield.bIsValid && G->Airfield.IsInside(FVector2D(World.X / 100.0, -World.Y / 100.0)); }
 	/** The terrain's layer.json the globe uses (empty: none installed - the smooth globe; nothing placed at real heights may show). */
 	static FString TerrainLayer();
 	AGlobe();

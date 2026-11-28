@@ -92,6 +92,13 @@ public:
 	bool OnRoute(int32 Coach) const { return RouteGo.Contains(Coach); }
 	/** The loop's path from a root place (world cm, the front axle's way; tests). Empty, Why said, when there is none. */
 	TArray<FVector> RoutePath(int32 Coach, bool bToTown, int32 Bay, const FTransform& From, FString& Why) const;
+	/** Views test: every coach not yet driving put on the loop's way in, Metres short of the terminal, GapM apart (the
+	 *  stands left empty, each one's stand kept as its home). Only before their riders exist. The number put out. */
+	int32 TestOut(float Metres, float GapM);
+	/** Views test: the coach operator's driver for it (appears unseen beside the coach, climbs in). True once at the wheel. */
+	bool TestDriver(int32 Coach);
+	/** Views test: could it set off along the loop now without touching another coach? */
+	bool RouteFree(int32 Coach, bool bToTown) const;
 
 private:
 	static TWeakObjectPtr<ACoaches> One;
@@ -140,6 +147,7 @@ private:
 	TMap<int32, FRouteGo> RouteGo;
 	TMap<int32, FTransform> HomeStand;     // a coach's terminal stand (world root): where it was when first sent to town
 	TMap<int32, int32> HubBayOf;           // the hub bay a coach went to
+	TMap<int32, TWeakObjectPtr<AActor>> TestDriverOf;   // views test drivers
 	USoundBase* SndBeep = nullptr;
 	void RouteTick(float Dt);
 	/** The first other coach the body touches driving the first stretch of Path from From (INDEX_NONE: none). */

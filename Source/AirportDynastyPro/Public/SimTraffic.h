@@ -42,6 +42,9 @@ public:
 	static bool Moving(const UWorld* W, const FString& Reg);
 	/** The runway is in use: something rolling, landing, on final under 400 m or lined up (a hangar tow holds short, to-do 311). */
 	static bool RunwayBusy(const UWorld* W);
+	/** Views test: an A320 of no flight (tag MOVE/<Reg>): lined up on the runway in use and rolling now (bTakeoff), or on a
+	 *  3 degree final SecOut seconds before touchdown. False (logged) without traffic or with the runway busy. */
+	static bool TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg);
 	/** For the tower's words (RunwayRadio.h): what keeps the runway busy now ("traffic landing", "traffic departing",
 	 *  "traffic on the runway"; empty: none of ours) and the runway in use, spoken ("two six"). */
 	static FString RunwayTraffic(const UWorld* W);

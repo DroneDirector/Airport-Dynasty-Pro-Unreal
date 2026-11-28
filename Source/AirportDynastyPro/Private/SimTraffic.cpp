@@ -329,6 +329,33 @@ void ASimTraffic::Pose(FMove& M)
 	B->SetActorLocationAndRotation(World, FRotator(0.f, Yaw, Up));
 }
 
+bool ASimTraffic::TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg)
+{
+	ASimTraffic* T = nullptr;
+	if (W) for (TActorIterator<ASimTraffic> It(W); It; ++It) { T = *It; break; }
+	if (!T) { ADP_WARN(TEXT("Traffic: test %s - no traffic here"), bTakeoff ? TEXT("take-off") : TEXT("landing")); return false; }
+	if (RunwayBusy(W)) { ADP_WARN(TEXT("Traffic: test %s - the runway is busy"), bTakeoff ? TEXT("take-off") : TEXT("landing")); return false; }
+	const bool bToX1 = T->RunwayToX1(); const float Dir = bToX1 ? 1.f : -1.f, RY = T->F.RwyY;
+	FMove M; M.Reg = Reg = bTakeoff ? TEXT("HB-TOFF") : TEXT("HB-LAND"); M.FlightId = TEXT("TEST-") + M.Reg; M.bDeparture = bTakeoff;
+	if (bTakeoff)
+	{
+		const float LineUp = bToX1 ? T->F.RwyX0 + 20.f : T->F.RwyX1 - 20.f;
+		M.Phase = EPhase::Roll; M.Nose = FVector2f(LineUp, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
+		M.Path = {FVector2f(LineUp, RY), FVector2f(LineUp + Dir * 1700.f, RY)};
+	}
+	else
+	{
+		const float Thr = bToX1 ? T->F.RwyX0 : T->F.RwyX1, TD = Thr + Dir * 500.f, Out = Vapp * FMath::Max(SecOut, 5.f);
+		M.Phase = EPhase::Approach; M.Nose = FVector2f(TD - Dir * Out, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
+		M.Height = Out * FMath::Tan(FMath::DegreesToRadians(Glide)); M.Speed = Vapp; M.Path = {FVector2f(TD, RY)};
+	}
+	if (T->Moves.ContainsByPredicate([&](const FMove& O) { return O.Reg == Reg; })) { ADP_WARN(TEXT("Traffic: test %s is still about"), *Reg); return false; }
+	T->Seen.Add(M.FlightId);
+	T->Moves.Add(M);
+	ADP_LOG(TEXT("Traffic: test %s %s on runway %s, nose at %.0f %.0f, %.0f m up"), *Reg, bTakeoff ? TEXT("takes off") : TEXT("lands"), bToX1 ? TEXT("towards x1") : TEXT("towards x0"), M.Nose.X, M.Nose.Y, M.Height);
+	return true;
+}
+
 bool ASimTraffic::Advance(FMove& M, float Dt)
 {
 	const bool bToX1 = RunwayToX1();

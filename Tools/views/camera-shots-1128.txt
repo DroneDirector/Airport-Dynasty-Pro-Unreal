@@ -20,7 +20,7 @@ land-orbit-west fly 0 9 -70 -60 -5 14
 land-orbit-east fly 160 9 -70 -120 -5 20
 land-orbit-home fly 75 16 -130 -90 -6 12
 # --- coaches arriving at their stands
-coach-road-wide view 150 20 -160 -120 -12
+coach-road-wide view 700 20 -95 -18 -7
 coach-track look 0 0 14 AirportCoach
 coach-turn-crane fly 276 12 -70 -90 -14 10
 coach-parked-wide view 276 10 -85 -90 -9
@@ -66,3 +66,8 @@ cargo-airside view 430 2.0 1185 -90 3
 cargo-airside-angle view 230 2.0 1180 -55 3
 cargo-orbit fly 330 10 1150 -70 -6 14
 cargo-court view 430 2.0 1380 90 2
+# --- 9 runway 08/26 (plan y 646, x -1919..2081): beside it at its middle, south of the centre line; tracking alongside
+rwy-side view 80 3 540 -90 2
+rwy-takeoff-track look 80 90 6 HB-TOFF
+rwy-land-side view 80 12 470 -90 2
+rwy-land-track look 90 90 8 HB-LAND

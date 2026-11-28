@@ -24,8 +24,8 @@ shotcam bus-bay
 wait 2
 measure 10 bus-bay
 shot4k bus-bay
-# the coaches away to the town hub, so none stands outside the Grand Hall when they come in
-coach town
+# the coaches out on the road in, 500 m short of their stands and 25 m apart, so none stands outside the Grand Hall when they come in
+coach out 500 25
 # ===== 2 terminal landside, from near the car park
 shotcam land-whole
 wait 2
@@ -50,7 +50,6 @@ shotcam land-orbit-east
 shot4k land-orbit-east
 shotcam land-orbit-home
 # ===== coaches arriving: from the hub, picked up on the road 500 m out, tracked in, parked on their own stands
-coachwait 420 hub
 coach terminal
 coachwait 420 near 500
 shotcam coach-road-wide
@@ -236,6 +235,24 @@ shotcam cargo-court
 wait 2
 measure 10 cargo-court
 shot4k cargo-truck-court
+# ===== 9 an A320 taking off, then one landing (20 s before touchdown; the runway in use from the wind)
+shotcam rwy-side
+flight takeoff a320
+wait 3
+measure 8 rwy-takeoff
+shot4k rwy-takeoff-roll
+shotcam rwy-takeoff-track
+wait 10
+shot4k rwy-takeoff-track
+wait 40
+shotcam rwy-land-side
+flight land a320 20
+wait 8
+shot4k rwy-land-final
+shotcam rwy-land-track
+wait 10
+measure 8 rwy-land
+shot4k rwy-land-track
 # ===== end
 lives
 parkoff

@@ -94,6 +94,10 @@
 #include "Misc/Paths.h"
 #include "Sim/ADPBoards.h"
 #include "Sim/ADPSimData.h"
+#include "Globe.h"
+#include "SimTraffic.h"
+#include "Coaches.h"
+#include "VehicleRiders.h"
 
 namespace ADPPerfViewsInternal
 {
@@ -101,6 +105,7 @@ namespace ADPPerfViewsInternal
 	bool bHeld = false; FVector Want = FVector::ZeroVector, From = FVector::ZeroVector; FRotator Rot = FRotator::ZeroRotator, RotFrom = FRotator::ZeroRotator;
 	TMap<FString, FString> Shots; TWeakObjectPtr<AFireTruck> FireT; double FireEnterAt = 0.0, FireRouteAt = 0.0, FireExitAt = 0.0;
 	TArray<FVector> CoachHome; int32 CoachMode = 0; float CoachNear = 0.f; double CoachEnd = 0.0;
+	TArray<int32> CoachSend; bool bCoachSendTown = false; double CoachSendEnd = 0.0; int32 CoachSent = 0;   // (coaches waiting for their drivers before they are sent)
 	double Until = 0.0, FlyStart = 0.0, FlyLen = 0.0; FString Name; TArray<float> Fr, Gp, Rn, Gm; uint64 Shown0 = 0, Made0 = 0; double MStart = 0.0;
 
 	TArray<TStrongObjectPtr<UTextureRenderTarget2D>> Eaten;
@@ -167,6 +172,68 @@ namespace ADPPerfViewsInternal
 		FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me);
 		return W->OverlapBlockingTestByChannel(Spot, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(22.f), Q) || Around(Spot - FVector(0, 0, 90.f), 70.0) > 0;
 	}
+	// ---- the ground under (or over) the camera: the camera is never in the mountain or under the ground
+	// 0 not ground, 1 terrain (any height counts), 2 made ground (roads, the airfield's surfaces: only just above counts)
+	int32 GroundKind(const AActor* A, const FVector& Spot)
+	{
+		if (!A) return 0;
+		const FString C = A->GetClass()->GetName();
+		if (C.Contains(TEXT("Cesium")) || C.Contains(TEXT("Landscape")) || C.Contains(TEXT("LandCorridor")) || C.Contains(TEXT("Terrain"))) return AGlobe::InAirfieldCut(Spot) ? 0 : 1;
+		if (C.Contains(TEXT("Lights")) || C.Contains(TEXT("Signs")) || C.Contains(TEXT("Decals"))) return 0;
+		return C == TEXT("Airfield") || C.Contains(TEXT("MetaRoad")) || C.Contains(TEXT("RoadNetwork")) ? 2 : 0;
+	}
+	struct FGroundAt { FVector2D Xy; double Z, T; FString What; };
+	FGroundAt GroundSeen[8]; int32 GroundNext = 0;
+	/** The top of the ground over the point's spot (world z; -1e30: none). Cached briefly for each-frame use. */
+	double GroundTop(UWorld* W, const FVector& P, const AActor* Me, FString* What = nullptr, bool bCache = false)
+	{
+		const double Now = FPlatformTime::Seconds();
+		if (bCache) for (const FGroundAt& G : GroundSeen) if (Now - G.T < 0.4 && FVector2D::Distance(G.Xy, FVector2D(P)) < 200.0) { if (What) *What = G.What; return G.Z; }
+		FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsGround), true, Me);
+		const FVector Top(P.X, P.Y, P.Z + 400000.0), Bot(P.X, P.Y, P.Z - 3000.0);
+		FHitResult H; double Z = -1e30; FString Nm;
+		for (int32 k = 0; k < 24 && W->LineTraceSingleByChannel(H, Top, Bot, ECC_Visibility, Q); ++k)
+		{
+			const AActor* A = H.GetActor(); const int32 Kind = GroundKind(A, H.ImpactPoint);
+			if (Kind == 1 || (Kind == 2 && H.ImpactPoint.Z < P.Z + 300.0)) { Z = H.ImpactPoint.Z; Nm = A->GetName(); break; }
+			if (Kind == 2 && H.GetComponent()) Q.AddIgnoredComponent(H.GetComponent());   // (a bridge over it)
+			else if (A) Q.AddIgnoredActor(A);
+			else break;
+		}
+		GroundSeen[GroundNext] = { FVector2D(P), Z, Now, Nm }; GroundNext = (GroundNext + 1) % UE_ARRAY_COUNT(GroundSeen);
+		if (What) *What = Nm;
+		return Z;
+	}
+	TSet<FString> Lifted;
+	/** Lifts C to 1.5 m over the ground when it is lower (each correction logged once per label). True when lifted. */
+	bool AboveGround(UWorld* W, FVector& C, const AActor* Me, const FString& Label, bool bCache = false)
+	{
+		FString What; const double G = GroundTop(W, C, Me, &What, bCache);
+		if (G < -1e29 || C.Z >= G + 150.0) return false;
+		if (!Lifted.Contains(Label))
+		{
+			Lifted.Add(Label);
+			ADP_WARN(TEXT("Views: %s: camera at %.1f %.1f %.1f was %s %s (%.1f m) - lifted to 1.5 m over it"), *Label, C.X / 100.0, C.Z / 100.0, -C.Y / 100.0,
+				C.Z < G ? TEXT("under") : TEXT("too near the top of"), *What, (G - C.Z) / 100.0);
+		}
+		C.Z = G + 150.0; return true;
+	}
+	// a flight's lift along its way (its samples lifted, filled in when it starts)
+	double FlyLift[25] = {};
+	void FlyPlan(UWorld* W, const AActor* Me, const FString& Label)
+	{
+		for (int32 i = 0; i < UE_ARRAY_COUNT(FlyLift); ++i)
+		{
+			const double T0 = double(i) / (UE_ARRAY_COUNT(FlyLift) - 1), T = T0 * T0 * (3.0 - 2.0 * T0);
+			FVector C = FMath::Lerp(From, Want, T); const double Z0 = C.Z;
+			AboveGround(W, C, Me, Label + TEXT(" (on the way)")); FlyLift[i] = C.Z - Z0;
+		}
+	}
+	double FlyLiftAt(double T)
+	{
+		const double F = FMath::Clamp(T, 0.0, 1.0) * (UE_ARRAY_COUNT(FlyLift) - 1); const int32 I = FMath::Min(int32(F), int32(UE_ARRAY_COUNT(FlyLift)) - 2);
+		return FMath::Lerp(FlyLift[I], FlyLift[I + 1], F - I);
+	}
 	bool NextSubject()
 	{
 		AActor* Best = nullptr; int32 Most = -1;
@@ -211,7 +278,7 @@ namespace ADPPerfViewsInternal
 		FVector W = Want; FRotator R = Rot;
 		if (FlyLen > 0.0)
 		{
-			const double T0 = FMath::Clamp((FPlatformTime::Seconds() - FlyStart) / FlyLen, 0.0, 1.0), T = T0 * T0 * (3.0 - 2.0 * T0); W = FMath::Lerp(From, Want, T); R = FMath::Lerp(RotFrom, Rot, (float)T);
+			const double T0 = FMath::Clamp((FPlatformTime::Seconds() - FlyStart) / FlyLen, 0.0, 1.0), T = T0 * T0 * (3.0 - 2.0 * T0); W = FMath::Lerp(From, Want, T) + FVector(0, 0, FlyLiftAt(T0)); R = FMath::Lerp(RotFrom, Rot, (float)T);
 			FHitResult H; FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, P);
 			const FVector Ahead = W + (Want - From).GetSafeNormal() * 60.0;
 			if (P->GetWorld()->SweepSingleByChannel(H, W, Ahead, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(22.f), Q) || Around(Ahead - FVector(0, 0, 90.f), 70.0) > 0)
@@ -220,6 +287,7 @@ namespace ADPPerfViewsInternal
 				Want = W; Rot = R; FlyLen = 0.0;   // (it waits there)
 			}
 		}
+		else AboveGround(P->GetWorld(), W, P, TEXT("held"), true);
 		const FVector D = W - PC->PlayerCameraManager->GetCameraLocation();
 		P->SetActorLocation(P->GetActorLocation() + D, false, nullptr, ETeleportType::TeleportPhysics);
 		PC->SetControlRotation(R);
@@ -270,12 +338,24 @@ namespace ADPPerfViewsInternal
 			if (Pa && !Pa->IsHidden() && !Pa->IsA<APawn>() && !(Pa->GetAttachParentActor() && Pa->GetAttachParentActor()->IsA<APawn>())) Out.AddUnique(Pa);
 		}
 	}
+	/** What of it is seen: the bounds of its shown, registered parts (hidden parts left out: a parked coach's hidden spare body is no subject). */
+	FBox VisibleBox(const AActor* A)
+	{
+		FBox B(ForceInit);
+		if (!A) return B;
+		A->ForEachComponent<UPrimitiveComponent>(true, [&](const UPrimitiveComponent* C)
+		{
+			if (C && C->IsRegistered() && C->IsVisible() && !C->bHiddenInGame && C->Bounds.SphereRadius > 0.f) B += C->Bounds.GetBox();
+		});
+		return B;
+	}
 	bool FindSub(UWorld* W, const FString& N, const FVector& Close, FSub& Out)
 	{
 		double Best = 1e18; bool bFound = false;
 		const auto Offer = [&](AActor* Who, const FString& Nm, const FBox& Box, const FVector& Fw)
 		{
-			if (!Box.IsValid) return;
+			if (!Box.IsValid || (Who && Who->IsHidden())) return;
+			{ const double G = GroundTop(W, Box.GetCenter(), nullptr, nullptr, true); if (G > -1e29 && Box.Max.Z < G - 100.0) return; }   // (below the ground: nothing to see)
 			const double D = FVector::DistSquared(Box.GetCenter(), Close); if (D >= Best) return;
 			Best = D; bFound = true; Out = FSub(); Out.Who = Who; Out.Nm = Nm; Out.Box = Box; Out.Fw = Fw.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
 			Out.Stays = Who ? Who->GetActorLocation() : Box.GetCenter();
@@ -335,12 +415,12 @@ namespace ADPPerfViewsInternal
 				ABabylonModel* M = T.M.Get(); if (!M || M->IsHidden() || T.bAway) continue;
 				float Dirt = -1.f; if (const FVehicleDirtState* Ds = T.Dirt.S.Get()) { Dirt = 0.f; for (const float Zn : Ds->Zone) Dirt += Zn / 12.f; }
 				const bool bIs = N == TEXT("dirty") ? Dirt > 0.35f : N == TEXT("washed") ? Dirt >= 0.f && Dirt < 0.08f : N == TEXT("spare") ? T.bSpare : N == TEXT("broken") ? T.Brk != 0 : N == TEXT("charging") ? (T.Ch.IsValid() && T.Ch->Plug == FBusCharge::Inlet) : T.Name.Contains(N);
-				if (bIs) Offer(M, T.Name, M->GetComponentsBoundingBox(true), M->GetActorForwardVector());
+				if (bIs) Offer(M, T.Name, VisibleBox(M), M->GetActorForwardVector());
 			}
 		if (bFound || bState) return bFound;
-		for (TActorIterator<ABabylonModel> It(W); It; ++It) if (!It->IsHidden() && It->ModelName().Contains(N)) Offer(*It, It->ModelName(), It->GetComponentsBoundingBox(true), It->GetActorForwardVector());
+		for (TActorIterator<ABabylonModel> It(W); It; ++It) if (!It->IsHidden() && (It->ModelName().Contains(N) || It->Tags.ContainsByPredicate([&](const FName& Tg) { return Tg.ToString().EndsWith(TEXT("/") + N); }))) Offer(*It, It->ModelName(), VisibleBox(*It), It->GetActorForwardVector());
 		if (bFound) return true;
-		for (TActorIterator<AActor> It(W); It; ++It) if (!It->IsHidden() && !It->IsA<APawn>() && (It->GetName().Contains(N) || It->GetClass()->GetName().Contains(N))) Offer(*It, It->GetName(), It->GetComponentsBoundingBox(true), It->GetActorForwardVector());
+		for (TActorIterator<AActor> It(W); It; ++It) if (!It->IsHidden() && !It->IsA<APawn>() && (It->GetName().Contains(N) || It->GetClass()->GetName().Contains(N))) Offer(*It, It->GetName(), VisibleBox(*It), It->GetActorForwardVector());
 		if (bFound) return true;
 		for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
 		{
@@ -397,7 +477,8 @@ namespace ADPPerfViewsInternal
 				const FVector Flat = S.Fw.RotateAngleAxis(Deg + Tu, FVector::UpVector), Rise(0.0, 0.0, S.Box.Min.Z + High * 100.0 + Up - Mid.Z);
 				double D = Dist * 100.0;
 				if (Dist <= 0.0) { D = 300.0; for (int32 i = 0; i < 4; ++i) D = FitOff(S, (Flat * D + Rise).GetSafeNormal()); }
-				const FVector C = Mid + Flat * D * Fu + Rise;
+				FVector C = Mid + Flat * D * Fu + Rise;
+				AboveGround(W, C, Me, TEXT("look at ") + S.Nm);
 				if (Solid(W, C, Me) || !ClearTo(W, Me, S, C)) continue;
 				Cam = C; return true;
 			}
@@ -411,11 +492,11 @@ namespace ADPPerfViewsInternal
 		if (bRel)
 		{
 			const FTransform X(Own->GetActorRotation(), Own->GetActorLocation());
-			Want = X.TransformPosition(RelAt); Rot = (X.GetRotation() * RelRot.Quaternion()).Rotator(); Rot.Roll = 0.0; return;
+			Want = X.TransformPosition(RelAt); AboveGround(W, Want, Me, TEXT("rel to ") + Sub.Nm, true); Rot = (X.GetRotation() * RelRot.Quaternion()).Rotator(); Rot.Roll = 0.0; return;
 		}
 		const FVector Mv = Own->GetActorLocation() - Sub.Stays; if (Mv.SizeSquared() < 1.0) return;
 		Sub.Stays = Own->GetActorLocation(); Sub.Box = Sub.Box.ShiftBy(Mv);
-		const FVector C = Sub.Box.GetCenter() + LookOff; FHitResult H; const FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me);
+		FVector C = Sub.Box.GetCenter() + LookOff; AboveGround(W, C, Me, TEXT("following ") + Sub.Nm, true); FHitResult H; const FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me);
 		if (!W->SweepSingleByChannel(H, Want, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(20.f), Q) && !Solid(W, C, Me)) Want = C;
 		Rot = (Sub.Box.GetCenter() - Want).Rotation();
 	}
@@ -527,6 +608,21 @@ namespace ADPPerfViewsInternal
 			FireExitAt = 0.0;
 			if (AFireTruck* T = Cast<AFireTruck>(PC->GetPawn())) { ADP_LOG(TEXT("Views: fire park: stopped at %.0f km/h, out"), T->SpeedKmh()); T->Exit(); }
 		}
+		if (CoachSend.Num())
+		{
+			ACoaches* C = ACoaches::Find();
+			if (C) for (int32 i = CoachSend.Num() - 1; i >= 0; --i)
+			{
+				const int32 c = CoachSend[i];
+				if (!C->TestDriver(c) || (!bCoachSendTown && !C->RouteFree(c, false))) continue;
+				if (C->SendOnRoute(c, bCoachSendTown)) ++CoachSent;
+				CoachSend.RemoveAt(i);
+			}
+			if (C && CoachSend.Num() && Now < CoachSendEnd) return false;
+			if (CoachSend.Num()) ADP_WARN(TEXT("Views: %d coaches still not sent after 3 min (no driver at the wheel, or the way not free)"), CoachSend.Num());
+			ADP_LOG(TEXT("Views: %d coaches sent %s"), CoachSent, bCoachSendTown ? TEXT("to the town hub") : TEXT("back to their stands"));
+			CoachSend.Reset();
+		}
 		if (CoachMode)
 		{
 			ACoaches* C = ACoaches::Find(); bool bDone = !C; float Best = 1e9f;
@@ -536,7 +632,7 @@ namespace ADPPerfViewsInternal
 				for (int32 c = 0; c < C->Num(); ++c)
 				{
 					bAny |= C->OnRoute(c);
-					if (C->ModelOf(c) && CoachHome.IsValidIndex(c)) Best = FMath::Min(Best, float(FVector::Dist2D(C->ModelOf(c)->GetActorLocation(), CoachHome[c]) / 100.0));
+					if (C->ModelOf(c) && CoachHome.IsValidIndex(c)) Best = FMath::Min(Best, float(FVector::Dist2D(C->RootOf(c).GetLocation(), CoachHome[c]) / 100.0));
 				}
 				bDone = CoachMode == 3 ? Best <= CoachNear : !bAny;
 			}
@@ -548,13 +644,14 @@ namespace ADPPerfViewsInternal
 		return true;
 	}
 	// the camera put at To, looking at Aim, held or flown there in Sec
-	void AimAt(UWorld* W, APlayerController* PC, const FVector& To, const FVector& Aim, double Sec, const FString& Label)
+	void AimAt(UWorld* W, APlayerController* PC, const FVector& ToIn, const FVector& Aim, double Sec, const FString& Label)
 	{
 		bSub = bRel = bMissing = false; FreeFov(PC);
+		FVector To = ToIn; AboveGround(W, To, PC->GetPawn(), Label);
 		if (Sec <= 0.0 && Solid(W, To, PC->GetPawn())) { ADP_WARN(TEXT("Views: %s is inside something - left out"), *Label); bMissing = true; return; }
 		From = PC->PlayerCameraManager->GetCameraLocation(); RotFrom = Rot; Want = To; Rot = (Aim - To).Rotation(); Rot.Roll = 0.f; bHeld = true; FlyLen = 0.0;
 		ADP_LOG(TEXT("Views: %s at %.1f %.1f %.1f %.0f %.0f"), *Label, To.X / 100.0, To.Z / 100.0, -To.Y / 100.0, Rot.Yaw, Rot.Pitch);
-		if (Sec > 0.0) { FlyLen = Sec; FlyStart = FPlatformTime::Seconds(); BeginMeasure(Sec, TEXT("fly ") + Label); }
+		if (Sec > 0.0) { FlyLen = Sec; FlyStart = FPlatformTime::Seconds(); FlyPlan(W, PC->GetPawn(), Label); BeginMeasure(Sec, TEXT("fly ") + Label); }
 	}
 	void JetLog(AJetwayRigs* J, int32 Ji)
 	{
@@ -621,13 +718,14 @@ namespace ADPPerfViewsInternal
 		{ ADP_WARN(TEXT("Views: %s left out - the camera is in the fire truck (fire park first)"), *L); return true; }
 		if ((K == TEXT("view") && V.Num() >= 5) || (K == TEXT("fly") && V.Num() >= 6))
 		{
-			const FVector To(FCString::Atof(*V[0]) * 100.f, -FCString::Atof(*V[2]) * 100.f, FCString::Atof(*V[1]) * 100.f);
+			FVector To(FCString::Atof(*V[0]) * 100.f, -FCString::Atof(*V[2]) * 100.f, FCString::Atof(*V[1]) * 100.f);
 			bSub = bRel = bMissing = false; FreeFov(PC);
+			AboveGround(W, To, PC->GetPawn(), K + TEXT(" ") + A);
 			if (K == TEXT("view") && Solid(W, To, PC->GetPawn())) { ADP_WARN(TEXT("Views: %s is inside something - left out"), *A); bMissing = true; return true; }
 			From = PC->PlayerCameraManager->GetCameraLocation(); RotFrom = Rot;
 			Want = To;
 			Rot = FRotator(FCString::Atof(*V[4]), FCString::Atof(*V[3]), 0.f); bHeld = true; FlyLen = 0.0;
-			if (K == TEXT("fly")) { FlyLen = FCString::Atof(*V[5]); FlyStart = FPlatformTime::Seconds(); BeginMeasure(FlyLen, TEXT("fly to ") + A); }
+			if (K == TEXT("fly")) { FlyLen = FCString::Atof(*V[5]); FlyStart = FPlatformTime::Seconds(); FlyPlan(W, PC->GetPawn(), K + TEXT(" ") + A); BeginMeasure(FlyLen, TEXT("fly to ") + A); }
 			else ADP_LOG(TEXT("Views: at %s"), *A);
 		}
 		else if (K == TEXT("cmd")) { ADP_LOG(TEXT("Views: %s"), *A); PC->ConsoleCommand(A); }
@@ -872,10 +970,25 @@ namespace ADPPerfViewsInternal
 		{
 			ACoaches* C = ACoaches::Get(W);
 			if (!C || !C->Num()) { ADP_WARN(TEXT("Views: no coaches here")); return true; }
-			const bool bTown = V[0] == TEXT("town"); int32 Sent = 0;
-			if (bTown) { CoachHome.Reset(); for (int32 c = 0; c < C->Num(); ++c) CoachHome.Add(C->ModelOf(c) ? C->ModelOf(c)->GetActorLocation() : FVector::ZeroVector); }
-			for (int32 c = 0; c < C->Num(); ++c) Sent += C->SendOnRoute(c, bTown) ? 1 : 0;   // (each one that can not go says why itself)
-			ADP_LOG(TEXT("Views: %d of %d coaches sent %s"), Sent, C->Num(), bTown ? TEXT("to the town hub") : TEXT("back to their stands"));
+			UVehicleRiders::bTownLine = true;   // (their riders on for the test, as the town hub has them)
+			if (V[0] == TEXT("out"))   // (all of them out on the way in, V[1] m short of the terminal, their stands empty)
+			{
+				CoachHome.Reset(); for (int32 c = 0; c < C->Num(); ++c) CoachHome.Add(C->RootOf(c).GetLocation());
+				const int32 Out = C->TestOut(V.Num() > 1 ? FCString::Atof(*V[1]) : 500.f, V.Num() > 2 ? FCString::Atof(*V[2]) : 25.f);
+				ADP_LOG(TEXT("Views: %d of %d coaches out on the way in"), Out, C->Num());
+				return true;
+			}
+			const bool bTown = V[0] == TEXT("town");
+			if (bTown) { CoachHome.Reset(); for (int32 c = 0; c < C->Num(); ++c) CoachHome.Add(C->RootOf(c).GetLocation()); }
+			CoachSend.Reset(); for (int32 c = 0; c < C->Num(); ++c) if (!C->OnRoute(c)) CoachSend.Add(c);
+			bCoachSendTown = bTown; CoachSendEnd = FPlatformTime::Seconds() + 180.0; CoachSent = 0;
+			ADP_LOG(TEXT("Views: %d coaches get their drivers, then go %s"), CoachSend.Num(), bTown ? TEXT("to the town hub") : TEXT("to their stands"));
+		}
+		else if (K == TEXT("flight") && V.Num() > 1)   // flight takeoff a320 | flight land a320 <seconds before touchdown>
+		{
+			FString Reg; const bool bOff = V[0] == TEXT("takeoff");
+			if (ASimTraffic::TestMove(W, bOff, V.Num() > 2 ? FCString::Atof(*V[2]) : 20.f, Reg)) ADP_LOG(TEXT("Views: %s %s (look at it by %s)"), *Reg, bOff ? TEXT("takes off") : TEXT("on final"), *Reg);
+			else ADP_WARN(TEXT("Views: %s left out"), *L);
 		}
 		else if (K == TEXT("coachwait") && V.Num() > 1)
 		{
