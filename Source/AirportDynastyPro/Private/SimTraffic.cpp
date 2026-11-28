@@ -27,6 +27,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Components/MaterialBillboardComponent.h"
+#include "Effects.h"
+#include "ADPKeep.h"
 
 namespace
 {
@@ -970,6 +973,7 @@ void ASimTraffic::Tick(float Dt)
 		if (!M.Model.IsValid()) continue;
 		Blink(M);
 		Gear(M, FMath::Min(Dt, 0.1f));
+		Haze(M, FMath::Min(Dt, 0.1f));
 		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && !M.bYouOff && SlipPoll <= 0.f)
 			if (UADPSim* Sl = UADPSim::Get(this)) if (FADPFlight* Fs = Sl->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == M.FlightId; }))
 				if (Sl->Now() > Fs->DepAt) { Fs->DelayMin += (Sl->Now() - Fs->DepAt).GetTotalMinutes(); Fs->DepAt = Sl->Now(); }   // (waiting for its tug: off blocks when it is pushed)
@@ -1000,6 +1004,59 @@ namespace
 	constexpr float NoseR = 45.4f, MainR = 64.6f;             // (tyre radii, cm)
 	constexpr float SteerSign = 1.f;                          // (the root's turn sense: checked in the pictures)
 	constexpr float ExtMain = 12.f, ExtNose = 8.f;            // (cm the struts hang out in the air - inside their own cylinders)
+}
+
+void ASimTraffic::Haze(FMove& M, float Dt)
+{
+	// (to-do 379, owner 2026-11-28) the hot exhaust shimmering behind each running engine. The A320's nacelles measured on
+	// Art/A320/A320.glb: centres 5.57 m either side, 1.8 m up, the core nozzle's end 11.5 m behind the nose wheel (the
+	// actor's root; its tail is the actor's +Y). Ring 0 just behind the nozzle at any power; rings 1 and 2 further back,
+	// bigger, only with power (take-off) - the plume grows longer and stronger as the engines spool up, and fades again
+	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
+	static UMaterialInterface* Mat = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/Effects/M_HeatHaze.M_HeatHaze")));
+	if (!Mat) return;
+	if (!M.HazeB.Num())
+	{
+		static const float RingY[3] = {1300.f, 1800.f, 2650.f}, RingW[3] = {260.f, 420.f, 640.f}, RingH[3] = {200.f, 260.f, 330.f}, RingZ[3] = {180.f, 195.f, 225.f};
+		for (int32 r = 0; r < 3; ++r)
+		{
+			UMaterialInstanceDynamic* Mid = UMaterialInstanceDynamic::Create(Mat, B, FName(*FString::Printf(TEXT("HeatHaze_Engine%d"), r)));   // (the name keeps "HeatHaze": Effects.cpp finds it)
+			M.HazeM.Add(Mid);
+			for (const float Side : {-557.f, 557.f})
+			{
+				UMaterialBillboardComponent* Hz = NewObject<UMaterialBillboardComponent>(B);
+				Hz->SetupAttachment(B->GetRootComponent());
+				Hz->SetRelativeLocation(FVector(Side, RingY[r], RingZ[r]));
+				Hz->AddElement(Mid, nullptr, false, RingW[r], RingH[r], nullptr);
+				Hz->SetCastShadow(false); Hz->SetVisibility(false);
+				Hz->SetCullDistance(ADPEffects::HazeReachCm());
+				Hz->RegisterComponent();
+				M.HazeB.Add(Hz);
+			}
+		}
+	}
+	// the engines: started during the pushback (once it moves) or already running on arrival; shut down 8 s on the stand
+	if (!M.bDeparture || M.Phase != EPhase::Push || M.Speed > 0.05f) M.bEnginesOn = true;
+	if (M.Phase == EPhase::Done && M.Clock >= 8.f) M.bEnginesOn = false;
+	float Want = 0.f;
+	if (M.bEnginesOn)
+	{
+		const bool bTOGA = (M.Phase == EPhase::Roll && M.bTakeoffOk && M.Step >= M.Path.Num() - 1 && M.Clock >= 4.f) || (M.Phase == EPhase::Roll && M.Step >= M.Path.Num()) || M.Phase == EPhase::Climb;
+		Want = bTOGA ? 1.f : M.Phase == EPhase::Approach ? 0.35f : M.Phase == EPhase::Rollout ? 0.45f : 0.15f;   // (idle 0.15; the approach's power; the reversers after touchdown)
+		if (M.Phase == EPhase::Climb && M.Height > 250.f) Want = 0.f;   // (high up: nothing to see against)
+	}
+	// spooling: up from idle to take-off power in about 5 s, back down a little quicker
+	M.Thrust = FMath::FInterpConstantTo(M.Thrust, Want, Dt, Want > M.Thrust ? 0.18f : 0.25f);
+	if (FMath::Abs(M.Thrust - M.HazeShown) < 0.02f && !(M.Thrust == 0.f && M.HazeShown != 0.f)) return;
+	M.HazeShown = M.Thrust;
+	const bool bOn = ADPEffects::On(ADPEffects::HeatHaze);
+	const float T = M.Thrust;
+	const float Str[3] = {T > 0.f ? 0.45f + 0.75f * T : 0.f, FMath::Clamp((T - 0.3f) * 1.6f, 0.f, 1.1f), FMath::Clamp((T - 0.55f) * 2.f, 0.f, 0.9f)};
+	for (int32 r = 0; r < 3 && r < M.HazeM.Num(); ++r)
+	{
+		if (UMaterialInstanceDynamic* Mid = M.HazeM[r].Get()) { Mid->SetScalarParameterValue(TEXT("Strength"), Str[r]); Mid->SetScalarParameterValue(TEXT("Speed"), 0.8f + 2.2f * T); }
+		for (int32 k = 0; k < 2; ++k) if (UMaterialBillboardComponent* Hz = M.HazeB.IsValidIndex(r * 2 + k) ? M.HazeB[r * 2 + k].Get() : nullptr) Hz->SetVisibility(bOn && Str[r] > 0.01f);
+	}
 }
 
 void ASimTraffic::Gear(FMove& M, float Dt)

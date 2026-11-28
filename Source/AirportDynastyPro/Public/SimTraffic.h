@@ -85,6 +85,10 @@ private:
 		// the tower (to-do 378): one exchange at a time (RadFor 1 take-off, 2 landing, 3 taxi-in); what it has been cleared for
 		ADPRunwayRadio::FCall Rad; uint8 RadFor = 0; FString Cs, Voice;
 		bool bTakeoffOk = false, bLandOk = false, bTaxiInOk = false;
+		// the engines' heat haze (to-do 379): three rings of shimmer behind each engine (M_HeatHaze), the far two only with
+		// power; Thrust 0 off .. 1 take-off power, eased as the engines spool
+		TArray<TWeakObjectPtr<class UMaterialBillboardComponent>> HazeB; TArray<TWeakObjectPtr<class UMaterialInstanceDynamic>> HazeM;
+		bool bEnginesOn = false; float Thrust = 0.f, HazeShown = -1.f;
 	};
 	TSet<FString> TugCalled;   // (arrivals whose tug driver was called)
 	float SlipPoll = 0.f;
@@ -105,5 +109,6 @@ private:
 	void AddLights(FMove& M);
 	void Blink(FMove& M);
 	void Gear(FMove& M, float Dt);
+	void Haze(FMove& M, float Dt);     // the engines' heat haze: made once, then its strength by the thrust
 	bool RunwayToX1() const;   // the take-off and landing direction from the real wind (true: towards the runway's x1 end)
 };

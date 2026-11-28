@@ -19,5 +19,6 @@ namespace ADPEffects
 	void Apply(UWorld* W);                    // every effect as set (at the start and after a change)
 	// read by the effects themselves
 	float FlareReachCm();
+	float HazeReachCm();                      // how far the heat haze is drawn (cm)
 	float AdvertStep();                       // the LED screens' update interval (s)
 }

@@ -75,6 +75,7 @@ namespace ADPEffects
 		}
 	}
 	float FlareReachCm() { return FlareM(Quality(LampFlares)) * 100.f; }
+	float HazeReachCm() { return HazeM(Quality(HeatHaze)) * 100.f; }
 	float AdvertStep() { return 1.f / AdHz(Quality(Adverts)); }
 
 	void Set(int32 E, bool bOn, float Q, UWorld* W)
