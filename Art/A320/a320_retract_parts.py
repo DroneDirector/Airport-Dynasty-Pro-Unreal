@@ -115,8 +115,14 @@ def build_map(x0, x1):
             ok = ok2
         bad = (z - fit) > 0.12; nfix += int(bad.sum())
         col = np.where(wing)[0][bad]; UP[j, col] = np.minimum(UP[j, col], LO[j, col]); LO[j, col] = fit[bad]
-    print('MAP %.1f..%.1f: %d points of the wing underside missing in his skin (taken from the line)' % (x0, x1, nfix))
-    return xs, ys, LO, np.minimum(4.45, UP - 0.04)
+    TOP = np.full_like(LO, 99.0)                 # his outer top skin (a ray down from above): the lid never reaches it
+    for j, yy in enumerate(ys):
+        for i, xx in enumerate(xs):
+            h = BVH0.ray_cast(Vb(xx, yy, 12.0), Vb(0, 0, -1), 20.0)
+            if h[0] is not None: TOP[j, i] = h[0].z
+    LID = np.maximum(np.minimum(np.minimum(4.45, UP - 0.04), TOP - 0.04), LO + 0.08)
+    print('MAP %.1f..%.1f: %d points of the wing underside missing in his skin (taken from the line); %d points with under 12 cm between his lower and upper skin' % (x0, x1, nfix, int((TOP - LO < 0.12).sum())))
+    return xs, ys, LO, LID
 MAPS = {'_L': build_map(-4.6, -0.6), '_R': build_map(0.6, 4.6)}
 def map_at(sd, x, y):
     xs, ys, LO, LID = MAPS[sd]
@@ -146,57 +152,97 @@ def new_obj(name, verts, faces, mats, uvs=None, fmat=None):
     for p in me.polygons: p.use_smooth = False
     return ob
 
-# ---------------------------------------------------------------- 2. holes, bays, doors (plan rectangles, Blender x, y)
+# ---------------------------------------------------------------- 2. holes, bays, doors (plan outlines, Blender x, y)
+# (380 A3) The hole in his skin follows a clean outline (a rectangle with rounded corners, in the plane of his skin), cut
+# 1.5 cm inside it; that edge is hidden under a dark rim that lies on his skin (1.5 mm out) from 3 cm
+# inside to 4 cm outside the outline and turns up into the bay as its wall. The doors are 5 cm bigger than the hole all
+# round (3.5 mm out from his skin, rolled edges), so closed they cover the rim and read as flush panels with a seam.
 NOSE_Y0 = -0.78
 HOLES = {'NoseBay': (-0.80, 0.80, NOSE_Y0, 3.05, 2.0)}                 # x0, x1, y0, y1, lowest skin z to shoot from
 for s, sd in ((-1, '_L'), (1, '_R')):
     xa, xb = sorted((s * 0.75, s * 4.45)); HOLES['MainBay' + sd] = (xa, xb, -13.80, -11.35, 1.8)
 LIDMAX = {'NoseBay': 3.95}
+RC = 0.08                        # corner radius of the outlines
+RIM_IN, RIM_OUT, RIM_OFF = 0.03, 0.04, 0.0015
+DOOR_OUT, DOOR_OFF, DOOR_EDGE = 0.05, 0.0035, 0.001
 def lid_z(name, x, y):
     if name == 'NoseBay': return LIDMAX[name]
     return map_at(name[-2:], x, y)[1]
 def samples(a, b, step=0.05):
     n = max(2, int(math.ceil(abs(b - a) / step)) + 1); return [a + (b - a) * i / (n - 1) for i in range(n)]
+def sdf(name, x, y):             # signed plan distance to the outline (negative inside)
+    x0, x1, y0, y1, _ = HOLES[name]; cx, cy, hx, hy = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2
+    qx, qy = abs(x - cx) - (hx - RC), abs(y - cy) - (hy - RC)
+    return math.hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - RC
+def ring(name, d, step=0.04, na=6):   # the outline moved out by d: same point count for every d (rows of one grid)
+    x0, x1, y0, y1, _ = HOLES[name]; cx, cy, ex, ey = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2 - RC, (y1 - y0) / 2 - RC
+    r = RC + d; P = []
+    for (ax, ay), (bx, by), a0 in (((-ex, -ey), (ex, -ey), -90), ((ex, -ey), (ex, ey), 0), ((ex, ey), (-ex, ey), 90), ((-ex, ey), (-ex, -ey), 180)):
+        n = max(1, int(math.ceil(math.hypot(bx - ax, by - ay) / step)))
+        nx_, ny_ = math.cos(math.radians(a0)), math.sin(math.radians(a0))
+        for i in range(n):
+            t = i / n; P.append((cx + ax + (bx - ax) * t + r * nx_, cy + ay + (by - ay) * t + r * ny_))
+        for i in range(na):
+            a = math.radians(a0 + 90.0 * i / na); P.append((cx + bx + r * math.cos(a), cy + by + r * math.sin(a)))
+    return P
+def skin_z(name, x, y):          # his outer skin under (x, y): the cleaned map for the main bays, a ray for the nose
+    if name == 'NoseBay':
+        P_, _ = skin(x, y, HOLES[name][4]); return P_.z if P_ is not None else None
+    xs, ys, LO, LID = MAPS[name[-2:]]
+    fx = float(np.clip((x - xs[0]) / ST, 0, len(xs) - 1.001)); fy = float(np.clip((y - ys[0]) / ST, 0, len(ys) - 1.001))
+    i, j = int(fx), int(fy); u, w = fx - i, fy - j
+    return float(LO[j, i] * (1 - u) * (1 - w) + LO[j, i + 1] * u * (1 - w) + LO[j + 1, i] * (1 - u) * w + LO[j + 1, i + 1] * u * w)
+def smooth_row(z):               # pieces lying on his skin make bumps: along the ring, points off the running median go onto it
+    z = np.array([np.nan if q is None else q for q in z], float); n = len(z); out = z.copy()
+    for i in range(n):
+        win = z[[(i + k) % n for k in range(-5, 6)]]; med = np.nanmedian(win)
+        if np.isnan(z[i]) or abs(z[i] - med) > 0.01: out[i] = med
+    return out
 
-def cut_hole(name):
-    x0, x1, y0, y1, zs = HOLES[name]
-    bm = bmesh.new(); bm.from_mesh(o.data)
-    def cap(v): return lid_z(name, v.co.x, v.co.y) if (x0 - 0.1 < v.co.x < x1 + 0.1 and y0 - 0.1 < v.co.y < y1 + 0.1) else -9
-    def f(v):                    # negative inside the hole (below the lid)
-        q = max(x0 - v.co.x, v.co.x - x1, y0 - v.co.y, v.co.y - y1)
-        if q < 0.15 and v.co.z > cap(v): return 0.5
-        return q
-    val = {v: f(v) for v in bm.verts if x0 - 1.5 < v.co.x < x1 + 1.5 and y0 - 1.5 < v.co.y < y1 + 1.5}
-    cross = [e for e in bm.edges if e.verts[0] in val and e.verts[1] in val and (val[e.verts[0]] < 0) != (val[e.verts[1]] < 0)]
+CUT_AT = -0.015                  # the hole's edge in his skin: 1.5 cm inside the outline, in the middle of the rim (hidden)
+def cut_hole(name):              # his big triangles reach up to 0.4 m past the outline, so whole faces can't go: the faces
+    bm = bmesh.new(); bm.from_mesh(o.data)            # crossing the line are made triangles, split along the line, and
+    x0, x1, y0, y1, _ = HOLES[name]                   # the inside goes; the line lies under the rim, so no edge is seen
+    def near(c): return x0 - 0.6 < c.x < x1 + 0.6 and y0 - 0.6 < c.y < y1 + 0.6
+    def low(v): return v.co.z < lid_z(name, v.co.x, v.co.y)
+    val = {v: sdf(name, v.co.x, v.co.y) - CUT_AT for v in bm.verts if near(v.co) and low(v)}
+    cross = [f for f in bm.faces if all(l.vert in val for l in f.loops) and min(val[l.vert] for l in f.loops) < 0 < max(val[l.vert] for l in f.loops)]
+    bmesh.ops.triangulate(bm, faces=cross)
+    edges = [e for e in bm.edges if e.verts[0] in val and e.verts[1] in val and (val[e.verts[0]] < 0) != (val[e.verts[1]] < 0)]
     new = set()
-    for e in cross:
+    for e in edges:
         a, b = e.verts; fa, fb = val[a], val[b]
         _, nv = bmesh.utils.edge_split(e, a, fa / (fa - fb)); new.add(nv); val[nv] = 0.0
+    fail = 0
     for fc in list(set(fc for v in new for fc in v.link_faces)):
         on = [l.vert for l in fc.loops if l.vert in new]
         if len(on) == 2 and not any(e for e in on[0].link_edges if e.other_vert(on[0]) is on[1]):
             try: bmesh.utils.face_split(fc, on[0], on[1])
-            except Exception: pass
+            except Exception: fail += 1
     gone = []
     for fc in bm.faces:
-        c = fc.calc_center_median()
-        if x0 < c.x < x1 and y0 < c.y < y1 and c.z < lid_z(name, c.x, c.y) and all(l.vert in val for l in fc.loops): gone.append(fc)
+        if all(l.vert in val for l in fc.loops) and sum(val[l.vert] for l in fc.loops) / len(fc.loops) < 0: gone.append(fc)
     bmesh.ops.delete(bm, geom=gone, context='FACES')
+    left = sum(1 for fc in bm.faces if all(l.vert in val for l in fc.loops) and min(val[l.vert] for l in fc.loops) < -0.003)
     bm.to_mesh(o.data); bm.free(); o.data.update()
-    print('HOLE %s: %d edges split, %d faces out' % (name, len(cross), len(gone)))
+    print('HOLE %s: %d faces split along the line (%d failed), %d faces out; %d faces still reaching past the line into the hole (shards)' % (name, len(edges), fail, len(gone), left))
 
-def bay(name):                    # walls from the hole edge on his skin up to the lid, and the lid; normals into the bay
+def bay(name):                    # the rim on his skin, the walls up to the lid, the lid; normals out of the skin / into the bay
+    D = (RIM_OUT, 0.02, 0.0, -RIM_IN)
+    rows = []
+    for k, d in enumerate(D):
+        pts = ring(name, d); z = smooth_row([skin_z(name, x, y) for x, y in pts])
+        off = 0.001 if k == 0 else RIM_OFF
+        rows.append([(x, y, zz - off) for (x, y), zz in zip(pts, z)])
+    inner = rows[-1]
+    rows.append([(x, y, z + 0.03) for x, y, z in inner])                         # the rolled lip into the bay
+    rows.append([(x, y, lid_z(name, x, y)) for x, y, z in inner])
+    n = len(inner); V = [v for r in rows for v in r]; F = []
+    for r in range(len(rows) - 1):
+        for i in range(n):
+            j = (i + 1) % n; F.append((r * n + i, r * n + j, (r + 1) * n + j, (r + 1) * n + i))
     x0, x1, y0, y1, zs = HOLES[name]
-    xs, ys = samples(x0, x1), samples(y0, y1)
-    ring = [(x, y0) for x in xs[:-1]] + [(x1, y) for y in ys[:-1]] + [(x, y1) for x in xs[:0:-1]] + [(x0, y) for y in ys[:0:-1]]
-    V = []; F = []
-    for x, y in ring:
-        if name == 'NoseBay': P, _ = skin(x, y, zs); zb = (P.z if P else 2.2) + 0.002
-        else: zb = map_at(name[-2:], x, y)[0] + 0.002
-        V += [(x, y, zb), (x, y, lid_z(name, x, y))]
-    n = len(ring)
-    for i in range(n):
-        j = (i + 1) % n; F.append((2 * i, 2 * j, 2 * j + 1, 2 * i + 1))
+    xs, ys = samples(x0 + RIM_IN, x1 - RIM_IN), samples(y0 + RIM_IN, y1 - RIM_IN)
     base = len(V); nx = len(xs)
     for y in ys:
         for x in xs: V.append((x, y, lid_z(name, x, y)))
@@ -209,10 +255,14 @@ def bay(name):                    # walls from the hole edge on his skin up to t
         fc.normal_update(); c = fc.calc_center_median()
         if fc.normal.z > 0.7 or (abs(fc.normal.z) < 0.7 and fc.normal.dot(Vb(cen.x - c.x, cen.y - c.y, 0)) < 0): fc.normal_flip()
     bm.to_mesh(ob.data); bm.free()
+    for p in ob.data.polygons: p.use_smooth = True
+    print('RIM %s: %d points round, %.2f m inside to %.2f m outside the outline, %.1f mm off his skin' % (name, n, RIM_IN, RIM_OUT, 1000 * RIM_OFF))
     return ob
 
-def door(name, x0, x1, y0, y1, zs, t=0.03, step=0.05):     # a panel on his skin: outer face with his texture, inner face and edges dark
-    xs, ys = samples(x0, x1, step), samples(y0, y1, step); nx, ny = len(xs), len(ys)
+def edge_samples(a, b, step=0.05, bev=0.01):    # door grid lines: the edge, a bevel line 1 cm in, then even steps
+    return [a] + samples(a + bev, b - bev, step) + [b]
+def door(name, x0, x1, y0, y1, zs, t=0.025, step=0.05):  # a panel on his skin: outer face with his texture (3.5 mm out, edges rolled to 1 mm), inner face and edges dark
+    xs, ys = edge_samples(x0, x1, step), edge_samples(y0, y1, step); nx, ny = len(xs), len(ys)
     V = []; UV = []; mats = {}; fm = []
     MAT = []
     def mslot(m):
@@ -228,8 +278,8 @@ def door(name, x0, x1, y0, y1, zs, t=0.03, step=0.05):     # a panel on his skin
                 uv, mi = uv_at(P, fi); UV.append(uv[:]); out_mi.append(mi)
             else: UV.append((0, 0)); out_mi.append(0)
     zz = np.array([v[2] for v in V]).reshape(ny, nx)
-    # his skin has gaps and other pieces lie on it: along each line across the door (fore-aft) the skin is smooth - fit a
-    # quadratic, drop what is off it by more than 2 cm, fit again; the dropped points go onto the fit
+    # his skin has gaps and other pieces lie on it: fit a smooth surface, drop what is off it, fit again; the dropped
+    # points go onto the fit
     gx, gy = np.meshgrid(np.array(xs), np.array(ys))
     u = (gx - np.mean(xs)) / (np.ptp(xs) / 2 + 1e-9); w = (gy - np.mean(ys)) / (np.ptp(ys) / 2 + 1e-9)
     A = np.stack([(u ** i * w ** j).ravel() for i in range(6) for j in range(4)], 1); zr = zz.ravel().copy()
@@ -247,8 +297,17 @@ def door(name, x0, x1, y0, y1, zs, t=0.03, step=0.05):     # a panel on his skin
             V[k] = P[:]
             if hit[0] is not None: uv, mi = uv_at(hit[0], hit[2]); UV[k] = uv[:]; out_mi[k] = mi
     print('FLUSH %s: %.0f%% of its points on his skin (max %.1f mm, rms %.1f mm off the fitted surface); %d points (his skin hidden by other pieces or missed) set onto it' % (name, 100 * FLUSH[2], 1000 * FLUSH[0], 1000 * FLUSH[1], fixed))
-    bump = max(float(np.abs(np.diff(zz, axis=0)).max()), float(np.abs(np.diff(zz, axis=1)).max()))
-    for v in list(V): V.append((v[0], v[1], v[2] + t)); UV.append((v[0] * 0.5, v[1] * 0.5))
+    cP, cfi = skin(0.0, -6.0, 0.5)              # one clean spot of his paint for the whole outer face: his texture
+    cuv, cmi = uv_at(cP, cfi)                    # has the old doors painted in stair-steps, which must not show
+    UV = [cuv[:] for _ in UV]; out_mi = [cmi for _ in out_mi]
+    def is_edge(k):
+        r, c = divmod(k, nx); return r in (0, ny - 1) or c in (0, nx - 1)
+    for k in range(len(V)):                     # out from his skin: 3.5 mm, the outermost line 1 mm (the rolled edge)
+        V[k] = (V[k][0], V[k][1], V[k][2] - (DOOR_EDGE if is_edge(k) else DOOR_OFF))
+    zz = np.array([v[2] for v in V]).reshape(ny, nx)
+    bump = max(float(np.abs(np.diff(zz[1:-1, 1:-1], axis=0)).max()), float(np.abs(np.diff(zz[1:-1, 1:-1], axis=1)).max()))
+    for k, v in enumerate(list(V)):
+        V.append((v[0], v[1], v[2] + (t - 0.004 if is_edge(k) else t))); UV.append((v[0] * 0.5, v[1] * 0.5))
     F = []; N = nx * ny
     bm_slot = mslot(o.material_slots[max(set(out_mi), key=out_mi.count)].material); dark = mslot(M_BAY)
     for r in range(ny - 1):
@@ -273,9 +332,9 @@ BAYS = {nm: bay(nm) for nm in HOLES}
 SEAM = 0.006
 DOORS = {}
 for s, sd in ((-1, '_L'), (1, '_R')):
-    xa, xb = sorted((s * SEAM / 2, s * (0.80 - SEAM))); DOORS['NoseDoor' + sd] = door('NoseDoor' + sd, xa, xb, 0.45, 3.05 - SEAM, 2.0)
-    xa, xb = sorted((s * (0.75 + SEAM), s * (2.55 - SEAM / 2))); DOORS['MainBayDoor' + sd] = door('MainBayDoor' + sd, xa, xb, -13.80 + SEAM, -11.35 - SEAM, 1.8)
-    xa, xb = sorted((s * (2.55 + SEAM / 2), s * (4.45 - SEAM))); DOORS['MainDoor' + sd] = door('MainDoor' + sd, xa, xb, -13.80 + SEAM, -11.35 - SEAM, 1.8)
+    xa, xb = sorted((s * SEAM / 2, s * (0.80 + DOOR_OUT))); DOORS['NoseDoor' + sd] = door('NoseDoor' + sd, xa, xb, 0.45, 3.05 + DOOR_OUT, 2.0)
+    xa, xb = sorted((s * (0.75 - DOOR_OUT), s * (2.55 - SEAM / 2))); DOORS['MainBayDoor' + sd] = door('MainBayDoor' + sd, xa, xb, -13.80 - DOOR_OUT, -11.35 + DOOR_OUT, 1.8)
+    xa, xb = sorted((s * (2.55 + SEAM / 2), s * (4.45 + DOOR_OUT))); DOORS['MainDoor' + sd] = door('MainDoor' + sd, xa, xb, -13.80 - DOOR_OUT, -11.35 + DOOR_OUT, 1.8)
 
 # ---------------------------------------------------------------- 3. hinges, the overlap check, the angles
 def about(ob_list, piv, axis, deg):
@@ -297,7 +356,7 @@ NY = float(top[:, 1].mean()) if len(top) else 0.0
 nose_parts = [nose_up, bpy.data.objects['NoseLeg'], bpy.data.objects['NoseWheels']]
 # (380 A2) the slot aft of the nose doors (where the strut comes out) is closed by a panel on the strut: built flush in
 # its place, it rides on NoseLegUpper (with the gear down it stands inside the bay behind the strut)
-AFT = door('_NoseAft', -0.80 + SEAM, 0.80 - SEAM, NOSE_Y0 + SEAM, 0.45 - SEAM, 2.0)
+AFT = door('_NoseAft', -0.80 - DOOR_OUT, 0.80 + DOOR_OUT, NOSE_Y0 - DOOR_OUT, 0.45 - SEAM, 2.0)
 BV_AFT = bvh_of([AFT])
 best = None
 for pz in (2.80, 2.85, 2.90, 2.95, 3.00, 3.05):
@@ -339,39 +398,62 @@ for x in bpy.context.selected_objects: x.select_set(False)
 AFT.select_set(True); nose_up.select_set(True); bpy.context.view_layer.objects.active = nose_up; bpy.ops.object.join()
 
 MAIN = {}
+# (380 A3) where a retracted main gear piece may lie: above the closed leg/bay door's inner face (inside the hole) or 1.2 cm
+# above his lower skin (outside it), and 2 cm under his upper wing skin / under the bay lid in the belly fairing
+def map_idx(sd, Q):
+    xs, ys, LO, LID = MAPS[sd]
+    ii = np.clip(np.round((Q[:, 0] - xs[0]) / ST).astype(int), 0, len(xs) - 1); jj = np.clip(np.round((Q[:, 1] - ys[0]) / ST).astype(int), 0, len(ys) - 1)
+    inmap = (Q[:, 0] >= xs.min() - 0.02) & (Q[:, 0] <= xs.max() + 0.02) & (Q[:, 1] >= ys[0] - 0.02) & (Q[:, 1] <= ys[-1] + 0.02)
+    return ii, jj, inmap
+def map_lo(sd, Q):
+    ii, jj, _ = map_idx(sd, Q); return MAPS[sd][2][jj, ii]
+def sdf_np(name, X, Y):
+    x0, x1, y0, y1, _ = HOLES[name]; cx, cy, hx, hy = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2
+    qx, qy = np.abs(X - cx) - (hx - RC), np.abs(Y - cy) - (hy - RC)
+    return np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - RC
+def band_np(sd, Q):
+    ii, jj, inmap = map_idx(sd, Q); LO, LID = MAPS[sd][2], MAPS[sd][3]
+    inside = sdf_np('MainBay' + sd, Q[:, 0], Q[:, 1]) < 0
+    return LO[jj, ii] + np.where(inside, 0.03, 0.012), LID[jj, ii] + 0.02, inmap
+def fold_np(W, px_, pz_, deg_):
+    a = math.radians(deg_); c, sn = math.cos(a), math.sin(a); dx, dz = W[:, 0] - px_, W[:, 2] - pz_
+    return np.stack([px_ + dx * c + dz * sn, W[:, 1], pz_ - dx * sn + dz * c], 1)
+def stow_clamp(ob, M, sd):       # slims a piece locally: each vertex that would leave the wing when retracted is moved, in the
+    mw = np.array(ob.matrix_world); A = np.array(M) @ mw; Ai = np.linalg.inv(A)    # retracted frame, straight up or down into the band
+    co = np.array([v.co[:] for v in ob.data.vertices]); Q = co @ A[:3, :3].T + A[:3, 3]
+    lo, hi, inmap = band_np(sd, Q); z = np.clip(Q[:, 2], lo, np.maximum(lo, hi)); mv = np.abs(z - Q[:, 2]) * inmap
+    Q[:, 2] = np.where(inmap, z, Q[:, 2]); new = Q @ Ai[:3, :3].T + Ai[:3, 3]
+    down = co @ mw[:3, :3].T + mw[:3, 3]; seen = down[:, 2] < map_lo(sd, down) - 0.02
+    for i in np.nonzero(mv > 1e-5)[0]: ob.data.vertices[int(i)].co = new[i].tolist()
+    ob.data.update()
+    print('STOW %-15s %4d of %4d verts moved into the wing (max %.3f m); of those seen with the gear down %d (max %.3f m); %d outside the map' % (
+        ob.name, int((mv > 1e-5).sum()), len(co), float(mv.max()), int(((mv > 1e-5) & seen).sum()), float((mv * seen).max()), int((~inmap).sum())))
 for s, sd in ((-1, '_L'), (1, '_R')):
     mu = MU[sd]; v = vts(mu); hi = v[v[:, 2] > 2.85]; ml = vts(bpy.data.objects['MainLeg' + sd])
     px = float(hi[:, 0].mean()) if len(hi) else s * 4.3; py = float((ml[:, 1].min() + ml[:, 1].max()) / 2)
     if sd == '_R': py = MAIN['_L']['piv'].y
     parts = [mu, bpy.data.objects['MainLeg' + sd], bpy.data.objects['MainWheels' + sd], DOORS['MainDoor' + sd]]
     if sd == '_L':
-        # (380 A2) the fold: every vertex of the folded leg, leg and wheels inside its well (above the leg/bay door's inner
-        # face, under the bay lid, within the hole) - searched on height maps of his skin, then the best checked by triangles
-        st = ST; xs, ys, LO, LID = MAPS['_L']
-        X0, X1, Y0, Y1, _z = HOLES['MainBay_L']
-        Wr = np.concatenate([vts(p_) for p_ in parts[:3]])
+        # (380 A3) his wing over the leg is only 0.25-0.45 m deep (lower skin z 2.9-3.15, upper 3.2-3.6) and the strut with
+        # its fittings is wider than that; the fold is searched so the parts seen with the gear down need the least
+        # slimming to lie between the closed leg door and the upper skin (the wheels in the belly fairing, untouched),
+        # then stow_clamp slims what is left of the strut and its stays in the retracted frame (see below)
+        Wv = [vts(p_) for p_ in parts[:3]]; Wr = np.concatenate(Wv)
+        xs_, ys_, LO_, LID_ = MAPS[sd]
+        vis = np.concatenate([Wv[0][:, 2] < map_lo(sd, Wv[0]) - 0.02, Wv[1][:, 2] < map_lo(sd, Wv[1]) - 0.02, np.ones(len(Wv[2]), bool)])
+        wgt = np.where(vis, 1.0, 0.15); wgt[len(Wv[0]) + len(Wv[1]):] = 6.0
         def score(px_, pz_, ang_):
-            a = math.radians(s * ang_); c, sn = math.cos(a), math.sin(a)
-            dx, dz = Wr[:, 0] - px_, Wr[:, 2] - pz_
-            X = px_ + dx * c + dz * sn; Z = pz_ - dx * sn + dz * c; Y = Wr[:, 1]
-            inx = (X > X0 + 0.01) & (X < X1 - 0.01) & (Y > Y0 + 0.01) & (Y < Y1 - 0.01)
-            ii = np.clip(np.round((X - xs[0]) / st).astype(int), 0, len(xs) - 1); jj = np.clip(np.round((Y - ys[0]) / st).astype(int), 0, len(ys) - 1)
-            und = np.maximum(0, LO[jj, ii] + 0.04 - Z) * inx; ovr = np.maximum(0, Z - LID[jj, ii] + 0.01) * inx
-            return int((~inx).sum()), int((und > 0).sum()), int((ovr > 0).sum()), float(und.max()), float(ovr.max())
+            Q = fold_np(Wr, px_, pz_, s * ang_); lo, hi, inmap = band_np(sd, Q)
+            d = np.maximum(0, lo - Q[:, 2]) + np.maximum(0, Q[:, 2] - hi) + (~inmap) * 1.0
+            return float((d * wgt).sum()), float(d[vis].max()), int((d > 0.005).sum())
         cand = []
-        for px_ in np.arange(px - 0.15, px + 0.151, 0.05):
-            for pz_ in np.arange(2.85, 3.451, 0.025):
+        for px_ in np.arange(px - 0.2, px + 0.201, 0.05):
+            for pz_ in np.arange(2.95, 3.451, 0.025):
                 for ang_ in range(70, 101):
-                    r = score(px_, pz_, ang_); cand.append((r[0] + r[1] + r[2], r, float(px_), float(pz_), float(ang_)))
+                    r = score(px_, pz_, ang_); cand.append((r[0], r, float(px_), float(pz_), float(ang_)))
         cand.sort(key=lambda q: q[0])
-        for q in cand[:6]: print('OPT main_L hinge x %.3f z %.3f %3.0f deg: %d verts out (outside hole %d, under the door face %d (max %.3f m), over the lid %d (max %.3f m))' % (q[2], q[3], q[4], q[0], q[1][0], q[1][1], q[1][3], q[1][2], q[1][4]))
-        best = None
-        for q in cand[:6]:
-            piv = Vb(q[2], py, q[3]); M = about(None, piv, 'Y', s * q[4])
-            mv = bvh_of(parts[:3], M); hits = len(BV_STATIC.overlap(mv)) + len(mv.overlap(bvh_of([parts[3]])))
-            print('CHECK main_L hinge x %.3f z %.3f, %.0f deg: %d touching triangle pairs' % (q[2], q[3], q[4], hits))
-            if best is None or hits < best[0]: best = (hits, q[3], q[4], q[2])
-        LBEST = best
+        for q in cand[:4]: print('OPT main_L hinge x %.3f z %.3f %3.0f deg: slimming %.1f (weighted m), deepest on a part seen gear-down %.3f m, %d verts to move' % (q[2], q[3], q[4], q[0], q[1][1], q[1][2]))
+        q = cand[0]; best = (0, q[3], q[4], q[2]); LBEST = best
     else:                                    # the right gear: the left one mirrored
         b0 = LBEST; piv = Vb(-b0[3], py, b0[1]); M = about(None, piv, 'Y', s * b0[2])
         mv = bvh_of(parts[:3], M); best = (len(BV_STATIC.overlap(mv)) + len(mv.overlap(bvh_of([parts[3]]))), b0[1], b0[2], -b0[3])
@@ -407,7 +489,18 @@ for s, sd in ((-1, '_L'), (1, '_R')):
         J2 = max(Js, key=lambda q: q.z)
         def ang2(u, w): return math.degrees(math.atan2(u.z * w.x - u.x * w.z, u.x * w.x + u.z * w.z))   # signed, about +y
         up_deg = ang2(J - B, J2 - B); lo_world = ang2(J - A, J2 - A2)
-        MAIN[sd].update(B=B, A=A, up_deg=up_deg, lo_deg=lo_world - MAIN[sd]['deg'], reach=dd <= L1 + L2)
+        MAIN[sd].update(B=B, A=A, J=J, up_deg=up_deg, lo_deg=lo_world - MAIN[sd]['deg'], reach=dd <= L1 + L2)
+    # (380 A3) slim what would still leave the wing at full retraction (the strut top, fittings and stays; wheels if needed)
+    bpy.context.view_layer.update()
+    Mr = about(None, P, 'Y', MAIN[sd]['deg'])
+    for nm in ('MainLegUpper', 'MainLeg', 'MainWheels'): stow_clamp(bpy.data.objects[nm + sd], Mr, sd)
+    if 'B' in MAIN[sd]:
+        m_ = MAIN[sd]
+        stow_clamp(bpy.data.objects['SideBraceUp' + sd], about(None, m_['B'], 'Y', m_['up_deg']), sd)
+        stow_clamp(bpy.data.objects['SideBraceLo' + sd], Mr @ about(None, m_['A'], 'Y', m_['lo_deg']), sd)
+    MAIN[sd]['hits'] = len(BV_STATIC.overlap(bvh_of(parts[:3], Mr)))
+    print('CHECK main%s after slimming: %d touching triangle pairs with the skin, bays and closed doors (retracted)' % (sd, MAIN[sd]['hits']))
+    breakdown('main' + sd + ' slimmed', parts[:3], Mr)
 
 # ---------------------------------------------------------------- 4. origins at the hinges, the GEAR lines
 def origin(ob, p):
@@ -422,10 +515,11 @@ for s, sd in ((-1, '_L'), (1, '_R')):
     hinge_line('MainDoor' + sd, DOORS['MainDoor' + sd], m['piv'], m['axis'], m['deg'], 'leg door, child of MainLegUpper (same hinge)')
     if 'B' in m:
         hinge_line('SideBraceUp' + sd, bpy.data.objects['SideBraceUp' + sd], m['B'], m['axis'], m['up_deg'], 'about its wing end')
+        print('KNEE %s glb %s (gear down; SideBraceUp%s turns about its wing end %s, SideBraceLo%s about its leg end %s)' % (sd, glb(m['J']), sd, glb(m['B']), sd, glb(m['A'])))
         hinge_line('SideBraceLo' + sd, bpy.data.objects['SideBraceLo' + sd], m['A'], m['axis'], m['lo_deg'], 'child of MainLegUpper, about its leg end, relative%s' % ('' if m['reach'] else ' (links cannot reach: approx)'))
-    for nm, edge in (('NoseDoor', 0.80), ('MainBayDoor', 0.75)):
+    for nm, edge in (('NoseDoor', 0.80 + DOOR_OUT), ('MainBayDoor', 0.75 - DOOR_OUT)):
         x0, x1, y0, y1, zs = HOLES['NoseBay' if nm == 'NoseDoor' else 'MainBay' + sd]
-        hx = s * (edge - SEAM)
+        hx = s * edge
         P0, _ = skin(hx, (y0 + y1) / 2, zs); hp = Vb(hx, (y0 + y1) / 2, (P0.z if P0 else 2.2) + 0.015)
         deg = (-s * 90.0) if nm == 'NoseDoor' else (s * 90.0)
         hinge_line(nm + sd, DOORS[nm + sd], hp, Vb(0, 1, 0), deg, 'open angle (hinge at its %s edge, opens downwards; closed with the gear up and down)' % ('outer' if nm == 'NoseDoor' else 'keel'))
