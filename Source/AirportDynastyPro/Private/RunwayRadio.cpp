@@ -135,6 +135,30 @@ namespace ADPRunwayRadio
 		}
 	}
 
+	bool Exchange(UWorld* W, FCall& C, const FWho& Who, const FString& Ask, bool bGive, const FString& Give, const FString& HoldLine, const FString& HoldBack, const FString& Back)
+	{
+		if (C.Step == 5) return true;
+		if (RrNow(W) < C.At || !FreqFree(W)) return false;   // (one line at a time on the frequency)
+		switch (C.Step)
+		{
+		case 0:
+			if (Ask.IsEmpty()) { C.Step = 1; return false; }
+			RrLine(W, C, Who, false, Ask); C.Step = 1; return false;
+		case 1:
+		case 3:
+			if (bGive) { RrLine(W, C, Who, true, Give); C.Step = 4; return false; }
+			if (C.Step == 1 && !HoldLine.IsEmpty())
+			{
+				RrLine(W, C, Who, true, HoldLine); C.Step = HoldBack.IsEmpty() ? 3 : 2;
+				ADP_LOG(TEXT("Radio: %s told to hold"), *Who.Callsign);
+			}
+			return false;
+		case 2: RrLine(W, C, Who, false, HoldBack); C.Step = 3; return false;
+		case 4: RrLine(W, C, Who, false, Back); C.Step = 5; return false;
+		default: return C.Step == 5;
+		}
+	}
+
 	void Vacated(UWorld* W, FCall& C, const FWho& Who)
 	{
 		if (C.Step != 5 && C.Step != 7) return;

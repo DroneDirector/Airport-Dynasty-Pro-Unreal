@@ -16,6 +16,7 @@
 #include "GameFramework/Actor.h"
 #include "Airfield.h"
 #include "PaxFlow.h"
+#include "RunwayRadio.h"
 #include "SimTraffic.generated.h"
 
 class ABabylonModel;
@@ -81,6 +82,9 @@ private:
 		int32 GNoseW = INDEX_NONE, GNoseLeg = INDEX_NONE, GMainW[2] = {INDEX_NONE, INDEX_NONE}, GMainLeg[2] = {INDEX_NONE, INDEX_NONE};
 		bool bGear = false, bGearPrev = false; float Steer = 0.f, RollN = 0.f, RollM = 0.f, Ext = 0.f, ExtV = 0.f;
 		FVector2f PrevNose = FVector2f::ZeroVector, PrevMain = FVector2f::ZeroVector;
+		// the tower (to-do 378): one exchange at a time (RadFor 1 take-off, 2 landing, 3 taxi-in); what it has been cleared for
+		ADPRunwayRadio::FCall Rad; uint8 RadFor = 0; FString Cs, Voice;
+		bool bTakeoffOk = false, bLandOk = false, bTaxiInOk = false;
 	};
 	TSet<FString> TugCalled;   // (arrivals whose tug driver was called)
 	float SlipPoll = 0.f;

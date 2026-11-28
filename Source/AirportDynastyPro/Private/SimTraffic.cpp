@@ -522,6 +522,69 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, X0 = F.RwyX0, X1 = F.RwyX1, Hold = 107.5f;
 	const FAirfieldData::FStand* MySt = M.bDeparture ? F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; }) : nullptr;
 	const bool bCargoSt = MySt && MySt->bCargo; const float LaneY = bCargoSt ? F.KY : F.TY;   // (the taxilane it is pushed onto)
+	// the tower (to-do 378, RunwayRadio.h): in the game and in the tests alike nothing goes onto the runway, lands or taxis in
+	// without its clearance read back. The pilot's callsign as in the tug's talk (the registration's last three letters,
+	// ICAO), his voice one of the men's by the registration
+	if (M.Cs.IsEmpty())
+	{
+		M.Cs = ADPRunwayRadio::Spell(M.Reg.Mid(M.Reg.Find(TEXT("-")) + 1).Right(3));
+		static const TCHAR* Vo[] = {TEXT("bm_george"), TEXT("bm_lewis"), TEXT("bm_daniel"), TEXT("bm_fable"), TEXT("am_michael"), TEXT("am_adam")};
+		M.Voice = Vo[GetTypeHash(M.Reg) % UE_ARRAY_COUNT(Vo)];
+	}
+	auto Talk = [&](uint8 For, const FString& Ask, bool bGive, const FString& Give, const FString& HoldLine, const FString& HoldBack, const FString& Back)
+	{
+		if (M.RadFor != For) { M.Rad = ADPRunwayRadio::FCall(); M.RadFor = For; }
+		ADPRunwayRadio::FWho Who; Who.Radio = M.Model.Get(); Who.Voice = M.Voice; Who.Callsign = M.Cs;
+		return ADPRunwayRadio::Exchange(GetWorld(), M.Rad, Who, Ask, bGive, Give, HoldLine, HoldBack, Back);
+	};
+	// what keeps the runway from this one, as the tower says it (empty: free)
+	auto Taken = [&](bool bLanding) -> FString
+	{
+		for (const FMove& O : Moves)
+		{
+			if (&O == &M) continue;
+			if (O.Phase == EPhase::Roll || (O.Phase == EPhase::Climb && O.Height < 100.f)) return TEXT("traffic departing");
+			if (O.Phase == EPhase::Rollout || (O.Phase == EPhase::TaxiIn && O.Step == 0 && FMath::Abs(O.Main.Y - RY) < 45.f)) return TEXT("runway occupied");
+			if (!bLanding && O.Phase == EPhase::Approach && (O.Height < 200.f || O.bLandOk)) return TEXT("traffic on final");
+			if (bLanding && O.Phase == EPhase::Approach && O.bLandOk) return TEXT("traffic landing ahead");
+			if (bLanding && O.Phase == EPhase::Taxi && O.bTakeoffOk) return TEXT("traffic departing");
+		}
+		if (AHangarTow::OnRunway(GetWorld())) return TEXT("traffic crossing the runway");
+		return FString();
+	};
+	const FString RwS = RunwaySpoken(GetWorld());
+	// lined up without a take-off clearance (a test's take-off starts there): asked for here, the roll after it
+	if (M.Phase == EPhase::Roll && M.Step >= M.Path.Num() - 1 && !M.bTakeoffOk)
+	{
+		const FString Why = Taken(false);
+		if (Talk(1, FString::Printf(TEXT("%s, %s, lined up runway %s, ready for departure."), *ADPRunwayRadio::Tower(), *M.Cs, *RwS), Why.IsEmpty(),
+			FString::Printf(TEXT("%s, runway %s, cleared for take-off."), *M.Cs, *RwS), FString::Printf(TEXT("%s, hold position, %s."), *M.Cs, *Why),
+			FString::Printf(TEXT("Holding position, %s."), *M.Cs), FString::Printf(TEXT("Cleared for take-off runway %s, %s."), *RwS, *M.Cs)))
+		{ M.bTakeoffOk = true; ADP_LOG(TEXT("Traffic: %s cleared for take-off runway %s (lined up)"), *M.Reg, *RwS); }
+		else M.Clock = 0.f;   // (its moment lined up counts from the clearance)
+	}
+	// on final: cleared to land once the runway is free and it is within about 7 km (400 m up); never cleared by 60 m: warned
+	if (M.Phase == EPhase::Approach && !M.bLandOk)
+	{
+		const FString Why = Taken(true);
+		if (Talk(2, FString::Printf(TEXT("%s, %s, established runway %s."), *ADPRunwayRadio::Tower(), *M.Cs, *RwS), Why.IsEmpty() && M.Height < 400.f,
+			FString::Printf(TEXT("%s, runway %s, cleared to land."), *M.Cs, *RwS), Why.IsEmpty() ? FString() : FString::Printf(TEXT("%s, continue approach, %s."), *M.Cs, *Why),
+			FString::Printf(TEXT("Continue approach, %s."), *M.Cs), FString::Printf(TEXT("Cleared to land runway %s, %s."), *RwS, *M.Cs)))
+		{ M.bLandOk = true; ADP_LOG(TEXT("Traffic: %s cleared to land runway %s at %.0f m"), *M.Reg, *RwS, M.Height); }
+		else if (M.Height < 60.f && !M.Rad.bIncursion) { M.Rad.bIncursion = true; ADP_WARN(TEXT("Traffic: %s below 60 m on final without a landing clearance (%s) - it lands anyway, no go-around yet"), *M.Reg, Why.IsEmpty() ? TEXT("the exchange not finished") : *Why); }
+	}
+	// off the runway: "vacated", the tower's taxi clearance to the stand and its readback - short of the taxiway until then
+	bool bTaxiInHeld = false;
+	if (M.Phase == EPhase::TaxiIn && !M.bTaxiInOk && !M.Stand.IsEmpty() && M.Path.Num() > 1)
+	{
+		const bool bN = M.Path.Last().Y > RY; const FString Via = bN ? TEXT("Bravo, Kilo") : TEXT("Alpha, Tango");
+		const FString StS = TEXT("stand ") + M.Stand.Replace(TEXT("STAND-"), TEXT(""));
+		if (M.Step == 0 && FMath::Abs(M.Main.Y - RY) < 45.f) bTaxiInHeld = true;   // (still on the strip: the call once it is off)
+		else if (Talk(3, FString::Printf(TEXT("%s, %s, runway %s vacated."), *ADPRunwayRadio::Tower(), *M.Cs, *RwS), true,
+			FString::Printf(TEXT("%s, taxi to %s via %s."), *M.Cs, *StS, *Via), FString(), FString(), FString::Printf(TEXT("Taxi to %s via %s, %s."), *StS, *Via, *M.Cs)))
+		{ M.bTaxiInOk = true; ADP_LOG(TEXT("Traffic: %s cleared to taxi to %s"), *M.Reg, *StS); }
+		else bTaxiInHeld = true;
+	}
 	// the tug (Tugs.h): pushed back only once a tug has driven in and hooked its towbar on the nose gear's tow fitting
 	// (60 cm ahead of the nose wheel) - it is posed on the aircraft from then on; taxiing only once it has backed clear
 	if (M.Phase == EPhase::Push)
@@ -665,6 +728,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 			if (Rem < 200.f) Want = FMath::Min(Want, FMath::Max(0.4f, FMath::Sqrt(2.f * 0.5f * Rem)));
 		}
 	}
+	if (bTaxiInHeld) Want = M.Step >= 1 ? 0.f : FMath::Min(Want, FMath::Max(0.4f, FMath::Sqrt(FVector2f::Distance(M.Nose, M.Path[0]))));   // (waits on the exit for its taxi clearance)
 	const float Acc = M.Phase == EPhase::Roll ? 2.2f : M.Phase == EPhase::Rollout ? -2.f : 0.6f;
 	if (M.Phase == EPhase::Rollout) M.Speed = FMath::Max(Want, M.Speed + Acc * Dt);
 	else M.Speed = FMath::FInterpConstantTo(M.Speed, Want, Dt, FMath::Abs(Acc) + 0.4f);
@@ -743,12 +807,17 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		return false;
 	case EPhase::Taxi:
 	{
-		// holding short until the runway is clear (nothing rolling, landing or on short final) and the line-up clearance
-		// a few seconds later - as the tower gives it
-		bool bBusy = false;
-		for (const FMove& O : Moves) if (&O != &M && (O.Phase == EPhase::Roll || O.Phase == EPhase::Rollout || (O.Phase == EPhase::Approach && O.Height < 200.f))) bBusy = true;
-		if (AHangarTow::OnRunway(GetWorld())) bBusy = true;   // (a hangar tow crossing, to-do 311)
-		if (bBusy || (M.Clock += Dt) < 20.f) { M.Speed = 0.f; M.Path = {M.Nose}; M.Step = 0; return false; }
+		// at the holding point: "ready for departure"; the tower clears it to line up and take off once the runway is free
+		// (nothing rolling, landing, cleared to land or on short final, no tow crossing), or holds it short and says why
+		if (!M.bTakeoffOk)
+		{
+			const FString Why = Taken(false), Twy = ADPRunwayRadio::TwyAt(M.Nose);
+			const bool bOk = Talk(1, FString::Printf(TEXT("%s, %s, holding point %s, ready for departure."), *ADPRunwayRadio::Tower(), *M.Cs, *Twy), Why.IsEmpty(),
+				FString::Printf(TEXT("%s, line up runway %s, cleared for take-off."), *M.Cs, *RwS), FString::Printf(TEXT("%s, hold short runway %s, %s."), *M.Cs, *RwS, *Why),
+				FString::Printf(TEXT("Holding short runway %s, %s."), *RwS, *M.Cs), FString::Printf(TEXT("Line up runway %s, cleared for take-off, %s."), *RwS, *M.Cs));
+			if (!bOk) { M.Speed = 0.f; M.Path = {M.Nose}; M.Step = 0; return false; }
+			M.bTakeoffOk = true; ADP_LOG(TEXT("Traffic: %s cleared to line up and take off runway %s"), *M.Reg, *RwS);
+		}
 		M.Clock = 0.f;
 		M.Phase = EPhase::Roll; M.Path = LineUpPath(LineUp, RY, Dir, M.Nose.Y > RY ? 1.f : -1.f); M.Step = 0;
 		return false;

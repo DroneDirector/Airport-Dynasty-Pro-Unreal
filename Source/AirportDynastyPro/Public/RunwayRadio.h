@@ -42,6 +42,10 @@ namespace ADPRunwayRadio
 	FString TwyAt(const FVector2f& P);
 	/** A registration spelled out ("HB-JXA" -> "Hotel Bravo Juliett X-ray Alpha"). */
 	FString Spell(const FString& Reg);
+	/** An airliner's clearance on the same frequency (to-do 378): Ask the pilot's request (empty: the tower calls first),
+	 *  bGive the tower may give it now, Give the clearance, HoldLine the tower's "hold / continue" while it may not (empty:
+	 *  it just waits), HoldBack its readback, Back the clearance's readback. True: given and read back. */
+	bool Exchange(UWorld* W, FCall& C, const FWho& Who, const FString& Ask, bool bGive, const FString& Give, const FString& HoldLine, const FString& HoldBack, const FString& Back);
 	/** The frequency is free (no line being said by anyone). */
 	bool FreqFree(UWorld* W);
 }
