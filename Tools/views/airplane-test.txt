@@ -11,6 +11,7 @@ day 172
 hour 20.8
 weather 1
 wait 25
+hideui
 lives
 park
 jetway 4 dock

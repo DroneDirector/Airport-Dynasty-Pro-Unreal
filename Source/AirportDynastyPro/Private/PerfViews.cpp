@@ -2,6 +2,7 @@
 //   view <x> <height> <z> <yaw> <pitch>   the camera there, held (plan metres and degrees as in ADP-Perf.log)
 //   fly <x> <height> <z> <yaw> <pitch> <seconds>   the camera moved there in that time, measured while it moves
 //   cmd <console command>
+//   hideui                 the interface and the engine's screen messages hidden (clean recordings and pictures)
 //   wait <seconds>
 //   day <of the year, 1-365; the summer day if not given>, hour <0-24>, weather <0 clear .. 2 broken, 3 overcast .. 7 snow>
 //   measure <seconds> <name>              frame, game, render and graphics-card times into ADP.log ("Views: ...")
@@ -1114,6 +1115,7 @@ namespace ADPPerfViewsInternal
 			else ADP_LOG(TEXT("Views: at %s"), *A);
 		}
 		else if (K == TEXT("cmd")) { ADP_LOG(TEXT("Views: %s"), *A); PC->ConsoleCommand(A); }
+		else if (K == TEXT("hideui")) { if (AADPHUD* H = Cast<AADPHUD>(PC->GetHUD())) H->TestHide(); PC->ConsoleCommand(TEXT("DisableAllScreenMessages")); ADP_LOG(TEXT("Views: interface and screen messages hidden")); }
 		else if (K == TEXT("look") && V.Num() > 3)
 		{
 			const FString Nm = FString::JoinBy(TArrayView<FString>(V).RightChop(3), TEXT(" "), [](const FString& Word) { return Word; });
