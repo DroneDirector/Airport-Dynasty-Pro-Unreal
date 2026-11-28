@@ -1,5 +1,6 @@
 // The town coach hub (to-do 373 step B) - see TownHub.h.
 #include "TownHub.h"
+#include "Misc/ScopeExit.h"
 #include "Coaches.h"
 #include "VehicleRiders.h"
 #include "PaxFlow.h"
@@ -438,6 +439,9 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 			if (W.Trip != C.Trip || W.Phase >= 7) continue;
 			AActor* A = W.A.Get(); if (!A) { W.Phase = 7; continue; }
 			++Spawned;
+			static const bool bTrace = FParse::Param(FCommandLine::Get(), TEXT("RiderTrace")) || FCString::Strifind(FCommandLine::Get(), TEXT("RiderTrace=")) != nullptr;
+			const int32 Was = W.Phase;
+			ON_SCOPE_EXIT { if (bTrace && W.Phase != Was) { ADP_LOG(TEXT("RiderTrace: hub %s phase %d -> %d"), *GetNameSafe(W.A.Get()), Was, W.Phase); GLog->Flush(); } };
 			switch (W.Phase)
 			{
 			case 0:

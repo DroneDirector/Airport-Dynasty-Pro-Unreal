@@ -497,6 +497,7 @@ UVehicleRiders* ACoaches::Riders(int32 Ci)
 		UVehicleRiders* R = UVehicleRiders::Make(Coaches[Ci].M.Get(), TEXT("airportcoach"), MakeUnique<FCoachBody>(this, Ci));
 		if (R) R->AddTickPrerequisiteActor(this);
 		Coaches[Ci].Riders = R;
+		{ extern TWeakObjectPtr<UVehicleRiders> GRiderTraceOnly; int32 Tc = -1; if (R && FParse::Value(FCommandLine::Get(), TEXT("RiderTrace="), Tc) && Tc == Ci) GRiderTraceOnly = R; }
 	}
 	return Coaches[Ci].Riders.Get();
 }

@@ -117,7 +117,7 @@ public:
 	enum : int32 { VisibleDep = 36, VisibleArr = 30 };
 
 private:
-	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, Apron, ClaimWait, ToBag, Revolve, Gone, Coach };   // (Coach: at the town hub / on its coach - ATownHub has them until FromCoach)   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
+	enum class EPx : uint8 { Walk, DeskQ, Desk, LaneQ, Wait, Seated, Lean, Call, Jetway, Apron, ClaimWait, ToBag, Revolve, Gone, Coach };   // (Coach stays LAST: the 30 s count in APaxFlow::Tick is sized from it) (Coach: at the town hub / on its coach - ATownHub has them until FromCoach)   // (Revolve: at / in a revolving door - waiting, stepping in, riding round, stepping out)
 	enum class EDo : uint8 { None, JoinDesk, JoinLane, Screened, Upstairs, AtSeat, AtWall, AtGateSpot, Aboard, AtClaim, OutCarPark, ArrIn, ToTaxi, ApronOut };
 	struct FWp { FVector P = FVector::ZeroVector; float Pause = 0.f; FVector Face = FVector::ZeroVector; uint8 Mode = 0; bool bGround = false; bool bNav = false; int8 Rev = -1, RevSide = 0; };   // Mode 0 walk, 1 slow, 2 ride, 3 a revolving door (Rev: ATerminalDoors' revolving door, RevSide: the side they come from, +-1 along its axis; P: the queue's head spot); bNav: the leg to it already walked out on the navmesh
 	struct FPx

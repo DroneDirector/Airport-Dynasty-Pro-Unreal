@@ -298,6 +298,8 @@ void UVehicleRiders::Unpose(FRider& R)
 	R.Anim = nullptr; R.Speed = 0.f; R.bLast = false;
 }
 
+TWeakObjectPtr<UVehicleRiders> GRiderTraceOnly;
+
 void UVehicleRiders::ApplyPose(FRider& R, const FPoseFn& Fn, float K, float Dt)
 {
 	AActor* A = R.A.Get();
@@ -322,7 +324,12 @@ void UVehicleRiders::ApplyPose(FRider& R, const FPoseFn& Fn, float K, float Dt)
 		R.bPosed = true;
 	}
 	R.RestW = 0.f;
+	// (-RiderTrace=<coach number>: only that coach's driver - every rider flushed each frame dropped the game to 1 fps)
+	const bool bMark = GRiderTraceOnly.Get() == this && R.bDriver;
+	auto Mark = [bMark, K](const TCHAR* W) { if (bMark) { ADP_LOG(TEXT("RiderTrace: driver pose %.2f %s"), K, W); GLog->Flush(); } };
+	Mark(TEXT("pose asked"));
 	FDriverPose P = Fn(FMath::Clamp(K, 0.f, 1.f), PH);
+	Mark(*FString::Printf(TEXT("pose made, pelvis %s feet %s / %s"), *P.Pelvis.ToCompactString(), *P.Foot[0].ToCompactString(), *P.Foot[1].ToCompactString()));
 	if (R.bFrom && R.BlendT < 1.f) { R.BlendT = FMath::Min(1.f, R.BlendT + Dt / 0.4f); P = ADPPose::Lerp(R.From, P, VrSm(R.BlendT)); }
 	R.Last = P; R.bLast = true;
 	FVector Fw = P.Facing.GetSafeNormal2D(); if (Fw.IsNearlyZero()) Fw = VrX;
@@ -331,6 +338,7 @@ void UVehicleRiders::ApplyPose(FRider& R, const FPoseFn& Fn, float K, float Dt)
 	for (int32 s = 0; s < 2; ++s) { L.Foot[s] = FrameL.InverseTransformPosition(P.Foot[s]); L.Hand[s] = FrameL.InverseTransformPosition(P.Hand[s]); }
 	const FTransform FrameW = FrameL * Body->Body();
 	R.Rig->Pose(L);
+	Mark(TEXT("rig posed"));
 	if (R.RestW > 0.f)
 	{
 		const float Th = R.Rig->ThighRadius();
@@ -355,6 +363,7 @@ void UVehicleRiders::ApplyPose(FRider& R, const FPoseFn& Fn, float K, float Dt)
 	}
 	if (R.Anim) R.Anim->Local = R.Rig->LocalPose();
 	A->SetActorTransform(R.BodyInActor.Inverse() * FrameW);
+	Mark(TEXT("placed"));
 }
 
 void UVehicleRiders::WalkAnim(FRider& R, float Speed)
@@ -442,6 +451,8 @@ void UVehicleRiders::Step(FRider& R, float Dt)
 	if (!R.A.IsValid()) return;
 	if (!R.Q.Num()) { Stay(R, Dt); TickBag(R); return; }
 	FAct& Ac = R.Q[0]; bool bDone = false;
+	// (-RiderTrace: each action as it starts, flushed - to find what the town-hub fast fail of 11-28 is doing)
+	if (R.T <= 0.f && GRiderTraceOnly.Get() == this) { static const TCHAR* Kn[] = {TEXT("walk"), TEXT("aisle"), TEXT("pose"), TEXT("until"), TEXT("do")}; ADP_LOG(TEXT("RiderTrace: %s %s %s (%d queued, bag %d bay %d)"), *GetOwner()->GetName(), R.A.IsValid() ? *R.A->GetName() : TEXT("?"), Kn[FMath::Clamp(int32(Ac.Kind), 0, 4)], R.Q.Num(), R.BagState, R.Bay); GLog->Flush(); }
 	R.T += Dt;
 	switch (Ac.Kind)
 	{

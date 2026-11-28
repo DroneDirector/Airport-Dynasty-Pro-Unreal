@@ -2468,7 +2468,7 @@ void APaxFlow::Tick(float Dt)
 	if ((SayIn -= Dt) <= 0.f)
 	{
 		SayIn = 30.f;
-		int32 N[13] = {}; for (const FPx& P : Pax) ++N[(int32)P.St];
+		int32 N[(int32)EPx::Coach + 1] = {}; for (const FPx& P : Pax) if ((int32)P.St < UE_ARRAY_COUNT(N)) ++N[(int32)P.St];   // (sized from the last state: 13 slots for 15 states overran the stack and killed the game at the town hub, 11-28)
 		const int32 Live = Walking();
 		if (Live || Runs.Num()) ADP_LOG(TEXT("PaxFlow: %d about - %d walking, %d in desk queues, %d at desks, %d at security, %d waiting standing, %d sitting, %d leaning, %d boarding, %d at the claim; %d aboard, %d out so far; %d flights"),
 			Live, N[(int32)EPx::Walk], N[(int32)EPx::DeskQ], N[(int32)EPx::Desk], N[(int32)EPx::LaneQ], N[(int32)EPx::Wait], N[(int32)EPx::Seated], N[(int32)EPx::Lean], N[(int32)EPx::Call] + N[(int32)EPx::Jetway], N[(int32)EPx::ClaimWait] + N[(int32)EPx::ToBag], TotalAboard, TotalOut, Runs.Num());
