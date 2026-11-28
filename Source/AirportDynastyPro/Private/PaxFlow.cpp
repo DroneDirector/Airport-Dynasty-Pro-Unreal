@@ -805,11 +805,19 @@ int32 APaxFlow::SpawnHub(int32 Ri, const FVector& At, int32 Trip, bool bBag)
 	return i;
 }
 
-AActor* APaxFlow::TestCoachPax(const FVector& At, float Yaw, int32 Trip, bool bBag)
+FString APaxFlow::TestPaxWhy() const
+{
+	if (!bReady) return TEXT("the passengers' trips are still being set up (PaxFlow not ready)");
+	if (!Names.Num()) return TEXT("no passenger faces found");
+	if (!ATownHub::Get(GetWorld())) return TEXT("no town hub");
+	return FString();
+}
+
+AActor* APaxFlow::TestCoachPax(const FVector& At, float Yaw, int32 Trip, bool bBag, bool bShelter)
 {
 	ADP_PERF_SCOPE("pax flow: a test coach passenger made", 1.f);
 	ATownHub* Hub = ATownHub::Get(GetWorld());
-	if (!Hub || !Names.Num() || !FaceReady()) return nullptr;
+	if (!bReady || !Hub || !Names.Num() || !FaceReady()) return nullptr;
 	int32 Ri = Runs.IndexOfByPredicate([](const FRun& X) { return X.Key == TEXT("T:COACH"); });
 	if (Ri == INDEX_NONE)
 	{
@@ -823,8 +831,9 @@ AActor* APaxFlow::TestCoachPax(const FVector& At, float Yaw, int32 Trip, bool bB
 	P.Run = Ri; P.Id = FString::Printf(TEXT("%s-%03d"), *Runs[Ri].Label, Runs[Ri].Spawned);
 	AActor* A = Body(At, Yaw, P);
 	if (!A) { P.St = EPx::Gone; FreePx.Add(i); --Runs[Ri].Spawned; return nullptr; }
-	P.St = EPx::Coach; P.bHubBag = bBag; P.Stage = TEXT("on the town coach to the terminal");
-	P.bHubAt = false; P.HubKind = Rng.RandRange(0, 3);
+	P.St = EPx::Coach; P.bHubBag = bBag; P.Stage = bShelter ? TEXT("at the town hub, waiting for the coach") : TEXT("on the town coach to the terminal");
+	P.bHubAt = bShelter; P.HubKind = Rng.RandRange(0, 3);
+	if (bShelter && bBag) HubBag(P, true);   // (their suitcase in hand, as SpawnHub)
 	++Runs[Ri].Pax; ++Runs[Ri].Visible;
 	Hub->Take(A, bBag, Runs[Ri].Label, Trip, Runs[Ri].DepT);
 	return A;

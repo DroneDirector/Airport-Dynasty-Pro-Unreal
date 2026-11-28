@@ -514,11 +514,18 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 		if (C.bTestRide)   // (a test-filled coach: the run is its next drive in, to its stand; off once parked square there)
 		{
 			if (K->OnRoute(C.Ci) || R->IsDriving()) { C.bRode = true; C.T = 0.f; break; }
-			if (!C.bRode || C.Fill > 0) { C.T = 0.f; break; }
-			if (!K->ParkedSquare(C.Ci) && C.T < 30.f) break;
-			if (!C.bParkSaid) { C.bParkSaid = true; C.ParkSeq = ++ParkSeqN; if (!K->ParkedSquare(C.Ci)) Say(C, TEXT("not square in a terminal bay 30 s after stopping - unloads where it stands"), true); }
+			if (!C.bRode) { C.T = 0.f; break; }
+			if (C.Fill > 0)   // (parked before its fill was done: those aboard get off now, nobody more is made)
+			{
+				Say(C, FString::Printf(TEXT("test - parked with %d still to be seated (%s) - none more made, the %d aboard get off"), C.Fill, C.FillWhy.Len() ? *C.FillWhy : TEXT("not made in time"), T.People), true);
+				TestWhyS = FString::Printf(TEXT("coach %d parked with its fill unfinished (%s)"), C.Ci, C.FillWhy.Len() ? *C.FillWhy : TEXT("not made in time"));
+				C.Fill = 0;
+			}
+			// (owner, STANDING 11-28: as soon as it is parked its passengers get off - no long standing; 5 s to settle square)
+			if (!K->ParkedSquare(C.Ci) && C.T < 5.f) break;
+			if (!C.bParkSaid) { C.bParkSaid = true; C.ParkSeq = ++ParkSeqN; if (!K->ParkedSquare(C.Ci)) Say(C, TEXT("not square in a terminal bay 5 s after stopping - unloads where it stands"), true); }
 			if (!C.Driver.IsValid()) C.Driver = R->DriverActor();
-			if (!C.Driver.IsValid()) { Say(C, TEXT("test run parked but has no driver - nobody gets off"), true); C.bTestRide = false; break; }
+			if (!C.Driver.IsValid()) { Say(C, TEXT("test run parked but has no driver - nobody gets off"), true); TestWhyS = FString::Printf(TEXT("coach %d parked without a driver"), C.Ci); C.bTestRide = false; break; }
 		}
 		if (K->OnRoute(C.Ci) || R->IsDriving()) break;
 		if (T.bArr) Say(C, FString::Printf(TEXT("at the town hub with the arrivals of %s"), *T.Flight));
@@ -560,6 +567,9 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 	}
 	case EStage::TermShut:
 		if (D && R->IsBusy(D)) break;
+		// (owner, STANDING 11-28: every arriving passenger is off - only now may those for the trip out board; a waiting
+		//  run from the terminal takes this coach where it stands, its driver still out)
+		if (!T.bArr && !R->DriverAtWheel() && TakeWaitingArrival(C)) break;
 		if (!R->DriverAtWheel()) { if (C.T > 0.5f && R->DriverGetIn()) C.T = -1e6f; break; }
 		if (C.bTestRide && K->DoorKOf(C.Ci, 0) > 0.01f) { R->DriverDoor(false); break; }   // (the door shut once the last one is off)
 		if (C.bTestRide) { C.bTestRide = false; Say(C, FString::Printf(TEXT("test run: %d off, door shut"), C.OffN)); }
@@ -672,22 +682,46 @@ bool ATownHub::TestFill(int32 Ci, int32 N)
 void ATownHub::TestFills()
 {
 	ADP_PERF_SCOPE("town hub: test coaches filled", 1.f);
-	ACoaches* K = Co(); APaxFlow* PF = APaxFlow::Find(GetWorld()); if (!K || !PF) return;
+	// (the passengers' trips are made by the loading screen in a game; a views start has none - the cause of the 11-28
+	//  run's coaches parking with nobody aboard: no PaxFlow, so nobody was ever made and the unload waited on its fill)
+	ACoaches* K = Co(); APaxFlow* PF = APaxFlow::Get(GetWorld()); if (!K || !PF) return;
+	auto Why = [this](FHubCoach& C, const FString& Wy)
+	{
+		if (Wy == C.FillWhy) return;
+		C.FillWhy = Wy; if (Wy.Len()) Say(C, FString::Printf(TEXT("test - passengers wait to be made: %s"), *Wy));
+	};
 	for (FHubCoach& C : Fleet)
 	{
-		if (!C.bTestRide || C.Fill <= 0 || !Trips.IsValidIndex(C.Trip)) continue;
-		UVehicleRiders* R = K->Riders(C.Ci); if (!R) { C.Fill = 0; continue; }
+		if (!C.bTestRide || !Trips.IsValidIndex(C.Trip)) continue;
+		UVehicleRiders* R = K->Riders(C.Ci); if (!R) { C.Fill = C.HubFill = 0; continue; }
 		FTrip& T = Trips[C.Trip];
-		if (R->IsDriving() || C.bRode) { Say(C, FString::Printf(TEXT("test - drove off with %d aboard, %d never made"), T.People, C.Fill), true); C.Fill = 0; continue; }
+		if (C.HubFill > 0)   // (a test town run: made unseen along the shelter, waiting there like the game's)
+		{
+			if (C.St > EStage::HubBags) { Say(C, FString::Printf(TEXT("test - bays shut, %d never made"), C.HubFill), true); T.People = FMath::Max(0, T.People - C.HubFill); C.HubFill = 0; continue; }
+			const FString Wy = PF->TestPaxWhy(); if (Wy.Len()) { Why(C, Wy); continue; }
+			FVector At; if (!SpawnSpot(At)) { Why(C, TEXT("no free unseen place along the shelter just now")); continue; }
+			const float Yaw = float((ShelterB - ShelterA).Rotation().Yaw) + 90.f;
+			const bool bBag = FMath::FRand() < 0.8f;
+			AActor* A = PF->TestCoachPax(At + FVector(0.f, 0.f, 90.f), Yaw, C.Trip, bBag, true);
+			if (!A) { Why(C, TEXT("their body still loading")); continue; }
+			Why(C, FString());
+			if (bBag) ++T.BagsN;
+			if (--C.HubFill == 0) Say(C, FString::Printf(TEXT("test - all %d at the shelter, %d with a suitcase"), T.People, T.BagsN));
+			continue;
+		}
+		if (C.Fill <= 0) continue;
+		if (R->IsDriving() || C.bRode) { Say(C, FString::Printf(TEXT("test - drove off with %d aboard, %d never made (%s)"), T.People, C.Fill, C.FillWhy.Len() ? *C.FillWhy : TEXT("?")), true); C.Fill = 0; continue; }
+		{ const FString Wy = PF->TestPaxWhy(); if (Wy.Len()) { Why(C, Wy); continue; } }
 		const FVector In = R->AisleWorld();
-		if (!ADPUnseen::May(GetWorld(), In - FVector(0.f, 0.f, 20.f))) continue;   // (never made where someone looks)
+		if (!ADPUnseen::May(GetWorld(), In - FVector(0.f, 0.f, 20.f))) { Why(C, TEXT("its aisle is in view")); continue; }   // (never made where someone looks)
+		Why(C, FString());
 		for (int32 k = 0; k < 2 && C.Fill > 0; ++k)
 		{
 			// a bag while the door-side bays have room (four each), about four in five of them
 			int32 Bay = INDEX_NONE;
 			if (FMath::FRand() < 0.8f) for (int32 b = 0; b < C.BaysOpen.Num(); ++b) if (C.BagsIn[b] < 4) { Bay = C.BaysOpen[b]; break; }
 			AActor* A = PF->TestCoachPax(In, R->BodyFrame().Rotator().Yaw - 90.f, C.Trip, Bay != INDEX_NONE);
-			if (!A) break;   // (their body still loading: next think)
+			if (!A) { Why(C, TEXT("their body still loading")); break; }   // (next think)
 			FWaiter* W = Waiters.Num() && Waiters.Last().A.Get() == A ? &Waiters.Last() : nullptr;
 			if (!W || !R->SeatNow(A, Bay, W->Kind))
 			{
@@ -719,4 +753,75 @@ int32 ATownHub::TestLead() const
 	int32 Best = INDEX_NONE;
 	for (const FHubCoach& C : Fleet) if (C.ParkSeq && (Best == INDEX_NONE || C.ParkSeq < Fleet[Best].ParkSeq)) Best = C.Ci;
 	return Best;
+}
+
+// ---- the owner's rule (STANDING 11-28): at the terminal every arriving passenger gets off first; then the trip out boards
+
+bool ATownHub::TakeWaitingArrival(FHubCoach& C)
+{
+	// a run from the terminal to the town with people booked and no coach yet: this one, just emptied, takes it here
+	for (int32 t = 0; t < Trips.Num(); ++t)
+	{
+		FTrip& N = Trips[t];
+		if (!N.bArr || N.bGone || N.Coach != INDEX_NONE || N.People <= 0 || t == C.Trip) continue;
+		TSet<int32> Used; for (const FHubCoach& O : Fleet) if (&O != &C && (O.Trip != INDEX_NONE || O.bAtHub)) Used.Add(O.Bay);
+		int32 HubB = INDEX_NONE; for (const int32 b : BayOrder) if (!Used.Contains(b)) { HubB = b; break; }
+		if (HubB == INDEX_NONE) return false;
+		if (Trips.IsValidIndex(C.Trip)) Trips[C.Trip].bGone = true;
+		C.Trip = t; C.Bay = HubB; C.T = 0.f; C.Fails = 0; C.bSlow = false; C.bTestRide = false; N.Coach = C.Ci;
+		for (FWaiter& W : Waiters) if (W.Trip == t) W.Coach = C.Ci;
+		C.St = EStage::HubOpen;   // (the driver is out: the bays open, those for the town board)
+		Say(C, FString::Printf(TEXT("all off - takes run %d for %s from here (%d booked), boarding now"), t, *N.Flight, N.People));
+		return true;
+	}
+	return false;
+}
+
+// ---- tests: a coach parked at the town hub takes a run from the shelter (PerfViews "coach board N")
+
+bool ATownHub::TestTownRun(int32 Ci, int32 N)
+{
+	ACoaches* K = Co(); if (!K) return false;
+	if (!Load()) { ADP_WARN(TEXT("TownHub: test - no town hub in this site's roads.json, coach %d not boarded"), Ci); return false; }
+	Fleetup();
+	UVehicleRiders* R = K->Riders(Ci);
+	if (!R || !Fleet.IsValidIndex(Ci) || N <= 0) return false;
+	FHubCoach& C = Fleet[Ci];
+	const int32 HubB = K->HubBay(Ci);
+	if (HubB == INDEX_NONE || K->OnRoute(Ci) || R->IsDriving()) { ADP_WARN(TEXT("TownHub: test - coach %d is not parked at the town hub (bay %d, %s), not boarded"), Ci, HubB, K->OnRoute(Ci) ? TEXT("still on its way") : TEXT("standing")); return false; }
+	if (C.Trip != INDEX_NONE || C.St != EStage::Idle) { ADP_WARN(TEXT("TownHub: test - coach %d is busy (stage %d), not boarded"), Ci, int32(C.St)); return false; }
+	const int32 Cap = SeatsOf(C); if (Cap > 0) N = FMath::Min(N, Cap);
+	FTrip T; T.Flight = TEXT("VIEW COACH"); T.DepT = Now() + 3.0 * 3600.0; T.LeaveT = Now() + 15.0 * 60.0 * Rate; T.Late = 0.f; T.LimitMs = 23.6f; T.Coach = Ci; T.RateAt = Rate; T.People = N;
+	const int32 t = Trips.Add(T);
+	C.Trip = t; C.St = EStage::Idle; C.T = 0.f; C.bSlow = false; C.bAtHub = true; C.Bay = HubB;
+	C.bTestRide = true; C.bTownRun = true; C.bRode = false; C.bParkSaid = false; C.Fill = 0; C.HubFill = N; C.OffN = 0; C.ParkSeq = 0; C.FillWhy.Reset();
+	C.Driver = R->DriverActor();
+	bTestAny = true;
+	ADP_LOG(TEXT("TownHub: test - coach %d in hub bay %d takes a run of %d passengers from the shelter (driver %s)"), Ci, HubB, N, C.Driver.IsValid() ? TEXT("at the wheel") : TEXT("to come"));
+	return true;
+}
+
+void ATownHub::TestBoarding(int32& Boarding, int32& Left) const
+{
+	Boarding = Left = 0;
+	for (const FHubCoach& C : Fleet)
+	{
+		if (!C.bTownRun) continue;
+		if (C.bRode || C.St >= EStage::ToTerminal) ++Left;
+		else if (C.bTestRide) ++Boarding;
+	}
+}
+
+FString ATownHub::TestWhy() const
+{
+	if (TestWhyS.Len()) return TestWhyS;
+	const ACoaches* K = Co();
+	for (const FHubCoach& C : Fleet)
+	{
+		if (!C.bTestRide) continue;
+		if (C.St != EStage::ToTerminal) return FString::Printf(TEXT("coach %d at stage %d"), C.Ci, int32(C.St));
+		if (C.Fill > 0 || C.HubFill > 0) return FString::Printf(TEXT("coach %d: %d still to be made (%s)"), C.Ci, C.Fill + C.HubFill, C.FillWhy.Len() ? *C.FillWhy : TEXT("?"));
+		if (C.bRode && K && !K->OnRoute(C.Ci)) return FString::Printf(TEXT("coach %d parked %.0f s, its driver not out yet"), C.Ci, C.T);
+	}
+	return FString();
 }

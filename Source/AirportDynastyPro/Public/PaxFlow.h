@@ -90,7 +90,9 @@ public:
 	bool TestBoard(int32 Gate, int32 N, float Gap, FString& Why);
 	/** The fixed-views run (PerfViews "coach out ... pax"): one passenger for a test coach run (Trip), made at At out of sight,
 	 *  handed to the town hub the usual way (St Coach, HubKind) - null while their body is still loading or none can be made. */
-	AActor* TestCoachPax(const FVector& At, float Yaw, int32 Trip, bool bBag);
+	AActor* TestCoachPax(const FVector& At, float Yaw, int32 Trip, bool bBag, bool bShelter = false);   // (bShelter: waiting at the town hub's shelter, not seated)
+	/** Why TestCoachPax makes nobody just now (empty: it can). */
+	FString TestPaxWhy() const;
 	/** The gate's jetway (INDEX_NONE: none) and its jetway door in the world (false: no such gate). */
 	int32 GateJetway(int32 Gate) const { return JetwayFor(GateRoom(Gate)); }
 	/** The gates are known (read from the terminal plan a moment after the flow is made): GateJetway / GateDoor work. */

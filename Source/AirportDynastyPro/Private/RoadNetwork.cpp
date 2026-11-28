@@ -570,6 +570,23 @@ ARoadNetwork::ARoadNetwork()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 }
 
+TArray<FVector2D> ARoadNetwork::SmoothPlan(const TArray<FVector2D>& P, const TSet<int32>& Sharp, double Step, bool bClosed)
+{
+	// (the same curve Build lays the road on - the lanes the vehicles drive follow it, not the chords between the points)
+	if (P.Num() < 2) return P;
+	if (Sharp.Num() == 0) return SmoothPath(P, Step, bClosed);
+	TArray<FVector2D> Dense; int32 From = 0;
+	for (int32 i = 1; i < P.Num(); ++i) if (Sharp.Contains(i) || i == P.Num() - 1)
+	{
+		TArray<FVector2D> Piece(&P[From], i - From + 1);
+		TArray<FVector2D> D = SmoothPath(Piece, Step, false);
+		if (Dense.Num()) D.RemoveAt(0);
+		Dense.Append(D);
+		From = i;
+	}
+	return Dense;
+}
+
 void ARoadNetwork::Tick(float Dt)
 {
 	Super::Tick(Dt);

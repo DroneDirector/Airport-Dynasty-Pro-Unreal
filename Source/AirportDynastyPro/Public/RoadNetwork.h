@@ -35,6 +35,8 @@ public:
 	 *  -RoadGroundProbe run into Data/road-ground.json: Cesium's terrain, which falls away from the airport toward the coast),
 	 *  blended over the last 60 m inside the boundary so there is no step at the fence. */
 	static double GroundAt(double X, double Y);
+	/** A road's middle as it is drawn (plan m): the smooth curve through its roads.json points, Sharp the corner points. */
+	static TArray<FVector2D> SmoothPlan(const TArray<FVector2D>& P, const TSet<int32>& Sharp, double Step, bool bClosed);
 	/** A few placed things the -UIRoadAirport test looks at (world cm): a gully grating and a manhole cover, and which way out. */
 	/** The coach stands (owner, 2026-11-19): each lettered stand box's middle on the road's surface, facing the way the coaches
 	 *  drive in - filled as the forecourt's paint is laid. */

@@ -24,14 +24,11 @@ shotcam bus-bay
 wait 2
 measure 10 bus-bay
 shot4k bus-bay
-# the coaches out on the road in, 2 km short of their stands and 25 m apart (on AIRPORT-BACK-TO-TOWN, the 85 km/h open road, about 900 m before the airfield; clear of the CHABLAIS-LINK junction), so none stands outside the Grand Hall when they come in
-# (36 seated passengers in each, bags in the door-side bays: they get off at the Grand Hall bays and walk in)
 # the town bus station (TownHub, about 5 km out): its bays, coaches and the people waiting, from 25 m over its foot
 shotcam town-station
 wait 3
 measure 10 town-station
 shot4k town-station
-coach out 2000 25 36
 # ===== 2 terminal landside, from near the car park
 shotcam land-whole
 wait 2
@@ -55,14 +52,37 @@ shot4k land-orbit-west
 shotcam land-orbit-east
 shot4k land-orbit-east
 shotcam land-orbit-home
-# ===== coaches arriving: from the hub, picked up on the road 2 km out (85 km/h open road, 50 inside the airport), tracked in, parked on their own stands
-# (coach terminal holds until the lead is off; the others follow as their way frees. The lead is tracked by one held look
-#  - from the road, through its slow-down to its stand, parked - static shots only before and after it)
-coach terminal
+# ===== coaches: the game's own flow (owner 11-28). They drive from their stands to the town bus station and park in its bays;
+# passengers made unseen at the shelter walk to the door, bags into the hold, board through the door and aisle to seats; the
+# door shuts once all are on; they drive to the Grand Hall bays (85 km/h open road, 50 town/link/airfield, 20 in bends) and
+# park square; everyone off and into the hall. Faster world time between the filmed moments, 1x while filming.
+coach town
+speed 1 4
+coachwait 400 hub
+speed 1 1
+coach board 36
+shotcam town-boarding
+wait 6
+measure 10 town-boarding
+shot4k town-boarding
+shotcam town-boarding-far
+wait 4
+shot4k town-boarding-far
+coachwait 300 boarded
 shotcam coach-track
 wait 8
 measure 10 coach-track
 shot4k coach-track-open-road
+shotcam coach-track-far
+wait 6
+measure 10 coach-track-far
+shot4k coach-track-far
+speed 1 4
+coachwait 300 near 1100
+speed 1 1
+shotcam coach-track-far
+wait 4
+shot4k coach-turn-far
 coachwait 240 near 500
 shotcam coach-road-wide
 wait 2

@@ -94,6 +94,8 @@ public:
 	bool ParkedSquare(int32 Coach) const { return InTermBay(Coach); }
 	/** Put out on the way in by TestOut (PerfViews "coach out"). */
 	bool IsTestOut(int32 Coach) const { return TestOuts.Contains(Coach); }
+	/** The town hub bay a coach was last sent to (INDEX_NONE: none). */
+	int32 HubBay(int32 Coach) const { const int32* B = HubBayOf.Find(Coach); return B ? *B : INDEX_NONE; }
 	/** The loop's path from a root place (world cm, the front axle's way; tests). Empty, Why said, when there is none. */
 	TArray<FVector> RoutePath(int32 Coach, bool bToTown, int32 Bay, const FTransform& From, FString& Why) const;
 	/** Views test: every coach not yet driving put on the loop's way in, Metres short of the terminal, GapM apart (the

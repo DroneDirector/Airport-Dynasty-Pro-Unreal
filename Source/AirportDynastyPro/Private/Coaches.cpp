@@ -741,7 +741,12 @@ TArray<FVector> ACoaches::RoutePath(int32 Ci, bool bToTown, int32 Bay, const FTr
 		{
 			TArray<FVector> Leg; const int32 N = FMath::Max(2, FMath::CeilToInt(-LegAlong / 100.0));
 			for (int32 k = 0; k <= N; ++k) Leg.Add(LegEnd + LegDir * (LegAlong * (1.0 - double(k) / N)));
-			LoopJoin(Path, Leg, LoopBayJoin, Fwd);
+			// (11-28, coaches parked at an angle, the rear one's front in the lead's bay: the turn-in's curve ran 7 m into a
+			//  leg often only 9-12 m long - the rear axle, trailing 6.1 m behind, never came straight before the stop. Now the
+			//  curve ends at least 9 m (1.5 wheelbases) before the stop: it is straight and square in the bay as it stops)
+			const float Jb = FMath::Clamp(float(-LegAlong) - 900.f, 300.f, LoopBayJoin);
+			if (Jb < LoopBayJoin) ADP_LOG(TEXT("Coaches: coach %d turns in %.1f m before its bay's line (a short leg of %.1f m)"), Ci, Jb / 100.f, -LegAlong / 100.0);
+			LoopJoin(Path, Leg, Jb, Fwd);
 			break;
 		}
 	}
@@ -1093,7 +1098,7 @@ bool ACoaches::InTermBay(int32 Ci) const
 	if (!Coaches.IsValidIndex(Ci) || !Coaches[Ci].M.IsValid()) return false;
 	const FTransform R = RootW(Coaches[Ci]);
 	for (const FTransform& B : TermBays)
-		if (FVector::Dist2D(B.GetLocation(), R.GetLocation()) < 150.0 && FVector::DotProduct(B.GetUnitAxis(EAxis::X), R.GetUnitAxis(EAxis::X)) > 0.95f) return true;
+		if (FVector::Dist2D(B.GetLocation(), R.GetLocation()) < 80.0 && FVector::DotProduct(B.GetUnitAxis(EAxis::X), R.GetUnitAxis(EAxis::X)) > 0.995f) return true;   // (square: within 0.8 m and 6 deg - was 1.5 m and 18, which passed the ones at an angle)
 	return false;
 }
 

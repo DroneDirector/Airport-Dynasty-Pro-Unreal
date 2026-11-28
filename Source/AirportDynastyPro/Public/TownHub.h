@@ -64,6 +64,15 @@ public:
 	bool Unloading(int32 Ci, int32& Off, int32& Aboard) const;
 	/** The test-filled coach parked first (INDEX_NONE: none parked yet). */
 	int32 TestLead() const;
+	/** Tests (PerfViews "coach board N"): coach Ci, parked in its town hub bay (sent there by "coach town"), takes a departure
+	 *  run of N passengers made unseen along the shelter. They walk to its door, put their bags in and board through the
+	 *  same stages as the game (HubOpen .. HubBoard); the door shuts once all are on, it drives to its Grand Hall bay and
+	 *  they get off there (ToTerminal .. TermShut). False (logged): not at the hub, or busy. */
+	bool TestTownRun(int32 Ci, int32 N);
+	/** Tests: how many test runs are still boarding at the hub, and how many have left it. */
+	void TestBoarding(int32& Boarding, int32& Left) const;
+	/** Tests: why no test coach is unloading (empty: nothing known to be wrong - still on its way). */
+	FString TestWhy() const;
 	virtual void Tick(float Dt) override;
 
 private:
@@ -84,6 +93,8 @@ private:
 		bool bAtHub = false;           // (parked in hub bay Bay after an arrival run: waits there for a departure run, or drives back)
 		bool bTestRide = false, bRode = false, bParkSaid = false;   // (a test-filled coach: its next drive in is the run; it has driven)
 		int32 Fill = 0, OffN = 0, ParkSeq = 0;                       // (still to seat; off so far; the order it parked in)
+		int32 HubFill = 0;                                           // (test town run: still to be made at the shelter)
+		bool bTownRun = false; FString FillWhy;                      // (a test town run; why its passengers are not being made just now)
 	};
 	struct FWaiter
 	{
@@ -94,7 +105,8 @@ private:
 		bool bArr = false; int32 Kind = 1;            // (an arrival, terminal to hub; its bag's model)   (Phase 9: walking to the stop on the walking map)
 	};
 	TArray<FHubCoach> Fleet; TArray<FWaiter> Waiters;
-	int32 ParkSeqN = 0; bool bTestAny = false;
+	int32 ParkSeqN = 0; bool bTestAny = false; FString TestWhyS;
+	bool TakeWaitingArrival(FHubCoach& C);
 	void TestFills();
 	bool bLoaded = false, bDataOk = false;
 	TArray<FVector> Bays;                       // (hub coach bays: front bumper, world xy; nearest the shelter first)

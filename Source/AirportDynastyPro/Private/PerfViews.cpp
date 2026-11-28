@@ -46,6 +46,8 @@
 //                                         taxiway and stand back on the forecourt / the steps held until all are back
 //   hangar <plan x> open|shut [speed]     the hangar nearest that x, its doors sent; speed: how many times the real 10 min
 //   coach town|terminal                   every coach sent to the town hub / back to its own stand (Coaches::SendOnRoute)
+//   coach board <pax>                     every coach parked at the town hub takes a run of <pax> from the shelter (TownHub::TestTownRun)
+//   coachwait <s> boarded                 until every test town run has boarded and left the hub
 //   coach out <m> <gap> [pax]            every coach out on the way in, m short of its stand; pax: that many seated passengers
 //                                         each (TownHub::TestFill) who get off at its stand and walk into the Grand Hall
 //   coachwait <seconds> hub|home|near <m> waits until no coach is on its way / one is that near its stand
@@ -856,6 +858,16 @@ namespace ADPPerfViewsInternal
 			CoachSend.Reset();
 			}
 		}
+		if (CoachMode == 5)   // (every test town run boarded at the hub and left it)
+		{
+			const ATownHub* Hub = ATownHub::Get(W); int32 Bo = 0, Le = 0; if (Hub) Hub->TestBoarding(Bo, Le);
+			bool bDone = false;
+			if (!Hub || (Bo == 0 && Le == 0)) { ADP_WARN(TEXT("Views: coachwait boarded - no test town run (coach board first)")); bDone = true; }
+			else if (Bo == 0) { ADP_LOG(TEXT("Views: coachwait done (boarded: %d coaches left the town hub)"), Le); bDone = true; }
+			else if (Now >= CoachEnd) { ADP_WARN(TEXT("Views: coachwait timed out - %d coaches still boarding, %d left (%s)"), Bo, Le, *Hub->TestWhy()); bDone = true; }
+			if (bDone) CoachMode = 0;
+			return bDone;
+		}
 		if (CoachMode == 4)   // (the first test-filled coach to park: its first passenger off)
 		{
 			const ATownHub* Hub = ATownHub::Get(W); const int32 Ci = Hub ? Hub->TestLead() : INDEX_NONE; int32 Off = 0, Ab = 0;
@@ -865,7 +877,10 @@ namespace ADPPerfViewsInternal
 				if (Off >= 1) { ADP_LOG(TEXT("Views: coachwait done (unload: coach %d has %d off, %d still aboard)"), Ci, Off, Ab); bDone = true; }
 				else if (Ab == 0) { ADP_WARN(TEXT("Views: coachwait - coach %d parked with nobody aboard"), Ci); bDone = true; }
 			}
-			if (!bDone && Now >= CoachEnd) { ADP_WARN(TEXT("Views: coachwait timed out - no test coach unloading (lead %d, %d off, %d aboard)"), Ci, Off, Ab); bDone = true; }
+			// (it always ends, with the reason: a known fault ends it at once, the time limit otherwise)
+			const FString Why = Hub ? Hub->TestWhy() : FString(TEXT("no town hub"));
+			if (!bDone && Ci == INDEX_NONE && Why.Contains(TEXT("without a driver"))) { ADP_WARN(TEXT("Views: coachwait ended - %s"), *Why); bDone = true; }
+			if (!bDone && Now >= CoachEnd) { ADP_WARN(TEXT("Views: coachwait timed out - no test coach unloading (lead %d, %d off, %d aboard; %s)"), Ci, Off, Ab, Why.Len() ? *Why : TEXT("no reason known")); bDone = true; }
 			if (bDone) CoachMode = 0;
 			return bDone;
 		}
@@ -1327,6 +1342,14 @@ namespace ADPPerfViewsInternal
 				}
 				return true;
 			}
+			if (V[0] == TEXT("board"))   // (every coach parked at the town hub takes a run of V[1] passengers from the shelter - the game's stages)
+			{
+				ATownHub* Hub = ATownHub::Get(W); const int32 Pax = V.Num() > 1 ? FCString::Atoi(*V[1]) : 36; int32 Got = 0;
+				for (int32 c = 0; c < C->Num() && Hub; ++c) if (C->HubBay(c) != INDEX_NONE && Hub->TestTownRun(c, Pax)) ++Got;
+				if (!Got) { ADP_WARN(TEXT("Views: coach board - no coach parked at the town hub")); bMissing = true; }
+				else ADP_LOG(TEXT("Views: %d coaches at the town hub board %d passengers each"), Got, Pax);
+				return true;
+			}
 			const bool bTown = V[0] == TEXT("town");
 			if (bTown) { CoachHome.Reset(); for (int32 c = 0; c < C->Num(); ++c) CoachHome.Add(C->RootOf(c).GetLocation()); }
 			CoachSend.Reset(); for (int32 c = 0; c < C->Num(); ++c) if (!C->OnRoute(c)) CoachSend.Add(c);
@@ -1375,7 +1398,7 @@ namespace ADPPerfViewsInternal
 		}
 		else if (K == TEXT("coachwait") && V.Num() > 1)
 		{
-			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : V[1] == TEXT("unload") ? 4 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
+			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : V[1] == TEXT("unload") ? 4 : V[1] == TEXT("boarded") ? 5 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
 			CoachEnd = FPlatformTime::Seconds() + FCString::Atof(*V[0]); ADP_LOG(TEXT("Views: waiting for the coaches (%s)"), *A);
 		}
 		else if (K == TEXT("quit")) { ADP_LOG(TEXT("Views: done")); Finish(true); FPlatformMisc::RequestExit(false); return false; }

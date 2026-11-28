@@ -144,7 +144,13 @@ bool FVehicleLane::FromRoadJson(const TArray<TSharedPtr<FJsonValue>>& RsIn, cons
 	{
 		const TSharedPtr<FJsonObject> R = V->AsObject();
 		FString Id; if (!R || !R->TryGetStringField(TEXT("id"), Id) || Id != Road) continue;
-		TArray<FVector> Mid; for (const auto& Q : R->GetArrayField(TEXT("pts"))) { const auto& A = Q->AsArray(); Mid.Add(FVector(A[0]->AsNumber() * 100.0, -A[1]->AsNumber() * 100.0, 0.0)); }
+		// (11-28, the coaches swerving between the lanes: the road is drawn on the smooth curve through its points
+		//  (ARoadNetwork::SmoothPlan), the lane was offset from the straight chords between them - on every bend it ran up to
+		//  a metre or two off the drawn lane, and jumped sideways at each point. Now: the drawn curve, offset square to it)
+		TArray<FVector2D> Plan; TSet<int32> Sharp;
+		for (const auto& Q : R->GetArrayField(TEXT("pts"))) { const auto& A = Q->AsArray(); if (A.Num() > 2 && A[2]->AsNumber() > 0) Sharp.Add(Plan.Num()); Plan.Add(FVector2D(A[0]->AsNumber(), A[1]->AsNumber())); }
+		double Stp = 2.0; R->TryGetNumberField(TEXT("step"), Stp); bool bClosedRd = false; R->TryGetBoolField(TEXT("closed"), bClosedRd);
+		TArray<FVector> Mid; for (const FVector2D& Q : ARoadNetwork::SmoothPlan(Plan, Sharp, FMath::Clamp(Stp, 1.0, 2.0), bClosedRd)) Mid.Add(FVector(Q.X * 100.0, -Q.Y * 100.0, 0.0));
 		const TSharedPtr<FJsonObject>* Ls = nullptr; const TArray<TSharedPtr<FJsonValue>>* Side = nullptr;
 		if (!R->TryGetObjectField(TEXT("lanes"), Ls) || !(*Ls)->TryGetArrayField(bRight ? TEXT("right") : TEXT("left"), Side) || !Side->IsValidIndex(Lane)) return false;
 		auto Width = [&](int32 K, double D)
@@ -162,15 +168,15 @@ bool FVehicleLane::FromRoadJson(const TArray<TSharedPtr<FJsonValue>>& RsIn, cons
 			return Was;
 		};
 		double D = 0.0; Out.Pts.Reset();
-		for (int32 k = 0; k + 1 < Mid.Num(); ++k)
+		for (int32 k = 0; k < Mid.Num(); ++k)
 		{
-			const double Len = FVector::Dist2D(Mid[k], Mid[k + 1]) / 100.0; const FVector Fw = (Mid[k + 1] - Mid[k]).GetSafeNormal2D(), Rt(-Fw.Y, Fw.X, 0.0);
-			for (double d = 0.0; d < Len; d += 2.0)
-			{
-				double Off = Width(Lane, D + d) / 2.0; for (int32 i = 0; i < Lane; ++i) Off += Width(i, D + d);
-				Out.Pts.Add(Mid[k] + Fw * (d * 100.0) + Rt * ((bRight ? 1.0 : -1.0) * Off * 100.0));
-			}
-			D += Len;
+			// (square to the curve here: its direction from the points either side - no jump where two pieces meet)
+			const FVector Fw = (Mid[FMath::Min(k + 1, Mid.Num() - 1)] - Mid[FMath::Max(k - 1, 0)]).GetSafeNormal2D(), Rt(-Fw.Y, Fw.X, 0.0);
+			if (Fw.IsNearlyZero()) continue;
+			double Off = Width(Lane, D) / 2.0; for (int32 i = 0; i < Lane; ++i) Off += Width(i, D);
+			const FVector Pt = Mid[k] + Rt * ((bRight ? 1.0 : -1.0) * Off * 100.0);
+			if (!Out.Pts.Num() || FVector::Dist2D(Out.Pts.Last(), Pt) > 20.0) Out.Pts.Add(Pt);   // (never two on one spot, inside a tight bend)
+			if (k + 1 < Mid.Num()) D += FVector::Dist2D(Mid[k], Mid[k + 1]) / 100.0;
 		}
 		bool bInv = false; (*Side)[Lane]->AsObject()->TryGetBoolField(TEXT("invert"), bInv);
 		if (bInv) Algo::Reverse(Out.Pts);
@@ -1351,11 +1357,19 @@ void UVehicleRiders::TickDrive(float Dt)
 		const float Seg = FMath::Max(1.f, Go.Len[i] - Go.Len[i - 1]), T = FMath::Clamp((Go.S - Go.Len[i - 1]) / Seg, 0.f, 1.f);
 		Want = FMath::Min(Want, FMath::Sqrt(FMath::Min(FMath::Lerp(Go.Cap2[i - 1], Go.Cap2[i], T), FMath::Square(Go.Lim[i - 1]))));
 	}
-	for (float d = 0.f; d <= 1400.f; d += 200.f)
+	// the bends ahead, from the path's own curve: as fast as 1.1 m/s2 sideways allows, and never over 20 km/h through a corner
+	// (owner 11-28: a bend tighter than 60 m radius; on top of the road's 85 / 50). Looked at as far as it needs to brake for
+	// one gently (0.8 m/s2) from the speed it goes, so it slows on the straight before the bend, not in it
+	const float Look = FMath::Clamp(Go.V * Go.V / (2.f * 80.f) + 2000.f, 1400.f, 40000.f);
+	for (float d = 0.f; d <= Look; d += d < 1400.f ? 200.f : 400.f)
 	{
-		FVector A, B; OnPath(FMath::Min(Go.S + d, Go.Len.Last()), &A); OnPath(FMath::Min(Go.S + d + 200.f, Go.Len.Last()), &B);
-		const float Ang = FMath::Acos(FMath::Clamp(float(FVector::DotProduct(A, B)), -1.f, 1.f));
-		if (Ang > 0.004f) { const float Bend = FMath::Sqrt(110.f * 200.f / Ang); Want = FMath::Min(Want, FMath::Sqrt(Bend * Bend + 2.f * Brk * 0.6f * d)); }
+		const float Win = d < 1400.f ? 200.f : 400.f;
+		FVector A, B; OnPath(FMath::Min(Go.S + d, Go.Len.Last()), &A); OnPath(FMath::Min(Go.S + d + Win, Go.Len.Last()), &B);
+		const float Ang = FMath::Acos(FMath::Clamp(float(FVector::DotProduct(A.GetSafeNormal2D(), B.GetSafeNormal2D())), -1.f, 1.f));
+		if (Ang <= 0.004f) continue;
+		const float Rad = Win / Ang;   // (cm)
+		float Bend = FMath::Sqrt(110.f * Rad); if (Rad < 6000.f) Bend = FMath::Min(Bend, 556.f);
+		Want = FMath::Min(Want, FMath::Sqrt(Bend * Bend + 2.f * FMath::Min(80.f, Brk * 0.6f) * d));
 	}
 	Want = FMath::Min(Want, FMath::Max(Left > 4.f ? 12.f : 0.f, FMath::Sqrt(FMath::Max(0.f, 2.f * Brk * 0.75f * (Left - 5.f)))));
 	Go.LookDt += Dt;
