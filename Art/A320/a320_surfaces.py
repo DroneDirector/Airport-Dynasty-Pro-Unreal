@@ -155,7 +155,191 @@ for side in 'LR':
         SP[n] = (a, ax, abs(f)); g, pv = -mirror_axis(ax), game(a)
         print('SPOIL %-21s pivot (%.1f, %.1f, %.1f) axis (%.5f, %.5f, %.5f) factor %.0f front %+.3f back %+.3f m at 5 deg' % (n, pv[0], pv[1], pv[2], g.x, g.y, g.z, abs(f), out_f, out_b))
 
-if PNG:
+# GEAR (owner 2026-11-28: every part of the landing gear moves as on the real aircraft). Read straight from FlightGear's
+# fuselage.xml: the legs' hinges and tables (gear/gear[n]/position-norm: 1 down, 0 up; the doors open 1.0-0.8, the legs
+# travel 0.8-0.2, the doors close 0.2-0), the doors' hinges and tables, the door actuators (locked-track + rod table), and
+# every "locked-track" linkage as a two-bar chain (pivot A, knee K, end B, knee hinge = FlightGear's lock axis): side stays,
+# lock stays, nose drag strut and lock stay, torque and slave links. The model's oleos sit 0.30 m in (make_a320_fg.py
+# STATIC_M, straight up); in the air they hang out to FlightGear's length (the tube 0.30 m down).
+#   "GEAR <C++ constant line>" for SimTraffic.cpp (game frame cm; rotation axes signed so FQuat(axis, +FlightGear deg))
+#   "GEARCHK ..." the check: pivots against their meshes, the solved knees against the built links, rod ends on the door.
+# With a png whose name holds "gear": renders the gear down compressed, down extended, doors open, mid-retract and up.
+GEARPNG = 'gear' in PNG.lower()
+GA = []
+for a in ET.parse(FGM + 'Fuselage/fuselage.xml').getroot().iter('animation'):
+    d = {'type': (a.findtext('type') or '').strip(), 'objs': [n.text.strip() for n in a.findall('object-name')]}
+    for k in ('center', 'target-center', 'slave-center'):
+        e = a.find(k)
+        if e is not None: d[k] = Vector([float(e.find(c + '-m').text) for c in 'xyz'])
+    e = a.find('lock-axis')
+    if e is not None: d['lock'] = Vector([float(e.find(c).text) for c in 'xyz'])
+    ax = a.find('axis')
+    if ax is not None and ax.find('x1-m') is not None:
+        d['p1'] = Vector([float(ax.find(c + '1-m').text) for c in 'xyz']); d['p2'] = Vector([float(ax.find(c + '2-m').text) for c in 'xyz'])
+    elif ax is not None and ax.find('x') is not None: d['dir'] = Vector([float(ax.find(c).text) for c in 'xyz'])
+    d['tab'] = [(float(e.find('ind').text), float(e.find('dep').text)) for e in a.iter('entry')]
+    GA.append(d)
+def ga(obj, typ, need=()):
+    for d in GA:
+        if d['type'] == typ and obj in d['objs'] and all(k in d for k in need): return d
+    raise KeyError('%s %s' % (obj, typ))
+def gtab(tab, x):
+    if x <= tab[0][0]: return tab[0][1]
+    for (x0, y0), (x1, y1) in zip(tab, tab[1:]):
+        if x <= x1: return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+    return tab[-1][1]
+def hinge(d):           # (pivot, axis) in the built frame; FlightGear's +deg is the right-hand turn about axis * fs
+    if 'p1' in d: a = place(d['p1']); return a, (place(d['p2']) - a).normalized() * fs
+    return place(d['center']), (Rm @ d['dir']).normalized() * fs
+def gv(v): return 'FVector(%.2ff, %.2ff, %.2ff)' % (v.x * 100, -v.y * 100, v.z * 100)
+def ga_axis(v): g = -mirror_axis(v); return 'FVector(%.5ff, %.5ff, %.5ff)' % (g.x, g.y, g.z)
+def gd(v): g = mirror_axis(v); return 'FVector(%.5ff, %.5ff, %.5ff)' % (g.x, g.y, g.z)
+def near_mesh(p, names):
+    best = 9.0
+    for n in names:
+        if n in built: best = min(best, min((v - p).length for v in pts(built[n])))
+    return best
+TUBE_UP = Vector((0, 0, 0.30))    # (make_a320_fg.py STATIC_M: the tubes, wheels and lower links' ends sit this far up)
+G = {}
+for s, S in (('L', '_L'), ('R', '_R')):
+    i = 1 if s == 'L' else 2
+    d = ga('MLGFitting' + s, 'rotate'); G['MainHinge' + S] = hinge(d) + (d['tab'],)
+    d = ga('MLGGearDoor' + s, 'rotate'); G['BayDoor' + S] = hinge(d) + (d['tab'],)
+    d = ga('MLGWingDoor%s2' % s, 'rotate'); G['Fairing' + S] = hinge(d) + (d['tab'],)
+    d = ga('SideStay%s2' % s, 'locked-track', ('slave-center',))
+    G['SideStay' + S] = (place(ga('SideStay%s1' % s, 'locked-track')['center']), place(d['slave-center']), place(d['center']), (Rm @ d['lock']).normalized())
+    d = ga('MLGLockStay%s1' % s, 'locked-track')
+    # (the knee hinge: the side stay's - FlightGear's right lock stay axis is not the left one mirrored and leaves its own
+    #  end 0.17 m out of the plane; on the left both are the same axis)
+    G['LockStay' + S] = (place(d['center']), place(d['slave-center']), place(d['target-center']), G['SideStay' + S][3])
+    for nm, fgn in (('Torque', 'MLGTorqueLink%s1'), ('Slave', 'MLGSlaveLink%s1')):
+        d = ga(fgn % s, 'locked-track')
+        G[nm + S] = (place(d['center']), place(d['slave-center']), place(d['target-center']), (Rm @ d['lock']).normalized())
+    d = ga('GearLDoorActuatorRod' + s, 'translate'); a = place(d['p1']); rd = (place(d['p2']) - a).normalized()
+    tk = ga('Gear%sDoorActuator' % ('Left' if s == 'L' else 'Right'), 'locked-track')
+    G['DoorAct' + S] = (place(tk['center']), place(tk['target-center']), (Rm @ tk['lock']).normalized(), rd, d['tab'])
+    d = ga('NLGForewardDoor' + s, 'rotate'); G['NoseDoor' + S] = hinge(d) + (d['tab'], ga('NLGForewardDoor' + s, 'translate')['tab'])
+    d = ga('NLGAftDoor' + s, 'rotate'); G['AftDoor' + S] = hinge(d) + (d['tab'], ga('NLGAftDoor' + s, 'translate')['tab'])
+d = ga('NLGFitting', 'rotate'); G['NoseHinge'] = hinge(d) + (d['tab'],)
+# (the steering: the NLGFittingLower rotate that is not the retraction; its axis leans ~5 deg sideways in FlightGear,
+#  which is not symmetric - kept upright in the plane of symmetry)
+d = [x for x in GA if x['type'] == 'rotate' and 'NLGFittingLower' in x['objs']][-1]; a = place(d['p1']); sa = place(d['p2']) - a
+sa.x = 0; a.x = 0; sa = sa.normalized()
+if sa.z < 0: sa = -sa
+print('GEARCHK steer pick %s from %s' % (d['objs'][:2], gv(place(d['p1']))))
+G['Steer'] = (a, sa)
+d = ga('NLGDragStrutAssembly1', 'locked-track'); G['DragStrut'] = (place(d['center']), place(d['slave-center']), place(d['target-center']), (Rm @ d['lock']).normalized())
+d = ga('NLGLockStay2', 'locked-track'); G['NoseLock'] = (place(d['center']), place(d['slave-center']), place(d['target-center']), (Rm @ d['lock']).normalized())
+d = ga('NLGTorqueLink1', 'locked-track'); G['NoseTorque'] = (place(d['center']), place(d['slave-center']), place(d['target-center']), (Rm @ d['lock']).normalized())
+UPV = Vector((0, 0, 1)); FGUP = (Rm @ Vector((0, 0, 1))).normalized()
+print('GEARCHK FlightGear up in the built frame %s; strut axes (down): nose %s main %s' % (tuple(round(x, 4) for x in FGUP),
+      tuple(round(x, 4) for x in (place(ga('NLGSlidingTubeAxle', 'translate')['p2']) - place(ga('NLGSlidingTubeAxle', 'translate')['p1'])).normalized()),
+      tuple(round(x, 4) for x in (place(ga('MLGSlidingTubeAxleL', 'translate')['p2']) - place(ga('MLGSlidingTubeAxleL', 'translate')['p1'])).normalized())))
+
+# the C++ table
+print('GEAR // (Art/A320/a320_surfaces.py GEAR: FlightGear fuselage.xml, game frame cm)')
+for S in ('_L', '_R'):
+    p, ax, tab = G['MainHinge' + S]; print('GEAR MainHinge%s %s %s %.2f' % (S, gv(p), ga_axis(ax), gtab(tab, 0.2)))
+    p, ax, tab = G['BayDoor' + S]; print('GEAR BayDoor%s %s %s %.2f' % (S, gv(p), ga_axis(ax), gtab(tab, 0.5)))
+    p, ax, tab = G['Fairing' + S]; print('GEAR Fairing%s %s %s %.2f' % (S, gv(p), ga_axis(ax), gtab(tab, 0.8)))
+    p, ax, tab, tt = G['NoseDoor' + S]; print('GEAR NoseDoor%s %s %s %.2f lift %s' % (S, gv(p), ga_axis(ax), gtab(tab, 0.5), tt))
+    p, ax, tab, tt = G['AftDoor' + S]; print('GEAR AftDoor%s %s %s %.2f lift %s tab %s' % (S, gv(p), ga_axis(ax), gtab(tab, 1.0), tt, tab))
+    c, tg, lk, rd, tab = G['DoorAct' + S]; print('GEAR DoorAct%s C %s T %s lock %s rod %s tab %s' % (S, gv(c), gv(tg), gd(lk), gd(rd), tab))
+    for nm in ('SideStay', 'LockStay', 'Torque', 'Slave'):
+        A, K, B, H = G[nm + S]; print('GEAR %s%s A %s K %s B %s H %s' % (nm, S, gv(A), gv(K), gv(B), gd(H)))
+p, ax, tab = G['NoseHinge']; print('GEAR NoseHinge %s %s %.2f' % (gv(p), ga_axis(ax), gtab(tab, 0.2)))
+p, ax = G['Steer']; print('GEAR Steer %s dir %s (FQuat(-mirror) form %s)' % (gv(p), gd(ax), ga_axis(ax)))
+for nm in ('DragStrut', 'NoseLock', 'NoseTorque'):
+    A, K, B, H = G[nm]; print('GEAR %s A %s K %s B %s H %s' % (nm, gv(A), gv(K), gv(B), gd(H)))
+print('GEAR FG up (game) %s' % gd(FGUP))
+
+# the same moves as SimTraffic.cpp Gear(), in the built frame, for the check and the pictures
+def about(p, ax, deg): return Matrix.Translation(p) @ Quaternion(ax, math.radians(deg)).to_matrix().to_4x4() @ Matrix.Translation(-p)
+def solve(A, B, L1, L2, H, side):      # the knee: on the circle about A (plane normal H), L2 from B
+    H = H.normalized(); off = (B - A).dot(H); Bp = B - H * off
+    r2 = math.sqrt(max(L2 * L2 - off * off, 1e-6)); D = max((Bp - A).length, 1e-6)
+    D = min(max(D, abs(L1 - r2) + 1e-4), L1 + r2 - 1e-4)
+    e1 = (Bp - A).normalized(); e2 = H.cross(e1)
+    a = (L1 * L1 - r2 * r2 + D * D) / (2 * D); h = math.sqrt(max(L1 * L1 - a * a, 0.0))
+    return A + e1 * a + e2 * h * side
+def bar(P0, K0, Tp, K1):               # the bar's move: carried by its parent Tp, then turned to point at its new knee
+    P1 = Tp @ P0; R0 = Tp.to_quaternion(); v0 = R0 @ (K0 - P0)
+    R = v0.rotation_difference(K1 - P1) @ R0
+    return Matrix.Translation(P1) @ R.to_matrix().to_4x4() @ Matrix.Translation(-P0)
+class Link:
+    def __init__(s, A, K, B, H, tubeB=False):
+        s.A, s.Kf, s.Bf, s.H = A, K, B, H.normalized()
+        s.L1, s.L2 = (K - A).length, (K - B).length
+        s.side = 1.0 if (K - A).dot(s.H.cross(B - A)) >= 0 else -1.0
+        s.B0 = B + (TUBE_UP if tubeB else Vector()); s.A0 = A.copy()
+        s.K0 = solve(s.A0, s.B0, s.L1, s.L2, s.H, s.side)     # (the built pose: gear down, struts in)
+    def pose(s, TA, TB, TH=Matrix()):
+        A1, B1 = TA @ s.A0, TB @ s.B0; H1 = (TH.to_3x3() @ s.H).normalized()
+        K1 = solve(A1, B1, s.L1, s.L2, H1, s.side)
+        return bar(s.A0, s.K0, TA, K1), bar(s.B0, s.K0, TB, K1), K1
+L = {k: Link(*G[k][:4], tubeB=k.startswith(('Torque', 'Slave', 'NoseTorque'))) for k in G if k.startswith(('SideStay', 'LockStay', 'Torque', 'Slave', 'DragStrut', 'NoseLock', 'NoseTorque'))}
+for k, l in L.items():
+    print('GEARCHK %-12s lengths %.3f %.3f m, built knee moved %.3f m from FlightGear\'s' % (k, l.L1, l.L2, (l.K0 - l.Kf).length))
+# which built meshes each bar is (pivot end first)
+BARS = {'SideStay': ('SideBraceUp%s', 'SideBraceLo%s'), 'LockStay': ('SideBraceUp%s.LockStay1', 'SideBraceUp%s.LockStay2'),
+        'Torque': ('MainLeg%s.TorqueLink1', 'MainLeg%s.TorqueLink2'), 'Slave': ('MainLegUpper%s.SlaveLink1', 'MainLegUpper%s.SlaveLink2'),
+        'DragStrut': ('NoseLegUpper.DragStrut1', 'NoseLegUpper.DragStrut2'), 'NoseLock': ('NoseLegUpper.LockStay2', 'NoseLegUpper.LockStay1'),
+        'NoseTorque': ('NoseLeg.TorqueLink1', 'NoseLeg.TorqueLink2')}
+for k, l in L.items():
+    base = k.rstrip('_LR') if k.endswith(('_L', '_R')) else k; S = k[-2:] if k.endswith(('_L', '_R')) else ''
+    n1, n2 = (BARS[base][0] % S if '%s' in BARS[base][0] else BARS[base][0]), (BARS[base][1] % S if '%s' in BARS[base][1] else BARS[base][1])
+    print('GEARCHK %-12s mesh to A %.3f K %.3f/%.3f B %.3f m (%s, %s)' % (k, near_mesh(l.A0, [n1]), near_mesh(l.K0, [n1]), near_mesh(l.K0, [n2]), near_mesh(l.B0, [n2]), n1, n2))
+for k in ('MainHinge_L', 'BayDoor_L', 'Fairing_L', 'NoseDoor_L', 'AftDoor_L', 'NoseHinge'):
+    p = G[k][0]; nm = {'MainHinge_L': 'MainLegUpper_L', 'BayDoor_L': 'MainBayDoor_L', 'Fairing_L': 'MainDoor_L.Fairing', 'NoseDoor_L': 'NoseDoor_L',
+                       'AftDoor_L': 'NoseLegUpper.AftDoor_L', 'NoseHinge': 'NoseLegUpper'}[k]
+    ax = G[k][1].normalized(); vs = pts(built[nm]); dl = min(((v - p) - ax * (v - p).dot(ax)).length for v in vs)
+    print('GEARCHK hinge %-12s to its mesh %.3f m, the hinge line %.3f m' % (k, near_mesh(p, [nm]), dl))
+for nm in ('NoseLegUpper.DragStrut1', 'NoseLegUpper.DragStrut2', 'SideBraceUp_L.LockActuator1', 'SideBraceUp_L.LockActuator2', 'MainDoor_L.Fairing', 'NoseLegUpper.AftDoor_L'):
+    vs = pts(built[nm]); lo = Vector([min(v[i] for v in vs) for i in range(3)]); hi = Vector([max(v[i] for v in vs) for i in range(3)])
+    print('GEARCHK box %-28s %s .. %s' % (nm, gv(lo), gv(hi)))
+
+def gear_pose(pos, ext, steer=0.0):    # pos: FlightGear position-norm (1 down); ext: 0 struts in (model), 1 out (air)
+    M = {}
+    def setm(n, m):
+        for k, o in built.items():
+            if k == n or k.startswith(n + '.'): M[k] = m
+    tube = Matrix.Translation(-TUBE_UP * ext)
+    p, ax, tab = G['NoseHinge']; RN = about(p, ax, gtab(tab, pos))
+    sp, sa = G['Steer']; ST = about(sp, sa, steer)
+    setm('NoseLegUpper', RN); setm('NoseLegUpper.Lower', RN @ ST); setm('NoseLeg', RN @ ST @ tube); setm('NoseWheels', RN @ ST @ tube)
+    ds = L['DragStrut']; m1, m2, _ = ds.pose(Matrix(), RN, Matrix()); setm('NoseLegUpper.DragStrut1', m1); setm('NoseLegUpper.DragStrut2', m2)
+    nl = L['NoseLock']; m1b, m2b, _ = nl.pose(m2, RN, Matrix()); setm('NoseLegUpper.LockStay2', m1b); setm('NoseLegUpper.LockStay1', m2b)
+    nt = L['NoseTorque']; t1, t2, _ = nt.pose(RN @ ST, RN @ ST @ tube, RN @ ST); setm('NoseLeg.TorqueLink1', t1); setm('NoseLeg.TorqueLink2', t2)
+    for S in ('_L', '_R'):
+        p, ax, tab = G['NoseDoor' + S][:3]; lift = FGUP * gtab(G['NoseDoor' + S][3], pos)
+        setm('NoseDoor' + S, Matrix.Translation(lift) @ about(p, ax, gtab(tab, pos)))
+        p, ax, tab = G['AftDoor' + S][:3]; lift = FGUP * gtab(G['AftDoor' + S][3], pos)
+        setm('NoseLegUpper.AftDoor' + S, Matrix.Translation(lift) @ about(p, ax, gtab(tab, pos)))
+        M['NoseLegUpper.AftDoor%sInner' % S] = M['NoseLegUpper.AftDoor' + S]
+        p, ax, tab = G['MainHinge' + S]; RM = about(p, ax, gtab(tab, pos))
+        for n in ('MainLegUpper' + S, 'MainDoor' + S): setm(n, RM)
+        setm('MainLeg' + S, RM @ tube); setm('MainWheels' + S, RM @ tube)
+        p, ax, tab = G['Fairing' + S]; F = about(p, ax, gtab(tab, pos)); M['MainDoor%s.Fairing' % S] = F; M['MainDoor%s.FairingInner' % S] = F
+        p, ax, tab = G['BayDoor' + S]; BD = about(p, ax, gtab(tab, pos)); setm('MainBayDoor' + S, BD)
+        c, tg, lk, rd, tab = G['DoorAct' + S]
+        v0 = tg - c; v1 = BD @ tg - c; lk = lk.normalized()
+        v0p = (v0 - lk * v0.dot(lk)); v1p = (v1 - lk * v1.dot(lk))
+        RA = Matrix.Translation(c) @ v0p.rotation_difference(v1p).to_matrix().to_4x4() @ Matrix.Translation(-c)
+        M['GearLDoorActuator' + S[1]] = RA; M['GearLDoorActuatorRod' + S[1]] = RA @ Matrix.Translation(rd * gtab(tab, pos))
+        M['_rodgap' + S] = (v1.length - (v0.length + gtab(tab, pos)))
+        ss = L['SideStay' + S]; u, lo, _ = ss.pose(Matrix(), RM, Matrix()); setm('SideBraceUp' + S, u); setm('SideBraceLo' + S, lo)
+        ls = L['LockStay' + S]; a1, a2, _ = ls.pose(Matrix(), u, Matrix()); setm('SideBraceUp%s.LockStay1' % S, a1); setm('SideBraceUp%s.LockStay2' % S, a2)
+        for nm, n1, n2 in (('Torque', 'MainLeg%s.TorqueLink1', 'MainLeg%s.TorqueLink2'), ('Slave', 'MainLegUpper%s.SlaveLink1', 'MainLegUpper%s.SlaveLink2')):
+            tl = L[nm + S]; q1, q2, _ = tl.pose(RM, RM @ tube, RM); M[n1 % S] = q1; M[n2 % S] = q2
+    return M
+for pos, ext in ((1.0, 0.0), (1.0, 1.0), (0.5, 1.0), (0.0, 1.0)):
+    M = gear_pose(pos, ext)
+    gaps = []
+    for k, l in L.items():
+        pass
+    print('GEARCHK pose pos %.1f ext %.0f: door rod end to its door fitting %+.3f / %+.3f m' % (pos, ext, M['_rodgap_L'], M['_rodgap_R']))
+
+if PNG and not GEARPNG:
     full = {'Flap': 40, 'Slat': 27, 'AileronL': 20, 'AileronR': -25, 'Elevator': -30, 'Rudder': 25, 'Fairing': 22.5}
     for name, (a, ax, tr) in out.items():
         deg = next(v for k, v in full.items() if name.startswith(k))
@@ -201,3 +385,24 @@ if PNG:
         cam.rotation_euler = (Vector(to) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = PNG.replace('.png', '_%d.png' % i); bpy.ops.render.render(write_still=True)
     print('SURF rendered', PNG)
+
+if GEARPNG:
+    # the gear pose pictures: (position-norm, strut extension) = on the ground, in the air, doors open, mid-retraction, up
+    sc = bpy.context.scene
+    sc.render.engine = 'BLENDER_WORKBENCH'; sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'MATERIAL'
+    sc.display.shading.show_cavity = True
+    sc.render.resolution_x, sc.render.resolution_y = 800, 520
+    cam = bpy.data.objects.new('Cam', bpy.data.cameras.new('Cam')); sc.collection.objects.link(cam); sc.camera = cam
+    sc.world = sc.world or bpy.data.worlds.new('W')
+    orig = {k: o.matrix_world.copy() for k, o in built.items()}
+    VIEWS = (('mainside', (-10.5, -10.0, 1.2), (-3.4, -12.0, 1.6), 40), ('mainfront', (-5.5, -4.5, 0.3), (-2.6, -12.0, 1.4), 40),
+             ('noseside', (-6.0, 0.8, 1.2), (0.0, -0.4, 1.3), 40))
+    for tag, pos, ext in (('ground', 1.0, 0.0), ('air', 1.0, 1.0), ('doorsopen', 0.8, 1.0), ('midretract', 0.5, 1.0), ('up', 0.0, 1.0)):
+        M = gear_pose(pos, ext)
+        for k, o in built.items(): o.matrix_world = (M[k] @ orig[k]) if k in M else orig[k]
+        for vn, at, to, lens in VIEWS:
+            cam.location = at; cam.data.lens = lens
+            cam.rotation_euler = (Vector(to) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+            sc.render.filepath = PNG.replace('.png', '-%s-%s.png' % (tag, vn)); bpy.ops.render.render(write_still=True)
+    for k, o in built.items(): o.matrix_world = orig[k]
+    print('GEAR rendered', PNG)

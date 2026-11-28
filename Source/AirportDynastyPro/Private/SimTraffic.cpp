@@ -1000,22 +1000,91 @@ namespace
 {
 	// the gear parts' pivots (the model's root, cm: Blender (x, y, z) m -> (x, -y, z) * 100 - the FlightGear A320-200 CFM
 	// model as Art/A320/make_a320_fg.py places it, its "FGPOS" lines)
-	const FVector NoseAxle(0.f, 0.f, 37.6f);                  // the nose wheels' axle; the steering axis runs up through it
-	const FVector NoseLegAt(0.f, 0.f, 90.f);
+	const FVector NoseAxle(0.f, 0.f, 37.6f);                  // the nose wheels' axle
 	const FVector MainAxle[2] = {FVector(-387.1f, 1252.2f, 54.4f), FVector(385.f, 1252.2f, 54.4f)};
-	const FVector MainLegAt[2] = {FVector(-387.1f, 1251.6f, 81.9f), FVector(386.9f, 1251.6f, 81.9f)};
 	constexpr float NoseR = 37.6f, MainR = 54.4f;             // (tyre radii, cm)
 	constexpr float SteerSign = 1.f;                          // (the root's turn sense: checked in the pictures)
-	constexpr float ExtMain = 12.f, ExtNose = 8.f;            // (cm the struts hang out in the air - inside their own cylinders)
-	// the retraction (to-do 380), as the A320 flies it: gear up once climbing, 10 m (about 35 ft) and 2.5 s after lift-off,
-	// in about 10 s (bay doors open, the legs fold, the doors close); gear down at 600 m (2,000 ft, about 11 km out), in
-	// about 15 s (doors open, the legs fall and lock, the doors close), so down and locked long before 300 m (1,000 ft)
+	// (11-28: the struts looked compressed in the air - they hung out 12/8 cm; make_a320_fg.py built them 30 cm in (STATIC_M):
+	//  fully out in the air is 30 cm, straight down, back to FlightGear's own length)
+	constexpr float StrutCm = 30.f;
+	// the retraction (to-do 380), as the A320 flies it: gear up once climbing, 10 m (about 35 ft) and 2.5 s after lift-off;
+	// gear down at 600 m (2,000 ft, about 11 km out), down and locked long before 300 m (1,000 ft)
 	constexpr float GearUpM = 10.f, GearUpAfter = 2.5f, GearDownM = 600.f;
-	constexpr float NoseFold = 95.f, MainFold = 80.f, NoseDoorOpen = 90.f, BayDoorOpen = 90.f;   // (degrees, from the model's hinges)
-	const FVector BraceKnee[2] = {FVector(-321.1f, 1187.4f, 213.6f), FVector(320.9f, 1187.4f, 213.6f)};   // (the side stays' knee, gear down: make_a320_fg.py FGPOS)
+	// FlightGear's A320 (Systems/a320-fcs.xml, Models/fuselage.xml), position-norm 1 down - 0 up: the doors open from 1 to
+	// 0.8 and close from 0.2 to 0, the legs move from 0.8 to 0.2; nose 10.5 s up / 12 s down, main 9 s up / 16 s down
+	constexpr float NoseUpRate = 1.f / 10.5f, NoseDownRate = 1.f / 12.f, MainUpRate = 1.f / 9.f, MainDownRate = 1.f / 16.f;
+	// every pivot and axis below: FlightGear's, placed on the built model by Art/A320/a320_surfaces.py (its GEAR lines);
+	// the axis is the one FQuat turns FlightGear's +degrees about
+	struct FGearHinge { FVector P, Ax; float Deg; };
+	const FGearHinge NoseHinge = {FVector(-47.15f, 32.18f, 202.04f), FVector(-1.f, 0.00005f, -0.00013f), 90.f};
+	const FGearHinge MainHinge[2] = {{FVector(-384.67f, 1229.16f, 303.03f), FVector(0.01547f, 0.98378f, 0.17871f), -81.11f},
+		{FVector(384.56f, 1229.13f, 303.13f), FVector(-0.01542f, 0.98378f, 0.17871f), 81.11f}};
+	const FGearHinge BayDoorH[2] = {{FVector(-25.49f, 1268.81f, 169.43f), FVector(0.00005f, 0.99999f, 0.00521f), -90.f},
+		{FVector(25.44f, 1268.81f, 169.44f), FVector(0.00005f, 0.99999f, 0.00521f), 90.f}};
+	const FGearHinge FairingH[2] = {{FVector(-397.31f, 1171.43f, 276.54f), FVector(-0.04122f, -0.99295f, -0.11115f), -121.5f},
+		{FVector(396.98f, 1171.39f, 276.65f), FVector(0.04115f, -0.99295f, -0.11114f), 121.5f}};
+	const FGearHinge NoseDoorH[2] = {{FVector(-52.14f, -197.45f, 201.27f), FVector(-0.00031f, -0.99688f, 0.07890f), -55.f},
+		{FVector(51.66f, -197.46f, 201.29f), FVector(0.00020f, -0.99688f, 0.07890f), 55.f}};
+	const FGearHinge AftDoorH[2] = {{FVector(-52.05f, 24.48f, 185.74f), FVector(0.00005f, 0.99999f, 0.00442f), 55.f},
+		{FVector(51.59f, 24.47f, 185.75f), FVector(-0.00005f, -0.99999f, -0.00442f), 55.f}};
+	// the steering axis up the nose strut (FlightGear's leans about 5 degrees sideways, not symmetric: kept upright here)
+	const FVector SteerP(0.f, 12.51f, 92.05f), SteerAx(0.f, 0.14489f, 0.98945f);
+	const FVector FgUp(-0.00013f, -0.00442f, 0.99999f);       // (FlightGear's up, the doors lift along it)
+	// the bay doors' actuators: turned about their lock axis to follow the door, the rods sliding out (FlightGear's table, m)
+	const FVector DoorActC[2] = {FVector(-29.44f, 1124.07f, 201.72f), FVector(29.36f, 1124.06f, 201.73f)};
+	const FVector DoorActT[2] = {FVector(-83.93f, 1124.22f, 168.25f), FVector(83.86f, 1124.21f, 168.27f)};
+	const FVector DoorActLock(0.00005f, 0.99999f, 0.00442f);
+	const FVector DoorRodDir[2] = {FVector(-0.85206f, 0.00235f, -0.52344f), FVector(0.85119f, 0.00228f, -0.52485f)};
+	// the tables, against position-norm (x): a share of the full turn, or metres
+	const FVector2f TLeg[] = {{0.2f, 1.f}, {0.8f, 0.f}};
+	const FVector2f TDoor[] = {{0.f, 0.f}, {0.2f, 1.f}, {0.8f, 1.f}, {1.f, 0.f}};
+	const FVector2f TFairing[] = {{0.2f, 0.f}, {0.8f, 1.f}};
+	const FVector2f TAftDoor[] = {{0.f, 0.f}, {0.2f, 1.f}};
+	const FVector2f TNoseLift[] = {{0.f, 0.f}, {0.2f, 0.04f}, {0.8f, 0.04f}, {1.f, 0.f}};
+	const FVector2f TAftLift[] = {{0.f, 0.f}, {0.8f, 0.04f}};
+	const FVector2f TRod[] = {{0.f, 0.f}, {0.1f, 0.25f}, {0.2f, 0.3f}, {0.8f, 0.3f}, {0.9f, 0.25f}, {1.f, 0.f}};
+	template <int32 N> float GTab(const FVector2f (&T)[N], float X)
+	{
+		if (X <= T[0].X) return T[0].Y;
+		for (int32 i = 1; i < N; ++i) if (X <= T[i].X) return FMath::Lerp(T[i - 1].Y, T[i].Y, (X - T[i - 1].X) / FMath::Max(T[i].X - T[i - 1].X, 1e-4f));
+		return T[N - 1].Y;
+	}
+	// FlightGear's locked-track pairs: two bars from A (on its parent) to B (on the other part), bending at the knee K about
+	// the hinge H - the knee on the circle about A (H its plane's normal), the second bar's length from B. FlightGear's pose
+	// (struts out); the ends on a strut's tube (bTube) sit StrutCm higher in the built model
+	struct FGearLinkDef { const TCHAR* Bar1; const TCHAR* Bar2; FVector A, K, B, H; bool bTube; };
+	const FGearLinkDef LinkDef[] = {
+		{TEXT("SideBraceUp_L"), TEXT("SideBraceLo_L"), FVector(-277.56f, 1145.13f, 271.24f), FVector(-322.34f, 1185.02f, 213.88f), FVector(-371.51f, 1231.08f, 148.36f), FVector(0.13705f, 0.85431f, 0.50138f), false},
+		{TEXT("SideBraceUp_R"), TEXT("SideBraceLo_R"), FVector(277.46f, 1145.10f, 271.31f), FVector(322.26f, 1184.99f, 213.96f), FVector(371.45f, 1231.04f, 148.45f), FVector(-0.13709f, 0.85432f, 0.50134f), false},
+		{TEXT("SideBraceUp_L.LockStay1"), TEXT("SideBraceUp_L.LockStay2"), FVector(-387.69f, 1166.66f, 262.99f), FVector(-348.00f, 1176.46f, 235.44f), FVector(-323.64f, 1179.92f, 222.89f), FVector(0.13705f, 0.85431f, 0.50138f), false},
+		{TEXT("SideBraceUp_R.LockStay1"), TEXT("SideBraceUp_R.LockStay2"), FVector(387.60f, 1166.63f, 263.09f), FVector(347.91f, 1176.42f, 235.53f), FVector(324.01f, 1179.85f, 223.20f), FVector(-0.13709f, 0.85432f, 0.50134f), false},
+		{TEXT("MainLeg_L.TorqueLink1"), TEXT("MainLeg_L.TorqueLink2"), FVector(-387.18f, 1224.29f, 89.93f), FVector(-385.17f, 1207.00f, 52.90f), FVector(-387.13f, 1237.11f, 26.71f), FVector(1.f, 0.f, 0.f), true},
+		{TEXT("MainLeg_R.TorqueLink1"), TEXT("MainLeg_R.TorqueLink2"), FVector(387.14f, 1224.25f, 90.03f), FVector(385.13f, 1206.96f, 53.00f), FVector(387.10f, 1237.08f, 26.81f), FVector(1.f, 0.f, 0.f), true},
+		{TEXT("MainLegUpper_L.SlaveLink1"), TEXT("MainLegUpper_L.SlaveLink2"), FVector(-387.18f, 1255.61f, 93.06f), FVector(-387.25f, 1276.61f, 65.12f), FVector(-387.15f, 1262.84f, 32.38f), FVector(-1.f, 0.f, 0.f), true},
+		{TEXT("MainLegUpper_R.SlaveLink1"), TEXT("MainLegUpper_R.SlaveLink2"), FVector(387.15f, 1255.58f, 93.16f), FVector(387.22f, 1276.57f, 65.22f), FVector(387.13f, 1262.81f, 32.48f), FVector(-1.f, 0.f, 0.f), true},
+		{TEXT("NoseLegUpper.DragStrut1"), TEXT("NoseLegUpper.DragStrut2"), FVector(-0.12f, -102.25f, 285.40f), FVector(-0.10f, -32.78f, 179.18f), FVector(-0.14f, 0.57f, 128.17f), FVector(-1.f, 0.f, 0.f), false},
+		{TEXT("NoseLegUpper.LockStay2"), TEXT("NoseLegUpper.LockStay1"), FVector(-0.07f, -25.95f, 179.00f), FVector(-0.10f, -5.45f, 186.44f), FVector(-0.10f, 12.89f, 194.04f), FVector(-1.f, 0.f, 0.f), false},
+		{TEXT("NoseLeg.TorqueLink1"), TEXT("NoseLeg.TorqueLink2"), FVector(-0.72f, 18.37f, 68.84f), FVector(-0.63f, 38.47f, 35.89f), FVector(-0.54f, 8.52f, 11.82f), FVector(-1.f, 0.f, 0.f), true},
+	};
+	enum EGearLink { LSide = 0, LLock = 2, LTorque = 4, LSlave = 6, LDrag = 8, LNoseLock = 9, LNoseTorque = 10, LNum = 11 };
+	FVector GearKnee(const FVector& A, const FVector& B, double L1, double L2, FVector H, double Side)
+	{
+		H = H.GetSafeNormal(); const double Off = FVector::DotProduct(B - A, H); const FVector Bp = B - H * Off;
+		const double R2 = FMath::Sqrt(FMath::Max(L2 * L2 - Off * Off, 1e-6));
+		const double D = FMath::Clamp(FMath::Max((Bp - A).Size(), 1e-6), FMath::Abs(L1 - R2) + 0.01, L1 + R2 - 0.01);
+		const FVector E1 = (Bp - A).GetSafeNormal(), E2 = FVector::CrossProduct(H, E1);
+		const double Ax = (L1 * L1 - R2 * R2 + D * D) / (2.0 * D), Hh = FMath::Sqrt(FMath::Max(L1 * L1 - Ax * Ax, 0.0));
+		return A + E1 * Ax + E2 * (Hh * Side);
+	}
+	// a bar carried by its parent's move T, then turned about its own end to point at its new knee
+	FTransform BarTo(const FVector& P0, const FVector& K0, const FTransform& T, const FVector& K1)
+	{
+		const FVector P1 = T.TransformPosition(P0); const FQuat R0 = T.GetRotation();
+		const FQuat R = FQuat::FindBetweenVectors(R0.RotateVector(K0 - P0), K1 - P1) * R0;
+		return FTransform(R, P1 - R.RotateVector(P0));
+	}
 	FTransform About(const FVector& H, const FQuat& Q) { return FTransform(Q, H - Q.RotateVector(H)); }   // (a turn about H)
-	float Ease(float X) { X = FMath::Clamp(X, 0.f, 1.f); return X * X * (3.f - 2.f * X); }
-	float AngXZ(const FVector& V) { return float(FMath::Atan2(V.X, V.Z)); }   // (a turn about +Y adds to it)
+	FQuat QDeg(const FVector& Ax, float Deg) { return FQuat(Ax.GetSafeNormal(), FMath::DegreesToRadians(Deg)); }
 }
 
 void ASimTraffic::Haze(FMove& M, float Dt)
@@ -1365,43 +1434,78 @@ void ASimTraffic::Spoilers(FMove& M, float Dt)
 	B->FlushMoves();
 }
 
+namespace
+{
+	// the gear's groups (FMove::GG): each bound at the model's root (no pivot), so a move is the whole part's transform
+	enum EGg { GgNoseW, GgNoseLeg, GgNoseUp, GgNoseLower, GgMainW, GgMainLeg = GgMainW + 2, GgMainUp = GgMainLeg + 2, GgFair = GgMainUp + 2,
+		GgBay = GgFair + 2, GgNDoor = GgBay + 2, GgAft = GgNDoor + 2, GgAct = GgAft + 2, GgRod = GgAct + 2, GgLink = GgRod + 2, GgNum = GgLink + 2 * LNum };
+	// the linkages as built (gear down, struts in): the knee solved for the built ends
+	struct FGearLinkRt { FVector A0, B0, K0, H; double L1, L2, Side; };
+	const FGearLinkRt* GearLinks()
+	{
+		static FGearLinkRt R[LNum];
+		static bool bDone = false;
+		if (!bDone)
+		{
+			bDone = true;
+			for (int32 i = 0; i < LNum; ++i)
+			{
+				const FGearLinkDef& D = LinkDef[i]; FGearLinkRt& L = R[i];
+				L.H = D.H.GetSafeNormal(); L.L1 = (D.K - D.A).Size(); L.L2 = (D.K - D.B).Size();
+				L.Side = FVector::DotProduct(D.K - D.A, FVector::CrossProduct(L.H, D.B - D.A)) >= 0.0 ? 1.0 : -1.0;
+				L.A0 = D.A; L.B0 = D.B + (D.bTube ? FVector(0.f, 0.f, StrutCm) : FVector::ZeroVector);
+				L.K0 = GearKnee(L.A0, L.B0, L.L1, L.L2, L.H, L.Side);
+			}
+		}
+		return R;
+	}
+}
+
 void ASimTraffic::Gear(FMove& M, float Dt)
 {
 	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
 	if (!M.bGear)
 	{
 		M.bGear = true;
-		M.GNoseW = B->BindGroup({TEXT("NoseWheels")}, true, FTransform(NoseAxle));
-		M.GNoseLeg = B->BindGroup({TEXT("NoseLeg")}, false, FTransform(NoseLegAt));   // (exactly: NoseLegUpper is the retraction's)
-		M.GMainW[0] = B->BindGroup({TEXT("MainWheels_L")}, true, FTransform(MainAxle[0])); M.GMainW[1] = B->BindGroup({TEXT("MainWheels_R")}, true, FTransform(MainAxle[1]));
-		M.GMainLeg[0] = B->BindGroup({TEXT("MainLeg_L")}, true, FTransform(MainLegAt[0])); M.GMainLeg[1] = B->BindGroup({TEXT("MainLeg_R")}, true, FTransform(MainLegAt[1]));
-		M.PrevNose = M.Nose; M.PrevMain = M.Main; M.Ext = M.Height > 0.5f ? 1.f : 0.f;
-		ADP_LOG(TEXT("Traffic: %s gear parts - nose wheels %d, nose leg %d, main wheels %d/%d, main legs %d/%d"), *M.Reg, M.GNoseW, M.GNoseLeg, M.GMainW[0], M.GMainW[1], M.GMainLeg[0], M.GMainLeg[1]);
-		// the retraction's parts, each held about its hinge (the node's own origin in the model)
-		auto Hinge = [B](const TCHAR* Name, FVector& At) -> int32
+		M.GG.Init(INDEX_NONE, GgNum);
+		const FTransform I = FTransform::Identity;
+		auto Bind = [B, &I](std::initializer_list<const TCHAR*> Names, bool bPrefix = false) -> int32
 		{
-			FTransform T; if (!B->NodeBase(Name, T)) return INDEX_NONE;
-			At = T.GetLocation(); return B->BindGroup({Name}, false, FTransform(At));
+			TArray<FString> N; for (const TCHAR* X : Names) N.Add(X);
+			return B->BindGroup(N, bPrefix, I);
 		};
+		M.GG[GgNoseW] = Bind({TEXT("NoseWheels")}, true);
+		M.GG[GgNoseLeg] = Bind({TEXT("NoseLeg")});            // (exactly, + its torque links: NoseLegUpper is the fitting)
+		M.GG[GgNoseUp] = Bind({TEXT("NoseLegUpper")});
+		M.GG[GgNoseLower] = Bind({TEXT("NoseLegUpper.Lower"), TEXT("NoseLegUpper.LowerPlacards")});   // (steers with the tube)
 		const TCHAR* Sd[2] = {TEXT("_L"), TEXT("_R")};
-		M.GNoseUp = Hinge(TEXT("NoseLegUpper"), M.HNose);
 		for (int32 s = 0; s < 2; ++s)
 		{
-			M.GMainUp[s] = Hinge(*(FString(TEXT("MainLegUpper")) + Sd[s]), M.HMain[s]);
-			M.GMainDoor[s] = B->BindGroup({FString(TEXT("MainDoor")) + Sd[s]}, false, FTransform(M.HMain[s]));   // (on the leg: turns about the leg's hinge)
-			M.GNoseDoor[s] = Hinge(*(FString(TEXT("NoseDoor")) + Sd[s]), M.HNoseDoor[s]);
-			M.GBayDoor[s] = Hinge(*(FString(TEXT("MainBayDoor")) + Sd[s]), M.HBayDoor[s]);
-			M.GBraceUp[s] = Hinge(*(FString(TEXT("SideBraceUp")) + Sd[s]), M.BraceA[s]);
-			M.GBraceLo[s] = Hinge(*(FString(TEXT("SideBraceLo")) + Sd[s]), M.BraceB[s]);
-			M.BraceK[s] = BraceKnee[s].IsZero() ? (M.BraceA[s] + M.BraceB[s]) * 0.5f : BraceKnee[s];
+			const FString X = Sd[s];
+			M.GG[GgMainW + s] = B->BindGroup({TEXT("MainWheels") + X}, true, I);
+			M.GG[GgMainLeg + s] = B->BindGroup({TEXT("MainLeg") + X}, false, I);
+			M.GG[GgMainUp + s] = B->BindGroup({TEXT("MainLegUpper") + X, TEXT("MainDoor") + X}, false, I);   // (the leg door rides the leg)
+			M.GG[GgFair + s] = B->BindGroup({TEXT("MainDoor") + X + TEXT(".Fairing"), TEXT("MainDoor") + X + TEXT(".FairingInner")}, false, I);
+			M.GG[GgBay + s] = B->BindGroup({TEXT("MainBayDoor") + X}, false, I);
+			M.GG[GgNDoor + s] = B->BindGroup({TEXT("NoseDoor") + X}, false, I);
+			M.GG[GgAft + s] = B->BindGroup({TEXT("NoseLegUpper.AftDoor") + X, TEXT("NoseLegUpper.AftDoor") + X + TEXT("Inner")}, false, I);
+			M.GG[GgAct + s] = B->BindGroup({FString(TEXT("GearLDoorActuator")) + (s == 0 ? TEXT("L") : TEXT("R"))}, false, I);
+			M.GG[GgRod + s] = B->BindGroup({FString(TEXT("GearLDoorActuatorRod")) + (s == 0 ? TEXT("L") : TEXT("R"))}, false, I);
 		}
+		for (int32 i = 0; i < LNum; ++i)
+		{
+			M.GG[GgLink + 2 * i] = Bind({LinkDef[i].Bar1}); M.GG[GgLink + 2 * i + 1] = Bind({LinkDef[i].Bar2});
+		}
+		M.PrevNose = M.Nose; M.PrevMain = M.Main;
+		M.ExtN = M.ExtM = M.Height > 0.5f ? 1.f : 0.f;
 		const bool bUp = (M.Phase == EPhase::Approach && M.Height > GearDownM) || (M.Phase == EPhase::Climb && M.Height > 15.f);
-		M.GearSt = bUp ? 2 : 0; M.LegT = bUp ? 1.f : 0.f; M.DoorT = 0.f;
-		ADP_LOG(TEXT("Traffic: %s retraction parts - nose strut %d, main struts %d/%d, leg doors %d/%d, nose doors %d/%d, bay doors %d/%d, stays %d/%d %d/%d; gear %s"),
-			*M.Reg, M.GNoseUp, M.GMainUp[0], M.GMainUp[1], M.GMainDoor[0], M.GMainDoor[1], M.GNoseDoor[0], M.GNoseDoor[1], M.GBayDoor[0], M.GBayDoor[1],
-			M.GBraceUp[0], M.GBraceLo[0], M.GBraceUp[1], M.GBraceLo[1], bUp ? TEXT("up") : TEXT("down"));
+		M.GearSt = bUp ? 2 : 0; M.PosN = M.PosM = bUp ? 0.f : 1.f;
+		int32 Missing = 0; FString Which;
+		for (int32 i = 0; i < GgNum; ++i) if (M.GG[i] == INDEX_NONE) { ++Missing; Which += FString::Printf(TEXT(" %d"), i); }
+		if (Missing) ADP_WARN(TEXT("Traffic: %s gear - %d of %d moving parts not in the model:%s"), *M.Reg, Missing, int32(GgNum), *Which);
+		else ADP_LOG(TEXT("Traffic: %s gear - all %d moving parts bound (FlightGear's pivots and linkages); gear %s"), *M.Reg, int32(GgNum), bUp ? TEXT("up") : TEXT("down"));
 	}
-	if (M.GNoseW == INDEX_NONE) return;
+	if (M.GG.Num() != GgNum || M.GG[GgNoseW] == INDEX_NONE) return;
 	const bool bGround = M.Height < 0.05f;
 	// the nose wheel's steer: the way the nose wheel actually travels against the fuselage's line (pushed: backwards)
 	const FVector2f DN = M.Nose - M.PrevNose, Body = (M.Nose - M.Main).GetSafeNormal();
@@ -1418,13 +1522,23 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	M.Steer = FMath::FInterpTo(M.Steer, Want, Dt, 3.f);
 	// rolling by the distance (in the air they stop: spun up again at touchdown)
 	if (bGround) { M.RollN += FMath::RadiansToDegrees(DistN * 100.f / NoseR); M.RollM += FMath::RadiansToDegrees(DistM * 100.f / MainR); }
-	// the struts: hanging out in the air, compressing on touchdown with a little settle (a damped spring)
-	const float Target = bGround ? 0.f : 1.f;
-	M.ExtV += ((Target - M.Ext) * 90.f - M.ExtV * 11.f) * Dt; M.Ext = FMath::Clamp(M.Ext + M.ExtV * Dt, -0.25f, 1.f);
-	if (bGround && !M.bGearPrev && M.Height < 0.05f && M.Phase == EPhase::Rollout) ADP_LOG(TEXT("Traffic: %s touchdown - the main gear compresses, the wheels spin up"), *M.Reg);
+	// weight on wheels: each strut goes out only as far as its own wheels clear the ground (the main gear's height, the
+	// nose's that plus the wheelbase times the pitch's sine), with a damped spring under that - so the main legs compress
+	// first at touchdown, the nose strut extends first at rotation; never into the ground
+	const float ClearM = M.Height, ClearN = M.Height + Wheelbase * FMath::Sin(FMath::DegreesToRadians(M.Pitch));
+	auto Strut = [Dt](float& E, float& V, float Clear)
+	{
+		const float Lim = FMath::Clamp(Clear * 100.f / StrutCm, 0.f, 1.f);
+		V += ((1.f - E) * 90.f - V * 11.f) * Dt; E += V * Dt;
+		if (E >= Lim) { E = Lim; V = FMath::Min(V, 0.f); }
+		if (E <= 0.f) { E = 0.f; V = FMath::Max(V, 0.f); }
+	};
+	Strut(M.ExtM, M.ExtMV, ClearM); Strut(M.ExtN, M.ExtNV, ClearN);
+	if (bGround && !M.bGearPrev && M.Phase == EPhase::Rollout) ADP_LOG(TEXT("Traffic: %s touchdown - the main gear compresses, the wheels spin up"), *M.Reg);
 	M.bGearPrev = bGround;
 	M.PrevNose = M.Nose; M.PrevMain = M.Main;
-	// the retraction and extension (to-do 380): one sequence each way, eased, at the real heights
+	// the retraction and extension (to-do 380) at FlightGear's rates: the doors, legs and doors again follow the
+	// position-norm by FlightGear's own tables
 	M.AirT = bGround ? 0.f : M.AirT + Dt;
 	const float Ft = M.Height / 0.3048f;
 	switch (M.GearSt)
@@ -1432,71 +1546,87 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	case 0:   // down and locked: up once climbing away
 		if (M.Phase == EPhase::Climb && M.Height >= GearUpM && M.AirT >= GearUpAfter)
 		{
-			M.GearSt = 1; M.GearC = 0.f;
+			M.GearSt = 1;
 			ADP_LOG(TEXT("Traffic: %s positive climb - gear up at %.0f ft, %.1f s after lift-off"), *M.Reg, Ft, M.AirT);
 		}
 		break;
-	case 1:   // retracting: doors open 0-2 s, the legs fold 2-8 s, doors close 8-10 s
-		M.GearC += Dt;
-		M.DoorT = M.GearC < 8.f ? Ease(M.GearC / 2.f) : 1.f - Ease((M.GearC - 8.f) / 2.f);
-		M.LegT = Ease((M.GearC - 2.f) / 6.f);
-		if (M.GearC >= 10.f) { M.GearSt = 2; M.LegT = 1.f; M.DoorT = 0.f; ADP_LOG(TEXT("Traffic: %s gear up and locked, doors closed at %.0f ft"), *M.Reg, Ft); }
+	case 1:   // retracting: nose 10.5 s, main 9 s
+		M.PosN = FMath::Max(0.f, M.PosN - NoseUpRate * Dt); M.PosM = FMath::Max(0.f, M.PosM - MainUpRate * Dt);
+		if (M.PosN <= 0.f && M.PosM <= 0.f) { M.GearSt = 2; ADP_LOG(TEXT("Traffic: %s gear up and locked, doors closed at %.0f ft"), *M.Reg, Ft); }
 		break;
 	case 2:   // up and locked: down at 2,000 ft on the approach
 		if (M.Phase == EPhase::Approach && M.Height <= GearDownM)
 		{
-			M.GearSt = 3; M.GearC = 0.f;
+			M.GearSt = 3;
 			ADP_LOG(TEXT("Traffic: %s gear down at %.0f ft"), *M.Reg, Ft);
 		}
 		break;
-	case 3:   // extending: doors open 0-3 s, the legs fall and lock 3-12 s, doors close 12-15 s (hurried if ever this low)
-		M.GearC += Dt * (M.Height < 150.f ? 3.f : 1.f);
-		M.DoorT = M.GearC < 12.f ? Ease(M.GearC / 3.f) : 1.f - Ease((M.GearC - 12.f) / 3.f);
-		M.LegT = 1.f - Ease((M.GearC - 3.f) / 9.f);
-		if (M.GearC >= 15.f) { M.GearSt = 0; M.LegT = 0.f; M.DoorT = 0.f; ADP_LOG(TEXT("Traffic: %s gear down and locked, three greens at %.0f ft"), *M.Reg, Ft); }
+	case 3:   // extending: nose 12 s, main 16 s (hurried if ever this low)
+	{
+		const float Hurry = M.Height < 150.f ? 3.f : 1.f;
+		M.PosN = FMath::Min(1.f, M.PosN + NoseDownRate * Hurry * Dt); M.PosM = FMath::Min(1.f, M.PosM + MainDownRate * Hurry * Dt);
+		if (M.PosN >= 1.f && M.PosM >= 1.f) { M.GearSt = 0; ADP_LOG(TEXT("Traffic: %s gear down and locked, three greens at %.0f ft"), *M.Reg, Ft); }
 		break;
+	}
 	}
 	if (bGround && M.GearSt != 0)
 	{
 		ADP_WARN(TEXT("Traffic: %s on the ground with the gear %s - locked down"), *M.Reg, M.GearSt == 2 ? TEXT("up") : TEXT("moving"));
-		M.GearSt = 0; M.LegT = 0.f; M.DoorT = 0.f;
+		M.GearSt = 0; M.PosN = M.PosM = 1.f;
 	}
-	const FTransform RetN = About(M.HNose, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-NoseFold * M.LegT)));   // (forwards into the nose)
-	if (UADPAircraftLights* Lm = M.Lamps.Get()) Lm->SetNoseGear(RetN, M.GearSt == 0);   // (taxi, take-off and turn-off lamps sit on the nose strut)
-	FTransform RetM[2];
-	for (int32 s = 0; s < 2; ++s) RetM[s] = About(M.HMain[s], FQuat(FVector::RightVector, FMath::DegreesToRadians((s == 0 ? -1.f : 1.f) * MainFold * M.LegT)));   // (inwards under the belly)
-	const float S = SteerSign * M.Steer;
-	const FQuat QS(FVector::UpVector, FMath::DegreesToRadians(S));
-	B->MoveGroup(M.GNoseW, FTransform(QS * FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollN)), NoseAxle - FVector(0, 0, ExtNose * M.Ext)) * RetN);
-	if (M.GNoseLeg != INDEX_NONE) B->MoveGroup(M.GNoseLeg, FTransform(QS, NoseLegAt - FVector(0, 0, ExtNose * M.Ext)) * RetN);
-	if (M.GNoseUp != INDEX_NONE) B->MoveGroup(M.GNoseUp, FTransform(M.HNose) * RetN);
+	// the poses (the model's root frame; A * B: A first)
+	const TArray<int32>& G = M.GG;
+	auto Put = [B, &G](int32 Gi, const FTransform& T) { if (G[Gi] != INDEX_NONE) B->MoveGroup(G[Gi], T); };
+	const FGearLinkRt* Lk = GearLinks();
+	// a linkage: bar 1 carried by TA, bar 2 by TB, the knee hinge turned by TH; returns bar 1's move (bar 2's in T2)
+	FTransform T2;
+	auto Link = [&](int32 i, const FTransform& TA, const FTransform& TB, const FTransform& TH) -> FTransform
+	{
+		const FGearLinkRt& L = Lk[i];
+		const FVector A1 = TA.TransformPosition(L.A0), B1 = TB.TransformPosition(L.B0), H1 = TH.TransformVectorNoScale(L.H);
+		const FVector K1 = GearKnee(A1, B1, L.L1, L.L2, H1, L.Side);
+		const FTransform T1 = BarTo(L.A0, L.K0, TA, K1);
+		T2 = BarTo(L.B0, L.K0, TB, K1);
+		Put(GgLink + 2 * i, T1); Put(GgLink + 2 * i + 1, T2);
+		return T1;
+	};
+	const FTransform I = FTransform::Identity;
+	// nose: the fitting turns forward about its hinge; the lower fitting, tube, torque links and wheels steer about the
+	// strut's axis; the tube slides out of it
+	const FTransform RN = About(NoseHinge.P, QDeg(NoseHinge.Ax, NoseHinge.Deg * GTab(TLeg, M.PosN)));
+	if (UADPAircraftLights* Lm = M.Lamps.Get()) Lm->SetNoseGear(RN, M.GearSt == 0);   // (taxi, take-off and turn-off lamps sit on the nose strut)
+	const FTransform ST = About(SteerP, QDeg(SteerAx, SteerSign * M.Steer)) * RN;
+	const FTransform TubeN = FTransform(FVector(0.f, 0.f, -StrutCm * M.ExtN)) * ST;
+	Put(GgNoseUp, RN); Put(GgNoseLower, ST); Put(GgNoseLeg, TubeN);
+	Put(GgNoseW, About(NoseAxle, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollN))) * TubeN);
+	Link(LDrag, I, RN, I);
+	const FTransform Drag2 = T2;                  // (the nose lock stay rides the drag strut's lower bar)
+	Link(LNoseLock, Drag2, RN, I);
+	Link(LNoseTorque, ST, TubeN, ST);
 	for (int32 s = 0; s < 2; ++s)
 	{
-		const float Sg = s == 0 ? 1.f : -1.f;   // (left: the doors open by +, right by -)
-		if (M.GMainW[s] != INDEX_NONE) B->MoveGroup(M.GMainW[s], FTransform(FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollM)), MainAxle[s] - FVector(0, 0, ExtMain * M.Ext)) * RetM[s]);
-		if (M.GMainLeg[s] != INDEX_NONE) B->MoveGroup(M.GMainLeg[s], FTransform(MainLegAt[s] - FVector(0, 0, ExtMain * M.Ext)) * RetM[s]);
-		if (M.GMainUp[s] != INDEX_NONE) B->MoveGroup(M.GMainUp[s], FTransform(M.HMain[s]) * RetM[s]);
-		if (M.GMainDoor[s] != INDEX_NONE) B->MoveGroup(M.GMainDoor[s], FTransform(M.HMain[s]) * RetM[s]);
-		if (M.GNoseDoor[s] != INDEX_NONE) B->MoveGroup(M.GNoseDoor[s], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(Sg * NoseDoorOpen * M.DoorT)), M.HNoseDoor[s]));
-		if (M.GBayDoor[s] != INDEX_NONE) B->MoveGroup(M.GBayDoor[s], FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(-Sg * BayDoorOpen * M.DoorT)), M.HBayDoor[s]));
-		// the side stay: two bars from the wing (A) to the leg (B, carried round by the leg), buckling at the knee as the
-		// leg folds (solved in the plane the leg turns in)
-		if (M.GBraceUp[s] != INDEX_NONE && M.GBraceLo[s] != INDEX_NONE)
-		{
-			const FVector A = M.BraceA[s], B0 = M.BraceB[s], K0 = M.BraceK[s], B1 = RetM[s].TransformPosition(B0);
-			const FVector2D a(A.X, A.Z), b(B1.X, B1.Z), k0(K0.X, K0.Z), b0(B0.X, B0.Z);
-			const double L1 = FVector2D::Distance(a, k0), L2 = FVector2D::Distance(b0, k0);
-			const double Cr = (b0 - a) ^ (k0 - a);
-			const double Side = FMath::Abs(Cr) > 1.0 ? FMath::Sign(Cr) : -Sg;   // (straight when down: it buckles upwards, inboard)
-			const double D = FMath::Clamp(FVector2D::Distance(a, b), FMath::Abs(L1 - L2) + 0.01, L1 + L2 - 0.01);
-			const FVector2D U = (b - a).GetSafeNormal(), P = a + U * ((L1 * L1 - L2 * L2 + D * D) / (2.0 * D));
-			const double H = FMath::Sqrt(FMath::Max(0.0, L1 * L1 - FMath::Square((L1 * L1 - L2 * L2 + D * D) / (2.0 * D))));
-			const FVector2D K = P + FVector2D(-U.Y, U.X) * (Side * H);
-			const FVector K1(K.X, K0.Y, K.Y);
-			const float D1 = AngXZ(K1 - A) - AngXZ(K0 - A), D2 = AngXZ(K1 - B1) - AngXZ(K0 - B0);
-			B->MoveGroup(M.GBraceUp[s], FTransform(FQuat(FVector::RightVector, D1), A));
-			B->MoveGroup(M.GBraceLo[s], FTransform(FQuat(FVector::RightVector, D2), B1));
-		}
+		// the nose doors: forward doors open and close by the table, lifting 4 cm; the aft doors open with the leg and stay
+		Put(GgNDoor + s, About(NoseDoorH[s].P, QDeg(NoseDoorH[s].Ax, NoseDoorH[s].Deg * GTab(TDoor, M.PosN))) * FTransform(FgUp * (100.f * GTab(TNoseLift, M.PosN))));
+		Put(GgAft + s, About(AftDoorH[s].P, QDeg(AftDoorH[s].Ax, AftDoorH[s].Deg * GTab(TAftDoor, M.PosN))) * FTransform(FgUp * (100.f * GTab(TAftLift, M.PosN))));
+		// main: the leg (and its door) turns inboard about its hinge; the tube slides; the fairing and bay door by their tables
+		const FTransform RM = About(MainHinge[s].P, QDeg(MainHinge[s].Ax, MainHinge[s].Deg * GTab(TLeg, M.PosM)));
+		const FTransform TubeM = FTransform(FVector(0.f, 0.f, -StrutCm * M.ExtM)) * RM;
+		Put(GgMainUp + s, RM);
+		Put(GgFair + s, About(FairingH[s].P, QDeg(FairingH[s].Ax, FairingH[s].Deg * GTab(TFairing, M.PosM))));
+		Put(GgMainLeg + s, TubeM);
+		Put(GgMainW + s, About(MainAxle[s], FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollM))) * TubeM);
+		const FTransform BD = About(BayDoorH[s].P, QDeg(BayDoorH[s].Ax, BayDoorH[s].Deg * GTab(TDoor, M.PosM)));
+		Put(GgBay + s, BD);
+		// the bay door's actuator follows the door's fitting about its lock axis; the rod slides out by FlightGear's table
+		FVector V0 = DoorActT[s] - DoorActC[s], V1 = BD.TransformPosition(DoorActT[s]) - DoorActC[s];
+		V0 -= DoorActLock * FVector::DotProduct(V0, DoorActLock); V1 -= DoorActLock * FVector::DotProduct(V1, DoorActLock);
+		const FTransform RA = About(DoorActC[s], FQuat::FindBetweenVectors(V0, V1));
+		Put(GgAct + s, RA); Put(GgRod + s, FTransform(DoorRodDir[s] * (100.f * GTab(TRod, M.PosM))) * RA);
+		// the linkages: side stay (wing to leg) and its lock stay, the torque and slave links scissoring with the tube
+		const FTransform Up = Link(LSide + s, I, RM, I);
+		Link(LLock + s, I, Up, I);
+		Link(LTorque + s, RM, TubeM, RM);
+		Link(LSlave + s, RM, TubeM, RM);
 	}
 	B->FlushMoves();
 }
