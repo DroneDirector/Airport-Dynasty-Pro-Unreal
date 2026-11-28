@@ -1,0 +1,846 @@
+{
+	"about": "ARoadNetwork::BakeAll (Tools/bake_roads.sh): each road's saved parts; a road whose plan changed is built again at run time until the next bake",
+	"roads":
+	{
+		"AIRPORT-FORECOURT":
+		{
+			"hash": 2863037392,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_0.SM_AIRPORT_FORECOURT_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_1.SM_AIRPORT_FORECOURT_1",
+					"t": [
+						-130013.00072117585,
+						-3415.8650535044471,
+						7.4017326899911495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_2.SM_AIRPORT_FORECOURT_2",
+					"t": [
+						-129993.5537795337,
+						-3764.7811725455249,
+						7.4017326899911495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_3.SM_AIRPORT_FORECOURT_3",
+					"t": [
+						-129987.44188358865,
+						-4227.0929798192246,
+						7.4017326899911495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_4.SM_AIRPORT_FORECOURT_4",
+					"t": [
+						-129987.16407013651,
+						-4407.0774957894864,
+						7.4017326899911495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_5.SM_AIRPORT_FORECOURT_5",
+					"t": [
+						-129986.60844323225,
+						-4742.0446853002122,
+						7.4017326899911495,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_6.SM_AIRPORT_FORECOURT_6",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_7.SM_AIRPORT_FORECOURT_7",
+					"t": [
+						-130037.58645358714,
+						-3141.1978320919225,
+						11.652762930977918,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_8.SM_AIRPORT_FORECOURT_8",
+					"t": [
+						-130037.86426703859,
+						-3136.2133161025176,
+						11.65276278915203,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_9.SM_AIRPORT_FORECOURT_9",
+					"t": [
+						-129987.58003234399,
+						-4038.4107096252719,
+						11.652762788339412,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_10.SM_AIRPORT_FORECOURT_10",
+					"t": [
+						-129987.30221889312,
+						-4047.1160757017951,
+						11.652762946066675,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_11.SM_AIRPORT_FORECOURT_11",
+					"t": [
+						-129985.91387275902,
+						-5079.5367918195589,
+						14.652762609953593,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_12.SM_AIRPORT_FORECOURT_12",
+					"t": [
+						-129985.63605930701,
+						-5482.0213078058187,
+						14.652762767247461,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_13.SM_AIRPORT_FORECOURT_13",
+					"t": [
+						-129985.63533818502,
+						-5482.0212271718756,
+						11.652762788774375,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_FORECOURT_14.SM_AIRPORT_FORECOURT_14",
+					"t": [
+						-129985.35752473366,
+						-6009.5133016388781,
+						11.652762946485847,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"AIRPORT-ROUNDABOUT":
+		{
+			"hash": 281075938,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_0.SM_AIRPORT_ROUNDABOUT_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_1.SM_AIRPORT_ROUNDABOUT_1",
+					"t": [
+						-1725,
+						-3.3651303965598345e-11,
+						8.5,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_2.SM_AIRPORT_ROUNDABOUT_2",
+					"t": [
+						-1724.9999999214779,
+						0,
+						8.5,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_3.SM_AIRPORT_ROUNDABOUT_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_4.SM_AIRPORT_ROUNDABOUT_4",
+					"t": [
+						-1725.0019749527564,
+						4.7803041525185108e-08,
+						12.751030922207075,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_5.SM_AIRPORT_ROUNDABOUT_5",
+					"t": [
+						-1725.002027365641,
+						9.8787495517171919e-08,
+						12.751030916384963,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_6.SM_AIRPORT_ROUNDABOUT_6",
+					"t": [
+						-1725.0019701678539,
+						4.3370164348743856e-08,
+						2.7510309219021796,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_ROUNDABOUT_7.SM_AIRPORT_ROUNDABOUT_7",
+					"t": [
+						-1725.0019749527564,
+						4.7854882723186165e-08,
+						2.7510309215143014,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"AIRPORT-WEST-CLOSED":
+		{
+			"hash": 3369870715,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_WEST_CLOSED_0.SM_AIRPORT_WEST_CLOSED_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_WEST_CLOSED_1.SM_AIRPORT_WEST_CLOSED_1",
+					"t": [
+						-15450,
+						175,
+						7,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_WEST_CLOSED_2.SM_AIRPORT_WEST_CLOSED_2",
+					"t": [
+						-15450,
+						-175,
+						7,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"AIRPORT-BACK-TO-TOWN":
+		{
+			"hash": 2793828694,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_BACK_TO_TOWN_0.SM_AIRPORT_BACK_TO_TOWN_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_BACK_TO_TOWN_1.SM_AIRPORT_BACK_TO_TOWN_1",
+					"t": [
+						148094.97920698725,
+						54974.675609822349,
+						-209.0086311404375,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_AIRPORT_BACK_TO_TOWN_2.SM_AIRPORT_BACK_TO_TOWN_2",
+					"t": [
+						147896.93132406444,
+						55160.416925910227,
+						-209.00862890526423,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"CHABLAIS-LINK":
+		{
+			"hash": 1456257597,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_CHABLAIS_LINK_0.SM_CHABLAIS_LINK_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_CHABLAIS_LINK_1.SM_CHABLAIS_LINK_1",
+					"t": [
+						23445.229452956264,
+						40566.336405285518,
+						-407.73013002666994,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_CHABLAIS_LINK_2.SM_CHABLAIS_LINK_2",
+					"t": [
+						23095.32113919509,
+						40218.951036932966,
+						-407.73013145718141,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"CARGO-ACCESS":
+		{
+			"hash": 1915870735,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_CARGO_ACCESS_0.SM_CARGO_ACCESS_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_CARGO_ACCESS_1.SM_CARGO_ACCESS_1",
+					"t": [
+						-44350.258043400339,
+						-8818.1503838336212,
+						-31.853266576818896,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_CARGO_ACCESS_2.SM_CARGO_ACCESS_2",
+					"t": [
+						-44176.768724459122,
+						-8988.5601133189048,
+						-31.853266487411929,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-HUB-SPUR":
+		{
+			"hash": 3901307986,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_SPUR_0.SM_TOWN_HUB_SPUR_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_SPUR_1.SM_TOWN_HUB_SPUR_1",
+					"t": [
+						-1476.3895894376328,
+						5165.0246452571009,
+						-298.98684425475676,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_SPUR_2.SM_TOWN_HUB_SPUR_2",
+					"t": [
+						-1809.5992463252624,
+						5057.9203762343386,
+						-298.98684425475676,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-HUB-STREET":
+		{
+			"hash": 2475557550,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_STREET_0.SM_TOWN_HUB_STREET_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_STREET_1.SM_TOWN_HUB_STREET_1",
+					"t": [
+						14540.387440259103,
+						57.529459981160471,
+						-381.68000329756615,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_STREET_2.SM_TOWN_HUB_STREET_2",
+					"t": [
+						14690.932518393092,
+						329.12095776491333,
+						-381.68000597977516,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TOWN-HUB":
+		{
+			"hash": 3763429866,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_0.SM_TOWN_HUB_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_1.SM_TOWN_HUB_1",
+					"t": [
+						4799.0039908971812,
+						8831.98661914072,
+						-315.82470917146838,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_2.SM_TOWN_HUB_2",
+					"t": [
+						4794.7584912638413,
+						9031.9841053923301,
+						-315.82470917146838,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_3.SM_TOWN_HUB_3",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_4.SM_TOWN_HUB_4",
+					"t": [
+						4803.9536215335247,
+						8513.2407346672553,
+						-311.57367824850746,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_5.SM_TOWN_HUB_5",
+					"t": [
+						4804.0066902789404,
+						8338.242938983778,
+						-311.57367824850746,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_6.SM_TOWN_HUB_6",
+					"t": [
+						4750.9858902137494,
+						9215.7318913451163,
+						-311.57367824850746,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TOWN_HUB_7.SM_TOWN_HUB_7",
+					"t": [
+						4750.9824313835707,
+						9490.7284311085241,
+						-311.57367824850746,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		},
+		"TERMINAL-RETURN":
+		{
+			"hash": 1917257309,
+			"parts": [
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TERMINAL_RETURN_0.SM_TERMINAL_RETURN_0",
+					"t": [
+						0,
+						0,
+						0,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TERMINAL_RETURN_1.SM_TERMINAL_RETURN_1",
+					"t": [
+						8224.0697879801883,
+						-20318.451000085246,
+						-13.465639620043476,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				},
+				{
+					"mesh": "/Game/Roads/Baked/chablais/SM_TERMINAL_RETURN_2.SM_TERMINAL_RETURN_2",
+					"t": [
+						8524.8615265257686,
+						-20182.505082250998,
+						-13.465636311985691,
+						0,
+						0,
+						0,
+						1,
+						1,
+						1,
+						1
+					]
+				}
+			]
+		}
+	}
+}

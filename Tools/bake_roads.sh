@@ -15,3 +15,5 @@ grep -E "ADP_BAKE|Roads bake|LogPython: Error" Saved/Logs/AirportDynastyPro.log 
 timeout 3600 "C:/Program Files/Epic Games/UE_5.7/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$R/AirportDynastyPro.uproject" -ExecutePythonScript="$R/Tools/nanite_baked_roads.py" $SITE -unattended -nosplash > /dev/null 2>&1
 grep -E "ADP_NANITE|LogPython: Error" Saved/Logs/AirportDynastyPro.log | cut -c40-220
 [ -z "$1" ] && cp Data/roads-baked.json Content/Data/roads-baked.json 2>/dev/null && echo "roads-baked.json copied to Content/Data"
+# a site's list goes back to Data too: release_pc.sh rebuilds Content/Data from Data, which would drop it
+[ -n "$1" ] && cp "Content/Data/Sites/$1/roads-baked.json" "Data/Sites/$1/roads-baked.json" 2>/dev/null && echo "roads-baked.json copied to Data/Sites/$1"
