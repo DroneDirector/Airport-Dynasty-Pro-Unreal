@@ -975,6 +975,7 @@ void ASimTraffic::Tick(float Dt)
 		Gear(M, FMath::Min(Dt, 0.1f));
 		Haze(M, FMath::Min(Dt, 0.1f));
 		Surfaces(M, FMath::Min(Dt, 0.1f));
+		Spoilers(M, FMath::Min(Dt, 0.1f));
 		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && !M.bYouOff && SlipPoll <= 0.f)
 			if (UADPSim* Sl = UADPSim::Get(this)) if (FADPFlight* Fs = Sl->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == M.FlightId; }))
 				if (Sl->Now() > Fs->DepAt) { Fs->DelayMin += (Sl->Now() - Fs->DepAt).GetTotalMinutes(); Fs->DepAt = Sl->Now(); }   // (waiting for its tug: off blocks when it is pushed)
@@ -1053,7 +1054,7 @@ void ASimTraffic::Haze(FMove& M, float Dt)
 	if (M.bEnginesOn)
 	{
 		const bool bTOGA = (M.Phase == EPhase::Roll && M.bTakeoffOk && M.Step >= M.Path.Num() - 1 && M.Clock >= 4.f) || (M.Phase == EPhase::Roll && M.Step >= M.Path.Num()) || M.Phase == EPhase::Climb;
-		Want = bTOGA ? 1.f : M.Phase == EPhase::Approach ? 0.35f : M.Phase == EPhase::Rollout ? 0.45f : 0.15f;   // (idle 0.15; the approach's power; the reversers after touchdown)
+		Want = bTOGA ? 1.f : M.Phase == EPhase::Approach ? 0.35f : (M.Phase == EPhase::Rollout && M.RevPos >= 1.f) ? 0.45f : 0.15f;   // (idle 0.15; the approach's power; reverse power once the reverser doors are open - Spoilers())
 		if (M.Phase == EPhase::Climb && M.Height > 250.f) Want = 0.f;   // (high up: nothing to see against)
 	}
 	// spooling: up from idle to take-off power in about 5 s, back down a little quicker
@@ -1245,6 +1246,122 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 		// (FlightGear's order: the turn about the hinge first, then the run along the track)
 		B->MoveGroup(M.GSurf[i], FTransform(FQuat(H.Axis.GetSafeNormal(), FMath::DegreesToRadians(Deg)), H.At + Run));
 	}
+	B->FlushMoves();
+}
+
+namespace
+{
+	// the spoilers (Art/A320/a320_surfaces.py "SPOIL" lines: FlightGear's fuselage.xml hinges carried into the game frame, cm
+	// from the root, tail +Y, right +X). FQuat(Axis, +deg) lifts the panel's trailing edge; the actuator turns Fac x deg about
+	// its own pivot, and its rod turns with it and slides out along Dir by FlightGear's table (against the panel's deg)
+	struct FSpoilHinge { const TCHAR* Name; FVector At, Axis; const TCHAR* Act; FVector ActAt, ActAxis; float Fac; FVector Dir; };
+	const FSpoilHinge SpTab[] = {
+		{TEXT("SpoilerL1"), FVector(-456.2f, 1243.6f, 323.2f), FVector(0.98857f, 0.00298f, -0.15071f), TEXT("SpoilerActuatorL1"), FVector(-541.7f, 1240.6f, 325.8f), FVector(0.98810f, 0.03729f, -0.14921f), 0.675f, FVector(0.02729f, 0.91229f, 0.40864f)},
+		{TEXT("SpoilerL2"), FVector(-696.6f, 1265.1f, 353.0f), FVector(0.93747f, -0.33629f, -0.08982f), TEXT("SpoilerActuatorL2"), FVector(-780.8f, 1295.2f, 355.4f), FVector(0.93709f, -0.33453f, -0.09977f), 0.800f, FVector(0.34872f, 0.87814f, 0.32752f)},
+		{TEXT("SpoilerL3"), FVector(-864.4f, 1325.3f, 369.1f), FVector(0.93737f, -0.33658f, -0.08978f), TEXT("SpoilerActuatorL3"), FVector(-943.0f, 1353.4f, 371.0f), FVector(0.93709f, -0.33452f, -0.09974f), 0.800f, FVector(0.34872f, 0.87814f, 0.32752f)},
+		{TEXT("SpoilerL4"), FVector(-1020.6f, 1381.4f, 384.0f), FVector(0.93751f, -0.33617f, -0.08979f), TEXT("SpoilerActuatorL4"), FVector(-1096.1f, 1408.3f, 385.8f), FVector(0.93708f, -0.33455f, -0.09975f), 0.800f, FVector(0.34872f, 0.87814f, 0.32752f)},
+		{TEXT("SpoilerL5"), FVector(-1169.8f, 1435.0f, 398.3f), FVector(0.93741f, -0.33642f, -0.08986f), TEXT("SpoilerActuatorL5"), FVector(-1242.6f, 1460.6f, 399.8f), FVector(0.93707f, -0.33458f, -0.09975f), 0.800f, FVector(0.34872f, 0.87814f, 0.32752f)},
+		{TEXT("SpoilerR1"), FVector(610.1f, 1243.0f, 346.9f), FVector(0.98840f, -0.00330f, 0.15182f), TEXT("SpoilerActuatorR1"), FVector(541.6f, 1240.5f, 325.9f), FVector(0.98806f, -0.03738f, 0.14946f), 0.675f, FVector(-0.02730f, 0.91229f, 0.40863f)},
+		{TEXT("SpoilerR2"), FVector(851.3f, 1320.2f, 367.9f), FVector(0.93827f, 0.33400f, 0.08994f), TEXT("SpoilerActuatorR2"), FVector(780.7f, 1295.1f, 355.6f), FVector(0.93710f, 0.33443f, 0.10001f), 0.800f, FVector(-0.34871f, 0.87817f, 0.32743f)},
+		{TEXT("SpoilerR3"), FVector(1007.9f, 1376.4f, 383.0f), FVector(0.93742f, 0.33634f, 0.09011f), TEXT("SpoilerActuatorR3"), FVector(942.9f, 1353.3f, 371.3f), FVector(0.93710f, 0.33443f, 0.09998f), 0.800f, FVector(-0.34871f, 0.87817f, 0.32743f)},
+		{TEXT("SpoilerR4"), FVector(1158.0f, 1430.3f, 397.4f), FVector(0.93742f, 0.33633f, 0.09010f), TEXT("SpoilerActuatorR4"), FVector(1096.0f, 1408.2f, 386.1f), FVector(0.93709f, 0.33447f, 0.10000f), 0.800f, FVector(-0.34871f, 0.87817f, 0.32743f)},
+		{TEXT("SpoilerR5"), FVector(1301.7f, 1481.8f, 411.2f), FVector(0.93742f, 0.33633f, 0.09010f), TEXT("SpoilerActuatorR5"), FVector(1242.5f, 1460.5f, 400.1f), FVector(0.93708f, 0.33449f, 0.09999f), 0.800f, FVector(-0.34871f, 0.87817f, 0.32743f)},
+	};
+	// the CFM56-5B pivot doors (Fuselage/a320.cfm.xml; the engine model in the fuselage's own frame - only so do the hinges sit
+	// on the doors): FQuat(Axis, +deg) swings a door's front edge out of the nacelle and its back edge into the fan stream;
+	// FlightGear opens them 70 deg at reverser-pos-norm 1
+	struct FRevHinge { const TCHAR* Name; FVector At, Axis; };
+	const FRevHinge RevTab[] = {
+		{TEXT("ReverserLDoor1"), FVector(-625.2f, 887.1f, 241.4f), FVector(-0.59068f, -0.00857f, -0.80686f)},
+		{TEXT("ReverserLDoor2"), FVector(-629.3f, 887.2f, 124.7f), FVector(0.57714f, 0.01083f, -0.81657f)},
+		{TEXT("ReverserLDoor3"), FVector(-501.1f, 887.1f, 241.4f), FVector(-0.59081f, 0.00862f, 0.80677f)},
+		{TEXT("ReverserLDoor4"), FVector(-497.0f, 887.2f, 124.7f), FVector(0.57665f, -0.01090f, 0.81692f)},
+		{TEXT("ReverserRDoor1"), FVector(501.0f, 887.0f, 241.6f), FVector(-0.59067f, -0.00857f, -0.80686f)},
+		{TEXT("ReverserRDoor2"), FVector(496.9f, 887.1f, 124.8f), FVector(0.57705f, 0.01085f, -0.81664f)},
+		{TEXT("ReverserRDoor3"), FVector(625.1f, 887.0f, 241.6f), FVector(-0.59080f, 0.00863f, 0.80677f)},
+		{TEXT("ReverserRDoor4"), FVector(629.2f, 887.1f, 124.9f), FVector(0.57666f, -0.01089f, 0.81691f)},
+	};
+	// (FlightGear a320-spoilers.xml: 50 deg full, 35 deg a second with hydraulics; the reverser doors' travel about 2 s)
+	constexpr float SpoilFull = 50.f, SpoilRate = 35.f, RollSpoilMax = 12.f, RevOpenDeg = 70.f, RevTravel = 2.f;
+	float RodRun(float Deg)
+	{
+		static const float X[6] = {0.f, 10.f, 20.f, 30.f, 40.f, 50.f}, Y[6] = {-2.0f, -0.8f, 0.4f, 1.6f, 2.4f, 3.3f};   // (cm)
+		return SurfLerp(X, Y, 6, Deg);
+	}
+}
+
+void ASimTraffic::Spoilers(FMove& M, float Dt)
+{
+	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
+	const bool bGround = M.Height < 0.05f;
+	const float Kt = M.Speed / KtMs;
+	if (!M.bSpoil)
+	{
+		M.bSpoil = true; M.GSpoil.Reset();
+		int32 Found = 0, Want = 0;
+		for (const FSpoilHinge& H : SpTab)
+		{
+			const int32 G0 = B->BindGroup({H.Name}, false, FTransform(H.At)), G1 = B->BindGroup({H.Act}, false, FTransform(H.ActAt));
+			const int32 G2 = B->BindGroup({FString(H.Act).Replace(TEXT("Actuator"), TEXT("ActuatorRod"))}, false, FTransform(H.ActAt));
+			M.GSpoil.Append({G0, G1, G2}); Found += (G0 != INDEX_NONE) + (G1 != INDEX_NONE) + (G2 != INDEX_NONE); Want += 3;
+			if (G0 == INDEX_NONE) ADP_WARN(TEXT("Traffic: %s has no part %s - it stays down"), *M.Reg, H.Name);
+		}
+		for (const FRevHinge& H : RevTab)
+		{
+			const int32 G = B->BindGroup({H.Name}, false, FTransform(H.At)); M.GSpoil.Add(G); Found += G != INDEX_NONE; ++Want;
+			if (G == INDEX_NONE) ADP_WARN(TEXT("Traffic: %s has no part %s - it stays stowed"), *M.Reg, H.Name);
+		}
+		ADP_LOG(TEXT("Traffic: %s spoilers and reversers - %d of %d parts bound"), *M.Reg, Found, Want);
+	}
+	// the ground spoilers (armed on the approach): all ten panels to 50 deg once the main gear is down on the runway, in again
+	// below about 20 kt (the roll-out's end) or once clear of it. The traffic has no rejected take-off yet (nothing to arm).
+	// In the air the roll spoilers 2-5 rise on the down-going wing, with the bank (+ right wing down)
+	uint8 St = 0;
+	if (M.Phase == EPhase::Rollout && bGround && Kt > 20.5f) St = 2;
+	else if (!bGround && (FMath::Abs(M.Bank) > 3.f || (M.SpoilSt == 1 && FMath::Abs(M.Bank) > 2.f))) St = 1;   // (a little hysteresis: no flicker of the log)
+	else if (M.Phase == EPhase::Approach) St = 3;
+	if (St != M.SpoilSt)
+	{
+		static const TCHAR* SWhy[4] = {TEXT("spoilers retracted"), TEXT("roll spoilers 2-5 up on the down-going wing"), TEXT("ground spoilers out, all ten panels to 50 deg"), TEXT("ground spoilers armed")};
+		if (M.SpoilSt != 255 || St != 0) ADP_LOG(TEXT("Traffic: %s %s at %.0f m, %.0f kt (bank %.0f deg, %s)"), *M.Reg, SWhy[St], M.Height, Kt, M.Bank,
+			M.Phase == EPhase::Rollout ? TEXT("rollout") : M.Phase == EPhase::TaxiIn ? TEXT("clear of the runway") : M.Phase == EPhase::Approach ? TEXT("approach") : TEXT("in flight"));
+		M.SpoilSt = St;
+	}
+	const float Roll = St == 1 ? FMath::Clamp(FMath::Abs(M.Bank) * 0.5f, 0.f, RollSpoilMax) : 0.f;
+	bool bMoved = M.SpoilShown < 0.f;
+	for (int32 k = 0; k < 5; ++k)
+	{
+		const float WL = St == 2 ? SpoilFull : (k > 0 && M.Bank < 0.f ? Roll : 0.f), WR = St == 2 ? SpoilFull : (k > 0 && M.Bank > 0.f ? Roll : 0.f);
+		const float L = FMath::FInterpConstantTo(M.SpoilL[k], WL, Dt, SpoilRate), R = FMath::FInterpConstantTo(M.SpoilR[k], WR, Dt, SpoilRate);
+		bMoved |= L != M.SpoilL[k] || R != M.SpoilR[k]; M.SpoilL[k] = L; M.SpoilR[k] = R;
+	}
+	// the reversers: selected right after the main gear touches, the doors out in about 2 s (Haze() gives reverse power only
+	// once they are open, as the engines spool up), back to reverse idle and stowed at about 70 kt, fully in before the taxi
+	const bool bSelect = M.Phase == EPhase::Rollout && bGround && Kt > 70.f;
+	const uint8 RSt = bSelect ? (M.RevPos >= 1.f ? 2 : 1) : (M.RevPos > 0.f ? 3 : 0);
+	if (RSt != M.RevSt)
+	{
+		static const TCHAR* RWhy[4] = {TEXT("stowed"), TEXT("deploying (pivot doors opening)"), TEXT("deployed, reverse thrust"), TEXT("stowing")};
+		if (M.RevSt != 255 || RSt != 0) ADP_LOG(TEXT("Traffic: %s thrust reversers %s at %.0f kt (%s)"), *M.Reg, RWhy[RSt], Kt, M.Phase == EPhase::Rollout ? TEXT("rollout") : M.Phase == EPhase::TaxiIn ? TEXT("taxi-in") : TEXT("-"));
+		M.RevSt = RSt;
+	}
+	const float RevNow = FMath::FInterpConstantTo(M.RevPos, bSelect ? 1.f : 0.f, Dt, 1.f / RevTravel);
+	bMoved |= RevNow != M.RevPos; M.RevPos = RevNow;
+	if (!bMoved) return;
+	M.SpoilShown = 1.f;
+	for (int32 i = 0; i < int32(UE_ARRAY_COUNT(SpTab)) && i * 3 + 2 < M.GSpoil.Num(); ++i)
+	{
+		const FSpoilHinge& H = SpTab[i];
+		const float Deg = i < 5 ? M.SpoilL[i] : M.SpoilR[i - 5];
+		if (M.GSpoil[i * 3] != INDEX_NONE) B->MoveGroup(M.GSpoil[i * 3], FTransform(FQuat(H.Axis.GetSafeNormal(), FMath::DegreesToRadians(Deg)), H.At));
+		const FQuat QA(H.ActAxis.GetSafeNormal(), FMath::DegreesToRadians(Deg * H.Fac));
+		if (M.GSpoil[i * 3 + 1] != INDEX_NONE) B->MoveGroup(M.GSpoil[i * 3 + 1], FTransform(QA, H.ActAt));
+		// (the rod: turned with its cylinder, then out along the turned line - FlightGear's order)
+		if (M.GSpoil[i * 3 + 2] != INDEX_NONE) B->MoveGroup(M.GSpoil[i * 3 + 2], FTransform(QA, H.ActAt + QA.RotateVector(H.Dir.GetSafeNormal() * RodRun(Deg))));
+	}
+	const int32 R0 = int32(UE_ARRAY_COUNT(SpTab)) * 3;
+	for (int32 i = 0; i < int32(UE_ARRAY_COUNT(RevTab)) && R0 + i < M.GSpoil.Num(); ++i)
+		if (M.GSpoil[R0 + i] != INDEX_NONE) B->MoveGroup(M.GSpoil[R0 + i], FTransform(FQuat(RevTab[i].Axis.GetSafeNormal(), FMath::DegreesToRadians(RevOpenDeg * M.RevPos)), RevTab[i].At));
 	B->FlushMoves();
 }
 

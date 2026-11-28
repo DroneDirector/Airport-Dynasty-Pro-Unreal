@@ -102,6 +102,10 @@ private:
 		TArray<int32> GSurf; bool bSurf = false; int8 Conf = -1; uint8 ElevSt = 255, AilSt = 255, RudSt = 255;
 		float FlapDeg = 0.f, SlatDeg = 0.f, Elev = 0.f, AilL = 0.f, AilR = 0.f, Rud = 0.f, Bank = 0.f, Track = 0.f, TurnRate = 0.f, SurfT = 0.f;
 		float SurfShown[6] = {-99.f, -99.f, -99.f, -99.f, -99.f, -99.f};
+		// spoilers and reversers (Spoilers(), FlightGear's hinges, Art/A320/a320_surfaces.py SPOIL lines): ground spoilers 1-5
+		// at 50 deg on touchdown, roll spoilers 2-5 on the down-going wing; the CFM56's four pivot doors per engine (RevPos 0..1)
+		TArray<int32> GSpoil; bool bSpoil = false; uint8 SpoilSt = 255, RevSt = 255;
+		float SpoilL[5] = {}, SpoilR[5] = {}, RevPos = 0.f, SpoilShown = -1.f;
 	};
 	TSet<FString> TugCalled;   // (arrivals whose tug driver was called)
 	float SlipPoll = 0.f;
@@ -123,6 +127,7 @@ private:
 	void Blink(FMove& M);
 	void Gear(FMove& M, float Dt);
 	void Surfaces(FMove& M, float Dt);   // flaps, slats, ailerons, elevators, rudder: the real schedule (step B)
+	void Spoilers(FMove& M, float Dt);   // ground and roll spoilers, the CFM56 reverser doors
 	void Haze(FMove& M, float Dt);     // the engines' heat haze: made once, then its strength by the thrust
 	bool RunwayToX1() const;   // the take-off and landing direction from the real wind (true: towards the runway's x1 end)
 };
