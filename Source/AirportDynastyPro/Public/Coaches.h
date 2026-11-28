@@ -60,6 +60,10 @@ public:
 	/** Tests: a coach's door / bay middle (world), the way out of it. */
 	bool DoorSpot(int32 Coach, int32 Door, FVector& At, FVector& Out) const;
 	bool BaySpot(int32 Coach, int32 Bay, FVector& At, FVector& Out) const;
+	/** By a door's outside, on the ground beside it (world): Along m from the door's middle towards the rear, Out m out from the
+	 * body side. ButtonStand: where you stand to press its outside button - behind the rear leaf's swing, within arm's reach. */
+	FVector DoorSide(int32 Coach, int32 Door, float Along, float Out) const;
+	bool ButtonStand(int32 Coach, int32 Door, FVector& Stand) const;
 	bool IsInside(const FVector& At, int32* Which = nullptr) const;
 	/** A coach's frame (world; Blender's (x, y, z) m at (x, -y, z) * 100 in it). */
 	FTransform RootOf(int32 Coach) const { return Coaches.IsValidIndex(Coach) ? RootW(Coaches[Coach]) : FTransform::Identity; }

@@ -143,11 +143,17 @@ namespace ADPStressWalkInternal
 			for (int32 s = 1; s <= 3; ++s) Along.Add(DAt + DOut * 200.f + Fw * (Sg * s * 1300.f));
 			Part(TEXT("walking up close along the coaches"), EWalkKind::Walk, Along, 60.f, true);
 			Part(TEXT("looking along the coaches up close"), EWalkKind::Look, {}, 8.f, false);
-			Part(TEXT("back to a coach's front door"), EWalkKind::Walk, {DAt + DOut * 130.f}, 40.f, true);
-			Part(TEXT("opening the coach's front door (E)"), EWalkKind::CoachDoor, {}, 2.5f, false);
-			Part(TEXT("into the coach and down its aisle"), EWalkKind::Direct, {DAt - DOut * 60.f + FVector(0, 0, 60.f), InCoach(5.30f, -0.27f, 1.45f), InCoach(4.45f, -0.27f, 1.45f), InCoach(3.80f, -0.05f, 1.45f), InCoach(1.5f, 0.f, 1.45f), InCoach(-1.5f, 0.f, 1.45f), InCoach(-4.9f, 0.f, 1.45f)}, 45.f, true);
+			// (to the door's button, behind its rear edge, and back out round the rear leaf: it swings out 0.6 m on that edge, so the
+			// way in goes a metre out past its tip, then straight in through the middle - 2026-11-27 the walker stood 1.3 m out, beyond
+			// the arm's reach, the door stayed shut and the walker pressed on it for the whole aisle)
+			FVector Btn = DAt; Co->ButtonStand(K, 0, Btn);
+			const FVector BtnOut = Co->DoorSide(K, 0, 0.99f, 1.0f), MidOut = Co->DoorSide(K, 0, 0.f, 1.0f), MidNear = Co->DoorSide(K, 0, 0.f, 0.25f);
+			Part(TEXT("back to a coach's front door"), EWalkKind::Walk, {BtnOut}, 40.f, true);
+			Part(TEXT("up to the coach door's button"), EWalkKind::Direct, {Btn}, 10.f, true);
+			Part(TEXT("opening the coach's front door (E)"), EWalkKind::CoachDoor, {}, 4.f, false);
+			Part(TEXT("into the coach and down its aisle"), EWalkKind::Direct, {BtnOut, MidOut, MidNear, DAt - DOut * 60.f + FVector(0, 0, 60.f), InCoach(5.30f, -0.27f, 1.45f), InCoach(4.45f, -0.27f, 1.45f), InCoach(3.80f, -0.05f, 1.45f), InCoach(1.5f, 0.f, 1.45f), InCoach(-1.5f, 0.f, 1.45f), InCoach(-4.9f, 0.f, 1.45f)}, 60.f, true);
 			Part(TEXT("looking round at the back of the coach"), EWalkKind::Look, {}, 8.f, false);
-			Part(TEXT("back up the aisle and out"), EWalkKind::Direct, {InCoach(-1.5f, 0.f, 1.45f), InCoach(1.5f, 0.f, 1.45f), InCoach(3.80f, -0.05f, 1.45f), InCoach(4.45f, -0.27f, 1.45f), InCoach(5.30f, -0.27f, 1.45f), DAt - DOut * 60.f + FVector(0, 0, 60.f), DAt + DOut * 150.f}, 45.f, true);
+			Part(TEXT("back up the aisle and out"), EWalkKind::Direct, {InCoach(-1.5f, 0.f, 1.45f), InCoach(1.5f, 0.f, 1.45f), InCoach(3.80f, -0.05f, 1.45f), InCoach(4.45f, -0.27f, 1.45f), InCoach(5.30f, -0.27f, 1.45f), DAt - DOut * 60.f + FVector(0, 0, 60.f), MidNear, MidOut, BtnOut, Btn}, 60.f, true);
 			Part(TEXT("shutting the coach's front door (E)"), EWalkKind::CoachDoor, {}, 2.5f, false);
 			// the main hall: the coaches seen through its glass
 			Part(bNight ? TEXT("at night: in the main hall") : TEXT("in the main hall"), EWalkKind::Go, {FVector(75.f, 0.f, 15.f)}, 0.f, false);
@@ -502,7 +508,7 @@ void ADPStressWalk::Tick(UWorld* W, APlayerController* PC, float Dt)
 		PC->SetControlRotation(FMath::RInterpTo(PC->GetControlRotation(), FRotator(-4.f, D.Rotation().Yaw, 0.f), Dt, 4.f));
 		if (D.Size() < WalkBestDist - 10.f) { WalkBestDist = D.Size(); WalkStuckT = 0.f; }
 		else if ((WalkStuckT += Dt) > 4.f) { ADP_WARN(TEXT("Stress walk: stuck in \"%s\" (%.0f cm short of a point) - on to the next"), Pt.What, D.Size()); ADPPerfLog::Mark(TEXT("(stuck, moved on)"));
-				if (ACoaches* Cs = ACoaches::Find()) { int32 Wc = 0; Cs->IsInside(Ch->GetActorLocation(), &Wc); const FVector Lc = Cs->RootOf(Wc).InverseTransformPosition(Ch->GetActorLocation() - FVector(0, 0, Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight())); const FVector Lt = Cs->RootOf(Wc).InverseTransformPosition(Pt.Points[FMath::Max(0, WalkPoint - 1)]); ADP_LOG(TEXT("Stress walk: (feet at x %.2f y %.2f z %.2f m in coach %d's frame, the point at x %.2f y %.2f)"), Lc.X / 100, -Lc.Y / 100, Lc.Z / 100, Wc, Lt.X / 100, -Lt.Y / 100);  static int32 Shots = 0; if (FParse::Param(FCommandLine::Get(), TEXT("CoachWalkQuick")) && Shots++ < 2) { PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x1080 filename=CoachStuck-%d"), Shots), true); ADP_LOG(TEXT("Stress walk: movement mode %d, velocity %.0f, floor %s"), int32(Ch->GetCharacterMovement()->MovementMode), Ch->GetVelocity().Size(), Ch->GetCharacterMovement()->CurrentFloor.HitResult.GetComponent() ? *Ch->GetCharacterMovement()->CurrentFloor.HitResult.GetComponent()->GetName() : TEXT("-")); } } ++WalkPoint; WalkStuckT = 0.f; WalkBestDist = 1e9f; }
+				if (ACoaches* Cs = ACoaches::Find()) { int32 Wc = 0; if (!Cs->IsInside(Ch->GetActorLocation(), &Wc)) { float Wd = 1e12f; for (int32 q = 0; q < Cs->Num(); ++q) { const float Dq = FVector::DistSquared(Cs->RootOf(q).GetLocation(), Ch->GetActorLocation()); if (Dq < Wd) { Wd = Dq; Wc = q; } } }   /* (outside: the nearest coach, not coach 0) */ const FVector Lc = Cs->RootOf(Wc).InverseTransformPosition(Ch->GetActorLocation() - FVector(0, 0, Ch->GetCapsuleComponent()->GetScaledCapsuleHalfHeight())); const FVector Lt = Cs->RootOf(Wc).InverseTransformPosition(Pt.Points[FMath::Max(0, WalkPoint - 1)]); ADP_LOG(TEXT("Stress walk: (feet at x %.2f y %.2f z %.2f m in coach %d's frame, the point at x %.2f y %.2f)"), Lc.X / 100, -Lc.Y / 100, Lc.Z / 100, Wc, Lt.X / 100, -Lt.Y / 100);  static int32 Shots = 0; if (FParse::Param(FCommandLine::Get(), TEXT("CoachWalkQuick")) && Shots++ < 2) { PC->ConsoleCommand(FString::Printf(TEXT("HighResShot 1920x1080 filename=CoachStuck-%d"), Shots), true); ADP_LOG(TEXT("Stress walk: movement mode %d, velocity %.0f, floor %s"), int32(Ch->GetCharacterMovement()->MovementMode), Ch->GetVelocity().Size(), Ch->GetCharacterMovement()->CurrentFloor.HitResult.GetComponent() ? *Ch->GetCharacterMovement()->CurrentFloor.HitResult.GetComponent()->GetName() : TEXT("-")); } } ++WalkPoint; WalkStuckT = 0.f; WalkBestDist = 1e9f; }
 		if (WalkPartT > Pt.Seconds) bDone = true;
 		break;
 	}

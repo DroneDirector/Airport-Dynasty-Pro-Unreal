@@ -217,6 +217,23 @@ bool ACoaches::DoorSpot(int32 Ci, int32 Door, FVector& At, FVector& Out) const
 	return true;
 }
 
+FVector ACoaches::DoorSide(int32 Ci, int32 Door, float Along, float Out) const
+{
+	using namespace CoachDim;
+	if (!Coaches.IsValidIndex(Ci) || Door < 0 || Door > 1) return FVector::ZeroVector;
+	return RootW(Coaches[Ci]).TransformPosition(Root(D2X((Doors[Door][0] + Doors[Door][1]) / 2 + Along), -(W / 2 + Out), 0.40f));
+}
+
+bool ACoaches::ButtonStand(int32 Ci, int32 Door, FVector& Stand) const
+{
+	using namespace CoachDim;
+	if (!Coaches.IsValidIndex(Ci) || Door < 0 || Door > 1) return false;
+	// 0.45 m behind the rear edge (the rear leaf swings out on that edge: clear of it by more than a body's half-width) and 0.45 m
+	// out from the side: the shoulder 0.75 m from the button (DoorButton_i, 1.15 m up) - inside the arm's 0.88 m that Pick asks
+	Stand = DoorSide(Ci, Door, (Doors[Door][1] - Doors[Door][0]) / 2 + 0.45f, 0.45f);
+	return true;
+}
+
 bool ACoaches::BaySpot(int32 Ci, int32 Bay, FVector& At, FVector& Out) const
 {
 	if (!Coaches.IsValidIndex(Ci) || Bay < 0 || Bay > 5 || Coaches[Ci].Bay[Bay].Group == INDEX_NONE) return false;
