@@ -1,3 +1,3 @@
 {"note": "The passenger doors of each aircraft model (to-do 212): in the model's own cm - x its right, y aft, z up, the root at the nose wheel on the ground. box: the model's bounds when the doors were measured; the game measures the model that really stands there and moves the doors with it, so a rescaled model needs no change here (measure again only when its shape changes). skin: the middle of the sill on the skin; turn: degrees the skin there is turned from straight out.",
- "A320": {"box": {"min": [-1672.1, -522.3, 0.0], "max": [1670.9, 3249.7, 1179.1]},
-  "doors": [{"name": "L1", "skin": [-200.0, -30.0], "sill": 387.0, "turn": 0.0}, {"name": "L2", "skin": [-157.0, 2477.0], "sill": 349.0, "turn": 11.0}]}}
+ "A320": {"box": {"min": [-1685.5, -516.0, 0.0], "max": [1685.5, 3244.0, 1232.0]},
+  "doors": [{"name": "L1", "skin": [-196.0, -14.0], "sill": 376.0, "turn": 0.0}, {"name": "L2", "skin": [-178.0, 2449.0], "sill": 386.0, "turn": 11.0}]}}

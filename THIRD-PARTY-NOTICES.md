@@ -56,6 +56,15 @@ Art/Sounds/CargoTerminal/SOURCES.md. Its doors reuse the fire station's door and
 Art/Sounds/Office/Knock.wav (made by Tools/make_office_knock_sound.py): "Knocking On a Wooden Door" by ExplosiveTamale,
 https://freesound.org/people/ExplosiveTamale/sounds/448359/, CC0 1.0 (public domain); details in Art/Sounds/Office/SOURCES.md.
 
+## A320 model - FlightGear A320-family (GNU GPL v2)
+Art/A320/A320.glb (made by Art/A320/make_a320_fg.py and Art/A320/clean_fg_textures.py) is the A320-200 CFM 3D model and
+textures of the FlightGear A320-family, https://github.com/legoboyvdlp/A320-family, Copyright (c) 2025 Josh Davidson,
+Jonathan Redpath, merspieler, Matthew Maring, Thorsten Herrmann, Semir Gebran (3D and textures: Semir Gebran/CaptB),
+licensed under version 2 of the GNU General Public License (full text: LICENSE in that repository). Changed for the game:
+turned and moved into the game's frame, parts renamed, hinge points set, parts moved a hair apart; livery, airline marks,
+registration and engine/maker texts painted out (plain white fuselage, grey tail). The changed model and the two scripts
+are available under the same licence. The game's own earlier A320 is kept as Art/A320/A320-own.glb.
+
 ## Meshy models (owner's own)
 The models listed in Art/MeshyIntake/README.md (lorry, cargo vehicles, aircraft, received 2026-11-26) were made by the
 owner with Meshy AI (https://www.meshy.ai) on a paid plan that includes commercial use; the owner holds the rights to

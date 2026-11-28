@@ -4,8 +4,8 @@
 // back onto the platform, raises it with the held lever, locks the nozzle on the wing's coupling over his head, comes down,
 // pumps the flight's own fuel with the dead man in his hand (about 1000 l a minute), and puts it all back in order. One
 // stage after the other (FSvcJob::Stage): whoever takes over goes on from the last one finished.
-// The coupling: under the right wing's leading edge, 9.9 m out, 11.75 m behind the nose wheel, 3.80 m up - measured on the
-// game's A320 (Art/A320/A320.glb: the wing's underside there), where the real one has its refuelling panel.
+// The coupling: under the right wing's leading edge, 9.9 m out, 12.0 m behind the nose wheel, 3.96 m up - measured on the
+// game's A320 (Art/A320/A320.glb, the FlightGear model: the wing's underside there), where the real one has its refuelling panel.
 #include "GSEFuel.h"
 #include "GSECater.h"
 #include "GSEWater.h"
@@ -30,7 +30,7 @@ namespace
 	const FVector FuUp(0, 0, 1);
 	const float FuFloor = 145.f;                              // (the platform's floor, down)
 	const FVector FuWork(-430.f, -62.f, 0.f);
-	const FVector FuCouplePlane(990.f, 1175.f, 380.f);        // (the aircraft's root, at the nose wheel: x its right, y aft)
+	const FVector FuCouplePlane(990.f, 1200.f, 396.f);        // (the aircraft's root, at the nose wheel: x its right, y aft)
 	const FVector FuGear(395.f, 1264.f, 135.f);               // (the right main gear's leg, above the wheels)
 	const FVector FuNozStand(-533.f, -106.f, 0.f);
 }
@@ -357,7 +357,7 @@ void AGSE::FuelArrive(int32 Job)
 		}
 	const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
 	auto Loc = [&](const FVector& L) { return Root.InverseTransformPosition(Pl ? Pl->GetActorTransform().TransformPosition(L) : FVector(PlanT(S, S - L.X / 100.f, N + L.Y / 100.f) + FuUp * L.Z)); };
-	const FVector C = Loc(FuCouplePlane), Want(FuWork.X, -118.f, 380.f);
+	const FVector C = Loc(FuCouplePlane), Want(FuWork.X, -118.f, 396.f);
 	F.Couple = Want + (C - Want).GetClampedToMaxSize(45.f); F.ClampAt = Loc(FuGear);
 	if (FVector::Dist(C, Want) > 45.f) ADP_WARN(TEXT("GSE: the %s stands %.0f cm off the coupling of %s"), *T.Name, FVector::Dist(C, Want), *J->Reg);
 	ADP_LOG(TEXT("GSE: the %s at %s - %.0f l, the coupling at (%.0f, %.0f, %.0f) of it"), *T.Name, *J->Reg, J->Litres, C.X, C.Y, C.Z);
@@ -594,7 +594,7 @@ void AGSE::YouSee(FTractor& T)
 	FVector C; const AActor* Pl = nullptr; const FTransform Root(FRotator(0.f, T.Yaw, 0.f), T.At);
 	if (T.Fu && !T.Fu->bConn && !T.Fu->Rt.bConn)
 	{
-		FSvcRefuel& F = *T.Fu; const FVector Want(FuWork.X, -118.f, 380.f); const int32 J = YouJob(T, FuCouplePlane, Want, 45.f, C, &Pl); F.bSeen = J != INDEX_NONE; F.SeenAt = GetWorld()->GetTimeSeconds();
+		FSvcRefuel& F = *T.Fu; const FVector Want(FuWork.X, -118.f, 396.f); const int32 J = YouJob(T, FuCouplePlane, Want, 45.f, C, &Pl); F.bSeen = J != INDEX_NONE; F.SeenAt = GetWorld()->GetTimeSeconds();
 		if (F.bSeen) { F.Couple = C; F.ClampAt = Root.InverseTransformPosition(Pl->GetActorTransform().TransformPosition(FuGear)); F.YouStandX = SvcJobs[J].StandX; }
 	}
 }

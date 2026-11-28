@@ -28,8 +28,8 @@
 namespace
 {
 	const FVector WaUp(0, 0, 1);
-	const FVector WaPanel[2] = {FVector(-30.f, 2620.f, 293.f), FVector(80.f, 2620.f, 313.f)};   // (the aircraft's root, at the nose wheel: x its right, y aft)
-	const FVector WaWant[2] = {FVector(-240.f, -30.f, 293.f), FVector(-212.f, 5.f, 313.f)};     // (where they are from the truck in its place)
+	const FVector WaPanel[2] = {FVector(-30.f, 2620.f, 327.f), FVector(80.f, 2620.f, 347.f)};   // (the aircraft's root, at the nose wheel: x its right, y aft)
+	const FVector WaWant[2] = {FVector(-240.f, -30.f, 327.f), FVector(-212.f, 5.f, 347.f)};     // (where they are from the truck in its place)
 	const FVector WaWork[2] = {FVector(-240.f, 6.f, 0.f), FVector(-246.f, 4.f, 0.f)};           // (where the driver stands on the platform for them)
 	const float WaRinseY = 22.f, WaGiveUp = 2400.f;   // (the rinse nipple beside the drain; 40 min of waiting for the place)
 	const float ToRinse = 550.f, ToWaste = 1500.f, ToDrainL = 0.7f, ToRinseL = 1.f / 3.f;   // (its tanks; 168 l drained in 240 s, 40 l rinsed with in 120 s)
