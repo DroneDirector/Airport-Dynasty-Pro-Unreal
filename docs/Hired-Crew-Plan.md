@@ -1174,3 +1174,15 @@ truck drives its route by itself (FollowRoute: eased to a stop at about 1 m/s/s,
 way). The views test's `fire crew` / `fire out` / `firewait <s>` (PerfViews.cpp) send both trucks (the station's full set,
 docs/fire-station/SPEC.md) in turn to the taxiway A hold, round on taxiway A and back to the forecourt, nose to their bay.
 Not built yet: reversing into the bays, the crew getting out again, hired fire people taking this place.
+
+## Door points on the FlightGear A320 (2026-11-28, compiled, NOT run)
+- Tools/make_aircraft_doors.py measures every door on Art/A320/A320.glb (L1, L4, R1, R4, Cargo1 fwd, Cargo2 aft, Cargo3
+  bulk) and writes Data/aircraft-doors.json: frame, skin + sill + turn + outward direction, hinge, handle out/in (hand IK
+  open/close), outside stand (0.6 m out, sill height), inside stand, dock (5 cm off the skin). Order kept: 0 L1, 1 L4.
+- Passenger handles = the handle placard decal aft of each door's middle (hinges are forward); cargo doors have no handle
+  part in the model: 15 cm up from the lower edge's middle (Airbus layout).
+- Reader: Source/.../AircraftDoors.h/.cpp (ADPDoors::Find, AlongM, NoseY). Users: GSECater (R1/R4, ambulift too),
+  GSEStairs (own reader, L1/L4), GSELoader + GSELoaderYou (bulk door middle), JetwayRigs SetDoor (L1 of a measured type),
+  Tools/make_aircraft_workpoints.py (cargo door work points from the frames).
+- Left: nobody puts a hand on an aircraft door handle yet - A320Parts opens the doors from the turnaround tasks; a crew
+  hand-IK step at HandleOut/HandleIn is the next step. ADPGround's ground-gate guess still uses its own L1 estimate.

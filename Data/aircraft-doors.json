@@ -1,3 +1,441 @@
-{"note": "The passenger doors of each aircraft model (to-do 212): in the model's own cm - x its right, y aft, z up, the root at the nose wheel on the ground. box: the model's bounds when the doors were measured; the game measures the model that really stands there and moves the doors with it, so a rescaled model needs no change here (measure again only when its shape changes). skin: the middle of the sill on the skin; turn: degrees the skin there is turned from straight out.",
- "A320": {"box": {"min": [-1685.5, -516.0, 0.0], "max": [1685.5, 3244.0, 1202.0]},
-  "doors": [{"name": "L1", "skin": [-196.0, -14.0], "sill": 346.0, "turn": 0.0}, {"name": "L2", "skin": [-178.0, 2449.0], "sill": 356.0, "turn": 11.0}]}}
+{
+ "note": "Writes Data/aircraft-doors.json: every door of the game's A320 (the FlightGear A320-200 model, Art/A320/A320.glb, as Art/A320/make_a320_fg.py builds it) measured on the model itself - no guessed numbers. Frame: the model's own cm - x its right, y aft, z up, the root at the nose wheel on the ground (glTF x, z, y * 100). Per door, from the door's own part (DoorL1/R1/L4/R4, Cargo1/2/3, their .Inner faces and .Placards, DoorHingeL1/R1/L2/R2): frame     the closed door's bounds skin      [x, y]: the middle of the sill on the outer skin; sill: its height; turn: degrees the skin there is turned from straight out (toward the tail; the cater truck, stairs and jetways square up to it) out       [x, y]: the skin's outward direction in plan (unit) hinge     the hinge line's middle (passenger doors: the hinge arm's forward pivot; cargo 1/2: the top edge; bulk: top edge) handle    out: the outside handle (hand IK to open and to close from outside), in: the inside handle (from the cabin/hold) passenger doors: the middle of the handle placard on the door (the decal island nearest the door's middle); cargo doors: the model has no handle part - the locking handle sits in the middle of the lower edge (Airbus layout), so 15 cm up the skin from the lower edge's middle outside   where a person stands outside the door, on the stair, jetway, catering or belt-loader top: 0.6 m out, sill height inside    where a person stands inside the open door: 0.6 m in (cabin floor / hold floor at the sill) dock      where the jetway's or stair's bumper, the cater box's or loader's front stops: 5 cm off the skin at the sill box: the model's bounds when measured; the game moves the points with the model's real size (GSEStairs.cpp, AircraftDoors.cpp). The order of \"doors\" is kept: 0 L1, 1 L4 (the stairs' front and rear door), then R1, R4, Cargo1, Cargo2, Cargo3. Run: python Tools/make_aircraft_doors.py  (then python Tools/make_aircraft_workpoints.py: the cargo door work points follow)",
+ "source": "measured on Art/A320/A320.glb by Tools/make_aircraft_doors.py",
+ "A320": {
+  "box": {
+   "min": [
+    -1705.1,
+    -516.3,
+    0.0
+   ],
+   "max": [
+    1704.8,
+    3243.6,
+    1202.4
+   ]
+  },
+  "nose": -516.3,
+  "doors": [
+   {
+    "name": "L1",
+    "part": "DoorL1",
+    "skin": [
+     -194.2,
+     -14.1
+    ],
+    "sill": 345.5,
+    "turn": -3.1,
+    "out": [
+     -0.9985,
+     -0.0547
+    ],
+    "frame": {
+     "min": [
+      -196.3,
+      -64.5,
+      345.5
+     ],
+     "max": [
+      -91.1,
+      36.2,
+      559.8
+     ]
+    },
+    "hinge": [
+     -160.5,
+     -63.7,
+     426.7
+    ],
+    "handle": {
+     "out": [
+      -189.1,
+      1.5,
+      435.6
+     ],
+     "in": [
+      -177.1,
+      1.5,
+      435.6
+     ],
+     "from": "the handle placard on the door (DoorL1.Placards)",
+     "opens": "lift the handle, the door swings out and forward on its arm (A320Parts.cpp, 5 s)"
+    },
+    "outside": [
+     -254.2,
+     -17.4,
+     345.5
+    ],
+    "inside": [
+     -134.3,
+     -10.9,
+     345.5
+    ],
+    "dock": [
+     -199.2,
+     -14.4,
+     345.5
+    ]
+   },
+   {
+    "name": "L4",
+    "part": "DoorL4",
+    "skin": [
+     -170.1,
+     2449.3
+    ],
+    "sill": 355.9,
+    "turn": 9.1,
+    "out": [
+     -0.9875,
+     0.1574
+    ],
+    "frame": {
+     "min": [
+      -177.7,
+      2401.1,
+      355.9
+     ],
+     "max": [
+      -81.6,
+      2497.5,
+      579.1
+     ]
+    },
+    "hinge": [
+     -155.9,
+     2400.1,
+     437.1
+    ],
+    "handle": {
+     "out": [
+      -167.7,
+      2472.9,
+      467.1
+     ],
+     "in": [
+      -155.7,
+      2472.9,
+      467.1
+     ],
+     "from": "the handle placard on the door (DoorL4.Placards)",
+     "opens": "lift the handle, the door swings out and forward on its arm (A320Parts.cpp, 5 s)"
+    },
+    "outside": [
+     -229.4,
+     2458.8,
+     355.9
+    ],
+    "inside": [
+     -110.9,
+     2439.9,
+     355.9
+    ],
+    "dock": [
+     -175.1,
+     2450.1,
+     355.9
+    ]
+   },
+   {
+    "name": "R1",
+    "part": "DoorR1",
+    "skin": [
+     193.9,
+     -14.1
+    ],
+    "sill": 345.5,
+    "turn": -3.1,
+    "out": [
+     0.9985,
+     -0.0545
+    ],
+    "frame": {
+     "min": [
+      91.6,
+      -64.5,
+      345.5
+     ],
+     "max": [
+      196.0,
+      36.2,
+      559.8
+     ]
+    },
+    "hinge": [
+     158.9,
+     -63.7,
+     425.5
+    ],
+    "handle": {
+     "out": [
+      188.8,
+      1.5,
+      435.6
+     ],
+     "in": [
+      176.8,
+      1.5,
+      435.6
+     ],
+     "from": "the handle placard on the door (DoorR1.Placards)",
+     "opens": "lift the handle, the door swings out and forward on its arm (A320Parts.cpp, 5 s)"
+    },
+    "outside": [
+     253.8,
+     -17.4,
+     345.5
+    ],
+    "inside": [
+     134.0,
+     -10.9,
+     345.5
+    ],
+    "dock": [
+     198.9,
+     -14.4,
+     345.5
+    ]
+   },
+   {
+    "name": "R4",
+    "part": "DoorR4",
+    "skin": [
+     169.9,
+     2449.3
+    ],
+    "sill": 355.9,
+    "turn": 9.1,
+    "out": [
+     0.9875,
+     0.1574
+    ],
+    "frame": {
+     "min": [
+      81.4,
+      2401.1,
+      355.9
+     ],
+     "max": [
+      177.5,
+      2497.5,
+      579.1
+     ]
+    },
+    "hinge": [
+     155.7,
+     2400.1,
+     436.0
+    ],
+    "handle": {
+     "out": [
+      167.8,
+      2472.9,
+      467.1
+     ],
+     "in": [
+      155.8,
+      2472.9,
+      467.1
+     ],
+     "from": "the handle placard on the door (DoorR4.Placards)",
+     "opens": "lift the handle, the door swings out and forward on its arm (A320Parts.cpp, 5 s)"
+    },
+    "outside": [
+     229.2,
+     2458.8,
+     355.9
+    ],
+    "inside": [
+     110.7,
+     2439.9,
+     355.9
+    ],
+    "dock": [
+     174.9,
+     2450.1,
+     355.9
+    ]
+   },
+   {
+    "name": "Cargo1",
+    "part": "Cargo1",
+    "skin": [
+     93.2,
+     301.0
+    ],
+    "sill": 189.1,
+    "turn": 0.0,
+    "out": [
+     1.0,
+     0.0
+    ],
+    "frame": {
+     "min": [
+      64.7,
+      209.7,
+      189.1
+     ],
+     "max": [
+      191.2,
+      392.4,
+      340.1
+     ]
+    },
+    "hinge": [
+     190.6,
+     301.0,
+     336.7
+    ],
+    "handle": {
+     "out": [
+      97.1,
+      301.0,
+      204.1
+     ],
+     "in": [
+      85.1,
+      301.0,
+      204.1
+     ],
+     "from": "the lower edge, 15 cm up (no handle part on the model)",
+     "opens": "unlock at the handle, the door swings up about its top edge (10 s); from outside only"
+    },
+    "outside": [
+     153.2,
+     301.0,
+     189.1
+    ],
+    "inside": [
+     13.2,
+     301.0,
+     189.1
+    ],
+    "dock": [
+     98.2,
+     301.0,
+     189.1
+    ]
+   },
+   {
+    "name": "Cargo2",
+    "part": "Cargo2",
+    "skin": [
+     110.2,
+     1752.2
+    ],
+    "sill": 195.2,
+    "turn": 5.5,
+    "out": [
+     0.9953,
+     0.0965
+    ],
+    "frame": {
+     "min": [
+      64.1,
+      1660.7,
+      195.2
+     ],
+     "max": [
+      191.4,
+      1843.7,
+      346.3
+     ]
+    },
+    "hinge": [
+     190.6,
+     1752.2,
+     342.9
+    ],
+    "handle": {
+     "out": [
+      97.1,
+      1752.2,
+      210.2
+     ],
+     "in": [
+      85.1,
+      1752.2,
+      210.2
+     ],
+     "from": "the lower edge, 15 cm up (no handle part on the model)",
+     "opens": "unlock at the handle, the door swings up about its top edge (10 s); from outside only"
+    },
+    "outside": [
+     169.9,
+     1758.0,
+     195.2
+    ],
+    "inside": [
+     30.6,
+     1744.5,
+     195.2
+    ],
+    "dock": [
+     115.2,
+     1752.7,
+     195.2
+    ]
+   },
+   {
+    "name": "Cargo3",
+    "part": "Cargo3",
+    "skin": [
+     81.9,
+     2111.6
+    ],
+    "sill": 206.7,
+    "turn": 8.5,
+    "out": [
+     0.989,
+     0.148
+    ],
+    "frame": {
+     "min": [
+      58.1,
+      2068.5,
+      206.7
+     ],
+     "max": [
+      162.7,
+      2154.7,
+      288.3
+     ]
+    },
+    "hinge": [
+     159.1,
+     2111.6,
+     286.1
+    ],
+    "handle": {
+     "out": [
+      79.9,
+      2111.6,
+      221.7
+     ],
+     "in": [
+      67.9,
+      2111.6,
+      221.7
+     ],
+     "from": "the lower edge, 15 cm up (no handle part on the model)",
+     "opens": "unlock at the handle, the door slides in and swings up inside (3 s)"
+    },
+    "outside": [
+     141.3,
+     2120.5,
+     206.7
+    ],
+    "inside": [
+     2.8,
+     2099.7,
+     206.7
+    ],
+    "dock": [
+     86.9,
+     2112.3,
+     206.7
+    ]
+   }
+  ]
+ }
+}

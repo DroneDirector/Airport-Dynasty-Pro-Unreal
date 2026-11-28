@@ -3,10 +3,12 @@
 // front service door, then the rear one; legs down, up into the body, up with it, the front roll-up door, the platform out
 // to the fuselage, its flap and rails; the full trolleys in and the empty ones out, one trip after the other; and all back.
 // One stage after the other (FSvcJob::Stage), one of the two working at a time: whoever is left goes on from the stage.
-// The doors (measured on Art/A320/A320.glb, the FlightGear model - make_a320_fg.py FGPOS): R1 0.14 m ahead of the nose
-// wheel, sill 3.46 m, skin 1.96 m out; R2 (R4) 24.49 m behind, sill 3.56 m, skin 1.78 m out and turned 11 deg. The aircraft is one mesh: its doors do not open and there is no
+// The doors: R1 and R4 as Tools/make_aircraft_doors.py measured them on Art/A320/A320.glb (Data/aircraft-doors.json): R1
+// 0.14 m ahead of the nose wheel, sill 3.46 m, skin 1.94 m out, turned 3 deg forward; R4 24.49 m behind, sill 3.56 m, skin
+// 1.70 m out and turned 9 deg toward the tail. The aircraft is one mesh: its doors do not open and there is no
 // cabin (to-do 209) - a knock on it, and with their trolley they are out of sight at the sill, as the cleaners at theirs.
 #include "GSECater.h"
+#include "AircraftDoors.h"
 #include "GSE.h"
 #include "VehicleControls.h"
 #include "GameFramework/PlayerController.h"
@@ -25,8 +27,14 @@ namespace
 	const float CtRearPatience = 1200.f;   // (20 min at the front door for the rear one to come free)
 	const FVector CtUp(0, 0, 1);
 	const float CtFloor = 150.f, CtDeck = 136.5f, CtSlide = 295.f, CtReach = 531.3f + 3.f, CtCabinSeconds = 14.f, CtLane = -20.43f;
-	const FVector2D CtSkin[2] = {FVector2D(196.0, -14.0), FVector2D(178.0, 2449.0)};   // (right of the centre line, behind the nose wheel)
-	const float CtSill[2] = {346.f, 356.f}, CtTurn[2] = {0.f, 11.f};
+	// R1 and R4: measured on the model (Data/aircraft-doors.json, Tools/make_aircraft_doors.py); these if the file is missing
+	struct FCtDoors
+	{
+		FVector2D Skin[2] = {FVector2D(196.0, -14.0), FVector2D(178.0, 2449.0)};   // (right of the centre line, behind the nose wheel)
+		float Sill[2] = {346.f, 356.f}, Turn[2] = {0.f, 11.f};
+		FCtDoors() { const TCHAR* Nm[2] = {TEXT("R1"), TEXT("R4")}; for (int32 d = 0; d < 2; ++d) if (const ADPDoors::FDoor* Dr = ADPDoors::Find(TEXT("A320"), Nm[d])) { Skin[d] = Dr->Skin; Sill[d] = Dr->Sill; Turn[d] = Dr->Turn; } }
+	};
+	const FCtDoors& CtDoors() { static const FCtDoors Ds; return Ds; }
 	const FVector2D CtW[2] = {FVector2D(171.0, -80.0), FVector2D(165.0, 75.0)};        // (where the two wait in the body)
 	// the trolleys' places (Art/CateringTruck/cateringtruck-parts.json stock)
 	struct FCtPlace { float X, Y; };
@@ -259,9 +267,9 @@ void AGSE::CaterDock(const FSvcJob& J, int32 Door, FVector2f& At, FVector2f& Hd,
 			const double D = FVector::Dist2D(It->GetActorLocation(), Nose); if (D < Bd) { Bd = D; Pl = *It; }
 		}
 	// (the aircraft's root at its nose wheel: x its right, y aft - where it really stands)
-	const float A = FMath::DegreesToRadians(CtTurn[Door]); const FVector2D O(FMath::Cos(A), FMath::Sin(A)), K = CtSkin[Door] + O * (Tractors.IsValidIndex(J.Ti) && Tractors[J.Ti].Am ? 499.0 : double(CtReach));   // (the ambulift's platform ends 4.96 m ahead of its middle)
+	const float A = FMath::DegreesToRadians(CtDoors().Turn[Door]); const FVector2D O(FMath::Cos(A), FMath::Sin(A)), K = CtDoors().Skin[Door] + O * (Tractors.IsValidIndex(J.Ti) && Tractors[J.Ti].Am ? 499.0 : double(CtReach));   // (the ambulift's platform ends 4.96 m ahead of its middle)
 	auto World = [&](const FVector2D& L, float Z) { return Pl ? Pl->GetActorTransform().TransformPosition(FVector(L.X, L.Y, Z)) : FVector(PlanT(S, S - float(L.X) / 100.f, N + float(L.Y) / 100.f) + CtUp * Z); };
-	const FVector Wo = World(K, 0.f), Ws = World(CtSkin[Door], CtSill[Door]);
+	const FVector Wo = World(K, 0.f), Ws = World(CtDoors().Skin[Door], CtDoors().Sill[Door]);
 	At = FVector2f(float(Wo.X) / 100.f, float(-Wo.Y) / 100.f); const FVector D = Ws - Wo; Hd = FVector2f(float(D.X), float(-D.Y)).GetSafeNormal(); SillZ = float(Ws.Z);
 }
 
@@ -929,7 +937,7 @@ void AGSE::YouCater(FTractor& T, float Dt)
 			const AActor* Pl = WetPlane(J.StandX); if (!Pl) continue;
 			for (int32 d = 0; d < 2; ++d)
 			{
-				const FVector L = Root.InverseTransformPosition(Pl->GetActorTransform().TransformPosition(FVector(CtSkin[d].X, CtSkin[d].Y, CtSill[d])));
+				const FVector L = Root.InverseTransformPosition(Pl->GetActorTransform().TransformPosition(FVector(CtDoors().Skin[d].X, CtDoors().Skin[d].Y, CtDoors().Sill[d])));
 				if (L.X < 500.0 || L.X > 590.0 || FMath::Abs(L.Y) > 45.0) continue;
 				if (FMath::Abs(C.YouStandX - J.StandX) > 1.f || C.YouDoor != d) ADP_LOG(TEXT("GSE: your %s stands at %s's %s right door"), *T.Name, *J.Reg, d ? TEXT("rear") : TEXT("front"));
 				C.YouStandX = J.StandX; C.YouDoor = d; C.YouSill = float(L.Z);

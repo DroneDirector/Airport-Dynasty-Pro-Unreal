@@ -11,6 +11,7 @@
 //    out past the wingtip and the tail and home - away before the push (the push waits: AGSE::BusyAt)
 // Its driving, wheels, door, lamps, dirt and climbing are the tractor's (GSE.cpp / GSECrew.cpp) with its own measures.
 #include "GSE.h"
+#include "AircraftDoors.h"
 #include "Tugs.h"
 #include "CrewPose.h"
 #include "DepartureBelts.h"
@@ -160,13 +161,14 @@ void AGSE::LoaderApron(int32 Li)
 		U.Until = [this, Nose, S] { return !PlaneNear(Nose, 6000.f) && !CaterRear(S); };
 		U.AfterUntil = [this, Li, S, N]
 		{
+			const float Bk = ADPDoors::AlongM(TEXT("A320"), TEXT("Cargo3"), 21.1f);   // (Data/aircraft-doors.json: measured on the model)
 			// up beside the fuselage and square in to the bulk door: the bumper's face 1.75 m from the centre line (the skin
 			// at sill height), the door's middle 21.1 m behind the nose wheel (the FlightGear
 			// model's Cargo3: 20.69-21.55 m, sill 2.07 m - it was 19.6 m on our own model)
 			FTractor& V = Tractors[Li];
 			TArray<FVector> W2;
-			LegT(S, W2, S - 11.4f, N + 40.f, 0.f, -1.f, S - 11.4f, N + 26.6f, 0.f, -1.f, V.KTurnR);
-			LegT(S, W2, S - 11.4f, N + 26.6f, 0.f, -1.f, S - 5.69f, N + 21.1f, 1.f, 0.f, V.KTurnR);
+			LegT(S, W2, S - 11.4f, N + 40.f, 0.f, -1.f, S - 11.4f, N + Bk + 5.5f, 0.f, -1.f, V.KTurnR);
+			LegT(S, W2, S - 11.4f, N + Bk + 5.5f, 0.f, -1.f, S - 5.69f, N + Bk, 1.f, 0.f, V.KTurnR);
 			Go(V, MoveTemp(W2), false, [this, Li] { LoaderIn(Li); });
 		};
 	});
@@ -334,14 +336,15 @@ void AGSE::LoaderLeave(int32 Li)
 	ADP_LOG(TEXT("GSE: %s leaves the bulk hold door"), *L.Name);
 	// straight back from the door (the beeper), then round towards the tail and down the side, clear of the tailplane
 	TArray<FVector> R;
-	float Yw = 0.f; const FVector Back = PoseT(S, S - 16.f, N + 21.1f, 1.f, 0.f, Yw);
+	const float Bk = ADPDoors::AlongM(TEXT("A320"), TEXT("Cargo3"), 21.1f);   // (the bulk door's middle: Data/aircraft-doors.json)
+	float Yw = 0.f; const FVector Back = PoseT(S, S - 16.f, N + Bk, 1.f, 0.f, Yw);
 	Dubins(R, L.At, L.Yaw + 180.f, Back, Yw + 180.f, 600.f);
-	Go(L, MoveTemp(R), true, [this, Li, S, N]
+	Go(L, MoveTemp(R), true, [this, Li, S, N, Bk]
 	{
 		FTractor& U = Tractors[Li];
 		TArray<FVector> W;
-		LegT(S, W, S - 16.f, N + 21.1f, 1.f, 0.f, S - 10.5f, N + 26.6f, 0.f, 1.f, U.KTurnR);
-		LegT(S, W, S - 10.5f, N + 26.6f, 0.f, 1.f, S - 10.5f, N + 40.f, 0.f, 1.f, U.KTurnR);
+		LegT(S, W, S - 16.f, N + Bk, 1.f, 0.f, S - 10.5f, N + Bk + 5.5f, 0.f, 1.f, U.KTurnR);
+		LegT(S, W, S - 10.5f, N + Bk + 5.5f, 0.f, 1.f, S - 10.5f, N + 40.f, 0.f, 1.f, U.KTurnR);
 		Go(U, MoveTemp(W), false, [this, Li] { LoaderHome(Li); });
 	});
 }

@@ -1,6 +1,7 @@
 // To-do 238: the belt loader worked by you - its boom, its belt, its stops and its lamp by its own controls, through what
 // its crew use (GSELoader.cpp, GSEBags.cpp); at the bulk door it counts like theirs, and a crew go on with it when it is left.
 #include "GSE.h"
+#include "AircraftDoors.h"
 #include "VehicleControls.h"
 #include "CabControls.h"
 #include "ServiceVehicles.h"
@@ -17,7 +18,8 @@
 namespace
 {
 	const FVector LdPivot(-320.f, 0.f, 76.f);
-	const float LdSill = 9.22f, LdUp = 20.5f, LdOut = 5.69f, LdAft = 21.1f;   // (as its crew: GSELoader.cpp)
+	const float LdSill = 9.22f, LdUp = 20.5f, LdOut = 5.69f;   // (as its crew: GSELoader.cpp)
+	float LdAft() { return ADPDoors::AlongM(TEXT("A320"), TEXT("Cargo3"), 21.1f); }   // (the bulk door's middle, measured: Data/aircraft-doors.json)
 	enum : int32 { LdFwd = 1, LdStop, LdBack, LdCab, LdEStop, LdLamp, LbTakeCart, LbTakeFoot, LbTakeTop, LbTakeHold, LbPutFoot, LbPutCart, LbPutHold, LbPutTop, LbClimb };
 	enum : int32 { LdFChassis, LdFBoom, LdFJoy };
 	FTransform LdRot(const FVector& P, float Deg) { return FTransform(-P) * FTransform(FQuat(FVector::RightVector, FMath::DegreesToRadians(Deg)), P); }
@@ -72,7 +74,7 @@ void AGSE::YouLoader(int32 Li, float Dt)
 		{
 			float S = 0.f, N = 0.f, Sp = 36.f;
 			if (FVector::Dist2D(Plan(St.X, St.Nose), T.At) > 5500.f || !StandGeo(St.X, S, N, Sp) || Sp > 40.f || !WetPlane(S)) continue;
-			float Yw = 0.f; const FVector At = PlanPose(St.Frame(), -LdOut, LdAft, 1.f, 0.f, Yw), Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), D = At - T.At;
+			float Yw = 0.f; const FVector At = PlanPose(St.Frame(), -LdOut, LdAft(), 1.f, 0.f, Yw), Fw = FRotator(0.f, T.Yaw, 0.f).Vector(), D = At - T.At;
 			if (D.Size2D() > Best) continue;
 			Best = D.Size2D(); T.bLNear = true; T.LAhead = float(D | Fw); T.LAside = float(D.X * -Fw.Y + D.Y * Fw.X); T.LTurn = FMath::FindDeltaAngleDegrees(T.Yaw, Yw);
 			T.LYouX = T.LAhead > -5.f && T.LAhead < 40.f && FMath::Abs(T.LAside) < 35.f && FMath::Abs(T.LTurn) < 5.f ? S : -1e6f;

@@ -1,4 +1,5 @@
 #include "JetwayRigs.h"
+#include "AircraftDoors.h"
 #include "InteractOutline.h"
 #include "Sound/SoundAttenuation.h"
 #include "BabylonModel.h"
@@ -696,6 +697,11 @@ void AJetwayRigs::SetDoor(FRig& R, AActor* Plane, const FString& Type)
 	// door's place, in towards the middle by half the width difference, up or down by the sill's (the lift columns)
 	using namespace ADPJetwayInternal;
 	const FDoorType* Base = DoorOf(R.BaseType, R.Door); const FDoorType* T = DoorOf(Type, R.Door);
+	// (a type drawn with a model whose doors were measured on it - Data/aircraft-doors.json, Tools/make_aircraft_doors.py:
+	//  that door; the table keeps the published figures the jetway's export was made for)
+	FDoorType Meas = {TEXT(""), 0.f, 0.f, 0.f}; float NoseCm = 0.f;
+	if (T) if (const ADPDoors::FDoor* Md = ADPDoors::Find(Type, R.Door)) if (ADPDoors::NoseY(Type, NoseCm))
+	{ Meas = *T; Meas.NoseToDoor = float(Md->Skin.Y - NoseCm) / 100.f; Meas.Sill = Md->Sill / 100.f; Meas.Width = float(FMath::Abs(Md->Skin.X)) / 50.f; T = &Meas; }
 	R.Wd = R.WdBase;
 	if (Plane && Base && T)
 	{
