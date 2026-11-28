@@ -1066,6 +1066,7 @@ void ASimTraffic::Tick(float Dt)
 			Si.bLeaving = M.Phase == EPhase::Climb && !M.b10k && M.Path.Num() && FVector2f::Distance(M.Nose, M.Path.Last()) < 15.f * FMath::Max(M.Speed, 1.f);
 			if (Si.bLeaving && !M.bBelt) { M.bBelt = true; ADP_LOG(TEXT("Traffic: %s leaves the visible climb at %.0f m - the seatbelt announcement is due"), *M.Reg, M.Height); }
 			ADPA320Snd::Moving(Bm, M.Reg, Si, FMath::Min(Dt, 0.1f));
+			Fans(M, FMath::Min(Dt, 0.1f));   // (after the sound: it moves the engines' N1 on)
 		}
 		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && !M.bYouOff && SlipPoll <= 0.f)
 			if (UADPSim* Sl = UADPSim::Get(this)) if (FADPFlight* Fs = Sl->World.Flights.FindByPredicate([&](const FADPFlight& X) { return X.Id == M.FlightId; }))
@@ -1342,6 +1343,8 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 	else if (M.Phase == EPhase::Climb) { ESt = M.Pitch < 14.5f ? 2 : 3; EWant = M.Pitch < 14.5f ? -6.f : -2.f; }
 	else if (M.Phase == EPhase::Approach) { ESt = M.Height < FlareM ? 5 : 4; EWant = M.Height < FlareM ? -8.f : -1.f; }
 	else if (M.Phase == EPhase::Rollout && M.Pitch > 0.3f) { ESt = 6; EWant = -4.f; }
+	// (a banked turn needs a little back stick to hold the height: about 3 deg more up at 24 deg of bank, load factor 1.09)
+	if (bAir && ESt != 1) EWant -= FMath::Clamp((1.f / FMath::Cos(FMath::DegreesToRadians(M.Bank)) - 1.f) * 30.f, 0.f, 3.f);
 	if (ESt != M.ElevSt)
 	{
 		static const TCHAR* EWhy[7] = {TEXT("neutral"), TEXT("rotation"), TEXT("lift-off, pitching up"), TEXT("climb pitch held"), TEXT("approach"), TEXT("the flare"), TEXT("nose lowered onto its wheel")};
@@ -1769,6 +1772,62 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	B->FlushMoves();
 }
 
+// the CFM56-5B fans (owner 11-28: they turn as in the real world, start gently and stop gently): each fan part about its hub
+// (the model's own frame, the hub from the part's bounds; the engine's axis is the model's Y), by ADPA320Snd::FanN1 -
+// 100 % N1 = 5,000 rpm. 36 blades = 10 deg apart: a picture can only show them turning forwards while they move less than
+// half of that between two drawn frames (any faster and the eye, like any camera, sees them stand or run backwards), so
+// the turn shown is the real one up to 4.5 deg a frame and held there above it - a fan at idle or full power reads as a
+// fast spin; the start and the run-down below that are the real speed. At each light-off a very faint puff from the exhaust.
+namespace
+{
+	const TCHAR* FanPart[2] = {TEXT("FanLCFM56L"), TEXT("FanLCFM56R")};
+	const FVector FanHub[2] = {FVector(-563.1f, 718.2f, 179.9f), FVector(563.1f, 718.2f, 179.9f)};
+	constexpr float FanRpm100 = 5000.f, FanStepMax = 4.5f;
+}
+void ASimTraffic::Fans(FMove& M, float Dt)
+{
+	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
+	if (!M.bFans)
+	{
+		M.bFans = true; int32 Found = 0;
+		for (int32 e = 0; e < 2; ++e) { M.GFan[e] = B->BindGroup({FanPart[e]}, false, FTransform(FanHub[e])); Found += M.GFan[e] != INDEX_NONE; if (M.GFan[e] == INDEX_NONE) ADP_WARN(TEXT("Traffic: %s has no part %s - that fan stays still"), *M.Reg, FanPart[e]); }
+		ADP_LOG(TEXT("Traffic: %s engine fans - %d of 2 bound, N1 now %.0f / %.0f %%"), *M.Reg, Found, ADPA320Snd::FanN1(B, 0), ADPA320Snd::FanN1(B, 1));
+	}
+	bool bMoved = false;
+	for (int32 e = 0; e < 2; ++e)
+	{
+		bool bLit = false; const float N1 = ADPA320Snd::FanN1(B, e, &bLit);
+		if (bLit)
+		{
+			// the light-off: a breath of grey from the core nozzle, drifting back and up, almost see-through
+			const FTransform X = B->GetActorTransform();
+			const FVector Back = X.TransformVectorNoScale(FVector(0.f, 1.f, 0.f)).GetSafeNormal();
+			const FVector At = X.TransformPosition(FVector(FanHub[e].X, 1230.f, 175.f));
+			for (int32 k = 0; k < 5; ++k)
+			{
+				FPuff P; P.Seed = FMath::FRand(); P.Span = FMath::FRandRange(4.f, 5.5f); P.Life = -0.25f * k;
+				P.Alpha = FMath::FRandRange(0.08f, 0.13f); P.Size0 = 0.7f; P.Grow = FMath::FRandRange(2.f, 3.f);
+				P.P = At + Back * (60.f * k) + FVector(FMath::FRandRange(-20.f, 20.f), FMath::FRandRange(-20.f, 20.f), FMath::FRandRange(-10.f, 10.f));
+				P.V = Back * FMath::FRandRange(150.f, 280.f) + FVector(0.f, 0.f, FMath::FRandRange(15.f, 40.f));
+				Puffs.Add(P);
+			}
+			ADP_LOG(TEXT("Traffic: %s engine %d light-off - a faint puff from the exhaust (fan N1 %.1f %%)"), *M.Reg, e + 1, N1);
+		}
+		const float Step = FMath::Min(N1 / 100.f * FanRpm100 * 6.f * Dt, FanStepMax);   // (rpm x 6 = deg a second)
+		const bool bTurn = Step > 1e-4f;
+		if (bTurn != M.bFanTurning[e])
+		{
+			M.bFanTurning[e] = bTurn;
+			ADP_LOG(TEXT("Traffic: %s engine %d fan %s (N1 %.2f %%)"), *M.Reg, e + 1, bTurn ? TEXT("starts to turn") : TEXT("has come to rest"), N1);
+		}
+		if (!bTurn || M.GFan[e] == INDEX_NONE) continue;
+		M.FanDeg[e] = FMath::Fmod(M.FanDeg[e] + Step, 360.f);
+		B->MoveGroup(M.GFan[e], FTransform(FQuat(FVector(0.f, -1.f, 0.f), FMath::DegreesToRadians(M.FanDeg[e])), FanHub[e]));
+		bMoved = true;
+	}
+	if (bMoved) B->FlushMoves();
+}
+
 // tyre smoke at touchdown (to-do 377): the main wheels spin up from standstill and scrub - a short puff of white-grey smoke
 // at each main gear (the A320's track 7.6 m), none from the nose; it is dragged a little way along, then hangs, rises,
 // spreads and fades in 2-3 s. Every traffic type lands through here, so every one has it.
@@ -1778,15 +1837,21 @@ void ASimTraffic::TouchSmoke(const FMove& M)
 	const FVector Fwd(D2.X, -D2.Y, 0.f), Side(-Fwd.Y, Fwd.X, 0.f);
 	const float G = AAirfield::GroundAt(M.Main.X, M.Main.Y);
 	const FVector At = FTerminalPlan::ToWorld(M.Main.X, G + 0.5f, M.Main.Y);
+	// (owner 11-28: too faint - now a dense white-grey burst at each main gear, laid along the first ~0.4 s of the roll as
+	//  the wheels spin up, so a short trail stays on the runway behind the gear; it hangs, spreads to ~7 m and thins in 3-4 s)
+	constexpr int32 NPer = 12;
 	for (const float S : {-1.f, 1.f})
-		for (int32 k = 0; k < 6; ++k)
+		for (int32 k = 0; k < NPer; ++k)
 		{
-			FPuff P; P.Seed = FMath::FRand(); P.Span = FMath::FRandRange(2.1f, 3.f); P.Life = -0.04f * k;   // (a few cards in a quick row)
-			P.P = At + Side * (S * 380.f + FMath::FRandRange(-40.f, 40.f)) + Fwd * FMath::FRandRange(-60.f, 60.f);
-			P.V = Fwd * (M.Speed * 100.f * FMath::FRandRange(0.15f, 0.3f)) + Side * (S * FMath::FRandRange(20.f, 90.f)) + FVector(0.f, 0.f, FMath::FRandRange(30.f, 90.f));
+			const float Delay = 0.035f * k;
+			FPuff P; P.Seed = FMath::FRand(); P.Span = FMath::FRandRange(2.8f, 4.f); P.Life = -Delay;
+			P.Alpha = FMath::FRandRange(0.85f, 1.f) * (k < 3 ? 1.f : 1.f - 0.5f * float(k - 3) / float(NPer - 3));   // (thickest at the first contact)
+			P.Size0 = FMath::FRandRange(1.4f, 2.f); P.Grow = FMath::FRandRange(4.5f, 6.f);
+			P.P = At + Side * (S * 380.f + FMath::FRandRange(-60.f, 60.f)) + Fwd * (M.Speed * 100.f * Delay + FMath::FRandRange(-80.f, 40.f));
+			P.V = Fwd * (M.Speed * 100.f * FMath::FRandRange(0.1f, 0.25f)) + Side * (S * FMath::FRandRange(30.f, 120.f)) + FVector(0.f, 0.f, FMath::FRandRange(40.f, 110.f));
 			Puffs.Add(P);
 		}
-	ADP_LOG(TEXT("Traffic: %s tyre smoke at both main gears (%d puffs), none from the nose"), *M.Reg, 12);
+	ADP_LOG(TEXT("Traffic: %s tyre smoke at both main gears (%d puffs over 0.4 s), none from the nose"), *M.Reg, 2 * NPer);
 }
 
 void ASimTraffic::Smoke(float Dt)
@@ -1822,8 +1887,8 @@ void ASimTraffic::Smoke(float Dt)
 		const float K = P.Life / P.Span;
 		const FVector ToEye = (Eye - P.P).GetSafeNormal();
 		const FQuat Q = FQuat(ToEye, P.Seed * 2.f * PI) * FRotationMatrix::MakeFromZ(ToEye).ToQuat();
-		Shown.Add(FTransform(Q, P.P, FVector(1.2f + 4.f * FMath::Sqrt(K))));   // (1.2 m to about 5 m across)
-		Data.Add(P.Seed); Data.Add(0.6f * FMath::Square(1.f - K) * FMath::Min(1.f, P.Life * 10.f));
+		Shown.Add(FTransform(Q, P.P, FVector(P.Size0 + P.Grow * FMath::Sqrt(K))));   // (its own size: the tyre smoke 1.5 m to ~7 m, the start-up puff smaller)
+		Data.Add(P.Seed); Data.Add(P.Alpha * FMath::Square(1.f - K) * FMath::Min(1.f, P.Life * 10.f));
 	}
 	I->ClearInstances();
 	if (Shown.Num())

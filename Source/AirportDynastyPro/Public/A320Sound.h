@@ -29,6 +29,9 @@ namespace ADPA320Snd
 	};
 	/** A moving aircraft, every frame. */
 	AIRPORTDYNASTYPRO_API void Moving(ABabylonModel* B, const FString& Reg, const FIn& In, float Dt);
+	/** Engine e's fan now (0 left, 1 right): N1 % as the real fan turns (a gentle start, a run-down of about a minute),
+	 *  and whether the engine lit this frame (its light-off). 0 for a model Moving() has not met. */
+	AIRPORTDYNASTYPRO_API float FanN1(const ABabylonModel* B, int32 e, bool* bLitNow = nullptr);
 	/** A parked aircraft, every frame: APU, packs, cabin and the boarding announcements from its turnaround. */
 	AIRPORTDYNASTYPRO_API void Parked(ABabylonModel* B, const FString& Reg, float Dt);
 }

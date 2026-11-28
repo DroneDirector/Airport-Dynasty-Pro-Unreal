@@ -88,7 +88,7 @@ namespace ADPA320Snd
 			TEXT("Ann_fa_seatbelt10k"), TEXT("Ann_fa_descent"), TEXT("Ann_cpt_landing"), TEXT("Ann_fa_landed"), TEXT("Ann_cab_call")};
 		constexpr uint32 DepBits = (1u << AnDescent) - 1u, ArrBits = ((1u << AnNum) - 1u) & ~DepBits;
 
-		struct FEng { uint8 Run = 0; float T = 0.f, N1 = 0.f; };   // Run 0 off, 1 starting, 2 running
+		struct FEng { uint8 Run = 0; float T = 0.f, N1 = 0.f, FanA = 0.f, Fan = 0.f; bool bLit = false; };   // Run 0 off, 1 starting, 2 running; Fan: the fan's own N1 (FanN1)
 		struct FState
 		{
 			bool bInit = false;
@@ -213,7 +213,7 @@ namespace ADPA320Snd
 		{
 			// met already running (an arrival, a test aircraft in the air) or cold on the push
 			S.bInit = true;
-			for (FEng& E : S.E) { E.Run = bWant ? 2 : 0; E.N1 = bWant ? IdleN1 + FMath::Max(0.f, In.Power - 0.15f) / 0.85f * (ToN1 - IdleN1) : 0.f; }
+			for (FEng& E : S.E) { E.Run = bWant ? 2 : 0; E.N1 = bWant ? IdleN1 + FMath::Max(0.f, In.Power - 0.15f) / 0.85f * (ToN1 - IdleN1) : 0.f; E.FanA = E.Fan = E.N1; }
 			S.GearSt = In.GearSt; S.FlapWas = In.Flap; S.HeightWas = In.Height;
 		}
 		const float Ext = H.bIn ? 0.3f : 1.f, Cab = H.bIn ? 1.f : 0.f;
@@ -221,7 +221,7 @@ namespace ADPA320Snd
 		bool bAnyRun = false;
 		for (int32 e = 0; e < 2; ++e)
 		{
-			FEng& E = S.E[e];
+			FEng& E = S.E[e]; E.bLit = false;
 			const FVector Fan = FanAt + FVector(EngX[e], 0.f, 0.f), Core = CoreAt + FVector(EngX[e], 0.f, 0.f), RevP0 = RevAt + FVector(EngX[e], 0.f, 0.f);
 			// the start: engine 2 first, engine 1 25 s later (the push), each: starter, light-off and up to idle in about 45 s
 			if (bWant && E.Run == 0) { E.Run = 1; E.T = e == 1 ? 0.f : -25.f; }
@@ -237,7 +237,7 @@ namespace ADPA320Snd
 			{
 				const float Was = E.T; E.T += Dt;
 				if (Was < 0.f && E.T >= 0.f) { Shot(B, H, TEXT("EngStarter"), Fan, Ext * 0.8f, 600.f, AttA320(1500.f, 50000.f, false, true)); if (H.bIn) Shot(B, H, TEXT("CabStarter"), Fan, 0.8f, 60.f, AttA320(1400.f, 1000.f, true, false)); ADP_LOG(TEXT("A320 sound: %s engine %d starting"), *Reg, e + 1); }
-				if (Was < 18.f && E.T >= 18.f) { Shot(B, H, TEXT("EngStartup"), Fan, Ext * 0.9f, 800.f, AttA320(1500.f, 60000.f, false, true)); if (H.bIn) Shot(B, H, TEXT("CabStartup"), Fan, 0.8f, 60.f, AttA320(1400.f, 1000.f, true, false)); }
+				if (Was < 18.f && E.T >= 18.f) { E.bLit = true; Shot(B, H, TEXT("EngStartup"), Fan, Ext * 0.9f, 800.f, AttA320(1500.f, 60000.f, false, true)); if (H.bIn) Shot(B, H, TEXT("CabStartup"), Fan, 0.8f, 60.f, AttA320(1400.f, 1000.f, true, false)); }
 				E.N1 = IdleN1 * FMath::Clamp((E.T - 25.f) / 20.f, 0.f, 1.f);
 				if (E.T >= 45.f) E.Run = 2;
 			}
@@ -247,6 +247,14 @@ namespace ADPA320Snd
 				E.N1 = FMath::FInterpConstantTo(E.N1, Target, Dt, Target > E.N1 ? 14.f : 18.f);   // (about 5 s idle to take-off, as the haze)
 			}
 			else E.N1 = FMath::FInterpConstantTo(E.N1, 0.f, Dt, 4.f);
+			// the fan itself, as a CFM56-5B's turns: on the start it begins to creep round a few seconds after the starter
+			// engages (the starter drives N2, the fan follows through the air), about 5 % N1 at light-off, idle about 45 s in;
+			// with power it follows the engine; shut down it runs on and coasts to a stop in about a minute. Two eased stages,
+			// so it never starts or stops with a jerk
+			const float FanWant = E.Run == 1 ? IdleN1 * FMath::SmoothStep(4.f, 45.f, E.T) : E.Run == 2 ? E.N1 : 0.f;
+			const float FanK = E.Run != 0 ? 1.5f : 0.09f;
+			E.FanA = FMath::FInterpTo(E.FanA, FanWant, Dt, FanK); E.Fan = FMath::FInterpTo(E.Fan, E.FanA, Dt, FanK);
+			if (FanWant == 0.f && E.Fan < 0.02f) E.FanA = E.Fan = 0.f;
 			bAnyRun |= E.Run == 2;
 			// the layers by FlightGear's tables (silent while the engine is off: its run-down is the shut-down's own)
 			const bool bOn = E.Run != 0;
@@ -303,6 +311,12 @@ namespace ADPA320Snd
 		Speak(Reg, B, H, Dt);
 	}
 
+	float FanN1(const ABabylonModel* B, int32 e, bool* bLitNow)
+	{
+		const FState* S = States.Find(TWeakObjectPtr<ABabylonModel>(const_cast<ABabylonModel*>(B)));
+		if (bLitNow) *bLitNow = S && e >= 0 && e < 2 && S->E[e].bLit;
+		return S && e >= 0 && e < 2 ? S->E[e].Fan : 0.f;
+	}
 	void Parked(ABabylonModel* B, const FString& Reg, float Dt)
 	{
 		ADP_PERF_SCOPE("A320 sound parked", 0.2f);

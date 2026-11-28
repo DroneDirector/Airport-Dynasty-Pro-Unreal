@@ -116,6 +116,8 @@ private:
 		// at 50 deg on touchdown, roll spoilers 2-5 on the down-going wing; the CFM56's four pivot doors per engine (RevPos 0..1)
 		TArray<int32> GSpoil; bool bSpoil = false; uint8 SpoilSt = 255, RevSt = 255;
 		float SpoilL[5] = {}, SpoilR[5] = {}, RevPos = 0.f, SpoilShown = -1.f;
+		// the fans (FanLCFM56L/R) turning about their hubs by the engine's own N1 (ADPA320Snd::FanN1)
+		bool bFans = false; int32 GFan[2] = {INDEX_NONE, INDEX_NONE}; float FanDeg[2] = {}; bool bFanTurning[2] = {};
 	};
 	TSet<FString> TugCalled;   // (arrivals whose tug driver was called)
 	float SlipPoll = 0.f;
@@ -137,10 +139,11 @@ private:
 	void Blink(FMove& M);
 	void Gear(FMove& M, float Dt);
 	void Surfaces(FMove& M, float Dt);   // flaps, slats, ailerons, elevators, rudder: the real schedule (step B)
-	void Spoilers(FMove& M, float Dt);   // ground and roll spoilers, the CFM56 reverser doors
+	void Spoilers(FMove& M, float Dt);
+	void Fans(FMove& M, float Dt);       // the engines' fans turning, a faint puff from the exhaust at each engine's light-off   // ground and roll spoilers, the CFM56 reverser doors
 	// tyre smoke at touchdown (to-do 377): a puff of white-grey smoke at each main gear as its wheels spin up, drifting back,
 	// fading in 2-3 s; cards turned to the eye on one instanced plane (M_WaterMist, the wash hose's spray cloud)
-	struct FPuff { FVector P, V; float Life = 0.f, Span = 2.5f, Seed = 0.f; };
+	struct FPuff { FVector P, V; float Life = 0.f, Span = 2.5f, Seed = 0.f, Alpha = 0.6f, Size0 = 1.2f, Grow = 4.f; };
 	TArray<FPuff> Puffs;
 	TWeakObjectPtr<class UInstancedStaticMeshComponent> SmokeIsm;
 	void TouchSmoke(const FMove& M);

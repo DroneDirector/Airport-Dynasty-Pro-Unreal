@@ -663,7 +663,11 @@ namespace ADPPerfViewsInternal
 		// (never into anything: a short step is swept, a long one - the 10,000 ft jump - only checked where it ends)
 		FHitResult H; const FCollisionQueryParams Q(SCENE_QUERY_STAT(ViewsCam), false, Me);
 		const bool bLong = FVector::DistSquared(Want, C) > FMath::Square(5000.0);
-		if (!Solid(W, C, Me) && (bLong || !W->SweepSingleByChannel(H, Want, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(20.f), Q))) Want = C;
+		// (high in the air - over 200 m above the ground - there is nothing to sweep into: a refused step there held the
+		//  camera one frame while the aircraft moved on, a judder in the 10,000 ft turn)
+		const double G0 = GroundTop(W, C, Me, nullptr, true);
+		const bool bHigh = G0 < -1e29 || C.Z - G0 > 20000.0;
+		if (!Solid(W, C, Me) && (bLong || bHigh || !W->SweepSingleByChannel(H, Want, C, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(20.f), Q))) Want = C;
 		Sub.Stays = Own->GetActorLocation();
 		Rot = (Mid - Want).Rotation();
 	}
