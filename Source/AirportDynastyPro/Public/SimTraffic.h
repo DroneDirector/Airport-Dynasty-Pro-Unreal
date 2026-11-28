@@ -72,7 +72,12 @@ private:
 		FVector2f Nose, Main;               // the nose wheel and the main gear's middle (plan m)
 		float Speed = 0.f, Height = 0.f, Clock = 0.f;
 		int32 RoundedNum = -1; FVector2f RoundedEnd = FVector2f::ZeroVector;   // (the taxi path whose corners were rounded last: a new one is rounded once)
-		float Pitch = 0.f, RotT = -1.f, Gamma = 0.f;   // (nose-up degrees as drawn; seconds since rotation began (-1 not yet); the climb's path angle - all eased, never jumping)
+		float Pitch = 0.f, RotT = -1.f, Gamma = 0.f;
+		// (11-28 owner: flown like a real A320 - PitchV the pitch's own rate, eased so it never jumps; LiftT seconds since lift-off
+		//  (-1 on the ground); NoseT seconds since the mains touched; b10k: the test jump to 10,000 ft done (-AirplaneTest only);
+		//  bNoseDown: the nose wheel is on the runway again; bBelt: the 10,000 ft seatbelt announcement asked for)
+		float PitchV = 0.f, LiftT = -1.f, NoseT = -1.f; bool b10k = false, bNoseDown = false, bBelt = false;
+		float BankPeak = 0.f;   // (the turn's steepest bank so far: logged once it is level again)   // (nose-up degrees as drawn; seconds since rotation began (-1 not yet); the climb's path angle - all eased, never jumping)
 		bool bYou = false, bYouOff = false; int32 YouRe = INDEX_NONE; float YouBar = 0.f; TArray<FVector2f> YouFwd;   // (pushed by you: off blocks, where the crew's path goes on, the bar's angle)
 		TWeakObjectPtr<ABabylonModel> Model;
 		// its lights (to-do 243: the type's table, Data/aircraft-lights.json; switched in Blink by the real procedure)
@@ -125,6 +130,13 @@ private:
 	void Gear(FMove& M, float Dt);
 	void Surfaces(FMove& M, float Dt);   // flaps, slats, ailerons, elevators, rudder: the real schedule (step B)
 	void Spoilers(FMove& M, float Dt);   // ground and roll spoilers, the CFM56 reverser doors
+	// tyre smoke at touchdown (to-do 377): a puff of white-grey smoke at each main gear as its wheels spin up, drifting back,
+	// fading in 2-3 s; cards turned to the eye on one instanced plane (M_WaterMist, the wash hose's spray cloud)
+	struct FPuff { FVector P, V; float Life = 0.f, Span = 2.5f, Seed = 0.f; };
+	TArray<FPuff> Puffs;
+	TWeakObjectPtr<class UInstancedStaticMeshComponent> SmokeIsm;
+	void TouchSmoke(const FMove& M);
+	void Smoke(float Dt);
 	void Haze(FMove& M, float Dt);     // the engines' heat haze: made once, then its strength by the thrust
 	bool RunwayToX1() const;   // the take-off and landing direction from the real wind (true: towards the runway's x1 end)
 };

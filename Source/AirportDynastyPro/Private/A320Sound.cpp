@@ -277,7 +277,7 @@ namespace ADPA320Snd
 		Loop(S, B, H, LFlap, TEXT("FlapMotorLoop"), FlapAt, S.FlapRun > 0.f ? (H.bIn ? 0.5f : 0.8f) : 0.f, 1.f, 40.f, AttA320(400.f, 3600.f, true, false));
 		// the touchdown: the mains' thump and the tyres' screech (a second and a half of it)
 		const bool bGround = In.Height < 0.05f;
-		if (S.HeightWas > 0.05f && bGround && In.Stage == 5)
+		if (S.HeightWas > 0.f && bGround && In.Stage == 5)   // (11-28: the flare sinks the last centimetres slowly - any height before counts)
 		{
 			Shot(B, H, TEXT("TouchMain"), MainWheelAt, Ext * 1.f, 400.f, AttA320(2000.f, 38000.f, false, true));
 			S.Screech = Shot(B, H, TEXT("TyreScreech"), MainWheelAt, Ext * 0.8f, 400.f, AttA320(1000.f, 39000.f, false, true));
@@ -294,7 +294,7 @@ namespace ADPA320Snd
 		FAnnState& A = Anns.FindOrAdd(Reg);
 		if (In.Stage == 0 && In.Speed > 0.05f) Ask(A, AnSafety);
 		if (In.Stage == 2) Ask(A, AnCptTakeoff);
-		if (In.Stage == 3 && In.Height > 3048.f) Ask(A, AnSeatbelt);
+		if (In.Stage == 3 && (In.Height > 3048.f || In.bLeaving)) Ask(A, AnSeatbelt);   // (10,000 ft; in normal play the climb is out of sight before it)
 		if (In.Stage == 4 && In.Height > 400.f) Ask(A, AnDescent);
 		if (In.Stage == 4 && In.Height < 300.f) { Ask(A, AnDescent); Ask(A, AnCptLanding); }
 		if (In.Stage == 6) Ask(A, AnLanded);

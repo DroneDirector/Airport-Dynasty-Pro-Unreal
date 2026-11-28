@@ -25,6 +25,7 @@ namespace ADPA320Snd
 		float Height = 0.f;      // metres over the runway
 		float Speed = 0.f;       // m/s over the ground
 		uint8 Stage = 0;
+		bool bLeaving = false;   // the climb leaves the visible world now (its 10,000 ft announcement is due)
 	};
 	/** A moving aircraft, every frame. */
 	AIRPORTDYNASTYPRO_API void Moving(ABabylonModel* B, const FString& Reg, const FIn& In, float Dt);

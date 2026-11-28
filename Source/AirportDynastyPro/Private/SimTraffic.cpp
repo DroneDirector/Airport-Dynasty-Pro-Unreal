@@ -32,6 +32,9 @@
 #include "Components/MaterialBillboardComponent.h"
 #include "Effects.h"
 #include "ADPKeep.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "Camera/PlayerCameraManager.h"
 
 namespace
 {
@@ -40,6 +43,21 @@ namespace
 	constexpr float MaxTaxi = 25.f * KtMs, TurnTaxi = 10.f * KtMs, StandTaxi = 5.f * KtMs, PushSpeed = 3.f * KtMs;
 	constexpr float Vr = 140.f * KtMs, Vapp = 135.f * KtMs, Glide = 3.f;
 	float Heading(const FVector2f& From, const FVector2f& To) { return FMath::Atan2(To.Y - From.Y, To.X - From.X); }
+	constexpr float TenK = 3048.f, FlareM = 9.f;   // 10,000 ft; the flare from about 30 ft (metres over the runway)
+	// test only (-AirplaneTest, never in normal play): a departure 20 s after lift-off is put at 10,000 ft on its climb track
+	// and flies on there, a gentle standard-rate turn included, for the camera
+	bool AirplaneTest() { static const bool bOn = FParse::Param(FCommandLine::Get(), TEXT("AirplaneTest")); return bOn; }
+	// the pitch towards Want at up to MaxRate deg/s, its rate eased in and out (3 deg/s2, then 1.5 x the error, at least 0.3
+	// deg/s so it arrives): neither the attitude nor its rate ever jumps
+	void EasePitchTo(float& Pitch, float& V, float Want, float MaxRate, float Dt)
+	{
+		const float Err = Want - Pitch;
+		if (FMath::Abs(Err) < 1e-4f) { Pitch = Want; V = 0.f; return; }
+		const float RateWant = FMath::Sign(Err) * FMath::Min(MaxRate, FMath::Max(0.3f, 1.5f * FMath::Abs(Err)));
+		V = FMath::FInterpConstantTo(V, RateWant, Dt, 3.f);
+		const float Step = V * Dt;
+		if ((Err > 0.f && Step >= Err) || (Err < 0.f && Step <= Err)) { Pitch = Want; V = 0.f; } else Pitch += Step;
+	}
 }
 
 ASimTraffic::ASimTraffic()
@@ -767,29 +785,72 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		if (D <= Go + 1e-3f) ++M.Step;
 	}
 	if (M.Phase == EPhase::Roll && M.Step >= M.Path.Num() - 1) M.Clock += Dt;   // (from lined up)
-	// the attitude, as a real A320 flies it: rotation at VR about 3 deg/s, lift-off about 4 s later near 10 deg, then up to the
-	// climb's 15 deg; on the approach about 3 deg, a gentle flare to about 6 deg in the last 15 m, after touchdown the nose
-	// lowered slowly onto its wheel
+	// the attitude, as a real A320 flies it (11-28 owner): rotation at VR about 3 deg/s to about 10-12 deg, lift-off about 4 s
+	// later, then up to the climb's 15 deg while the path angle and the climb rate grow gradually; on the approach about 3 deg,
+	// the flare from about 30 ft to about 5.5 deg, the mains touch first; about 2 s later the nose is lowered very gently
+	// (about 1 deg/s, slower at the end) until the nose wheel touches softly. The pitch's own rate is eased too (EasePitch):
+	// never a jump in the attitude or in its rate
 	float PitchWant = 0.f, PitchRate = 3.f;
-	if (M.Phase == EPhase::Roll && M.Step >= 1 && (M.RotT >= 0.f || M.Speed >= Vr)) { M.RotT = FMath::Max(0.f, M.RotT) + Dt; PitchWant = 15.f; }
-	else if (M.Phase == EPhase::Climb) { M.RotT += Dt; PitchWant = 15.f; }
-	else if (M.Phase == EPhase::Approach) { PitchWant = M.Height < 15.f ? 6.f : 3.f; PitchRate = M.Height < 15.f ? 1.5f : 1.f; }
-	else if (M.Phase == EPhase::Rollout) { PitchWant = 0.f; PitchRate = 1.5f; }
-	M.Pitch = FMath::FInterpConstantTo(M.Pitch, PitchWant, Dt, PitchRate);
+	if (M.Phase == EPhase::Roll && M.Step >= 1 && (M.RotT >= 0.f || M.Speed >= Vr))
+	{
+		if (M.RotT < 0.f) ADP_LOG(TEXT("Traffic: %s rotates at %.0f kt (about 3 deg/s)"), *M.Reg, M.Speed / KtMs);
+		M.RotT = FMath::Max(0.f, M.RotT) + Dt; PitchWant = 11.f;
+	}
+	else if (M.Phase == EPhase::Climb) { M.RotT += Dt; PitchWant = M.b10k && M.Height >= TenK ? 6.f : 15.f; PitchRate = 1.5f; }
+	else if (M.Phase == EPhase::Approach) { PitchWant = M.Height < FlareM ? 5.5f : 3.f; PitchRate = M.Height < FlareM ? 1.2f : 1.f; }
+	else if (M.Phase == EPhase::Rollout)
+	{
+		M.NoseT += Dt;
+		if (M.NoseT < 2.f) PitchWant = M.Pitch;            // (the mains on, the nose held up for about 2 s)
+		else { PitchWant = 0.f; PitchRate = 1.f; }          // (then lowered at about 1 deg/s, easing off at the end)
+	}
+	EasePitchTo(M.Pitch, M.PitchV, PitchWant, PitchRate, Dt);
 	if (M.Phase == EPhase::Roll && M.RotT >= 4.f && M.Step < M.Path.Num())
 	{
 		ADP_LOG(TEXT("Traffic: %s lifts off at %.0f kt, %.1f deg nose up, %.1f s after rotating"), *M.Reg, M.Speed / KtMs, M.Pitch, M.RotT);
 		M.Step = M.Path.Num();   // (the roll ends here: off the ground, not at the end of a fixed run)
+		M.LiftT = 0.f;
+	}
+	if (M.Phase == EPhase::Rollout && !M.bNoseDown && Wheelbase * FMath::Sin(FMath::DegreesToRadians(M.Pitch)) < 0.02f)
+	{
+		M.bNoseDown = true;
+		ADP_LOG(TEXT("Traffic: %s nose wheel touches down %.1f s after the mains, at %.0f kt"), *M.Reg, M.NoseT, M.Speed / KtMs);
 	}
 	if (M.Phase == EPhase::Climb || M.Phase == EPhase::Approach)
 	{
-		// the climb's path angle grows from level to about 8 deg over the first seconds; the 3 degree approach down to the
-		// touchdown zone, its last 12 m rounded off so it sinks slower and touches gently
-		if (M.Phase == EPhase::Climb) { M.Gamma = FMath::FInterpConstantTo(M.Gamma, 8.f, Dt, 2.f); M.Height += M.Speed * Dt * FMath::Tan(FMath::DegreesToRadians(M.Gamma)); }
+		// the climb's path angle grows from level to about 8 deg over the first 8 s (a smooth step: the height and its rate
+		// both continuous from the runway); the 3 degree approach down to the touchdown zone, its last 30 ft rounded off
+		if (M.Phase == EPhase::Climb)
+		{
+			if (M.LiftT >= 0.f) M.LiftT += Dt;
+			if (M.b10k) M.Gamma = FMath::FInterpConstantTo(M.Gamma, M.Height >= TenK ? 0.f : 8.f, Dt, 1.f);   // (levels off at 10,000 ft)
+			else M.Gamma = M.LiftT >= 0.f ? 8.f * FMath::SmoothStep(0.f, 8.f, M.LiftT) : FMath::FInterpConstantTo(M.Gamma, 8.f, Dt, 2.f);
+			M.Height += M.Speed * Dt * FMath::Tan(FMath::DegreesToRadians(M.Gamma));
+			// test only (-AirplaneTest): 20 s after lift-off on to 10,000 ft on its own climb track, flying on there for the camera
+			if (AirplaneTest() && !M.b10k && M.LiftT >= 20.f && M.Path.Num())
+			{
+				const FVector2f D = (M.Nose - M.Main).GetSafeNormal();
+				const float Ahead = FMath::Max(0.f, TenK - 30.f - M.Height) / FMath::Tan(FMath::DegreesToRadians(FMath::Max(M.Gamma, 1.f)));
+				M.Nose += D * Ahead; M.Main += D * Ahead; M.Height = TenK - 30.f; M.b10k = true;
+				// (about 8 s straight, then a 180 deg standard-rate turn to the right - 3 deg/s, some 24 deg of bank at 160 kt,
+				//  the wings seen to dip and level again - and on straight; the nose wheel follows the arc in 1 deg steps)
+				const FVector2f N(-D.Y, D.X); const float R = M.Speed / FMath::DegreesToRadians(3.f);
+				const FVector2f P0 = M.Nose + D * (M.Speed * 8.f), C = P0 + N * R;
+				M.Path.Reset(); M.Path.Add(P0);
+				for (int32 a = 1; a <= 180; ++a) { const float Ar = FMath::DegreesToRadians(float(a)); M.Path.Add(C - N * (R * FMath::Cos(Ar)) + D * (R * FMath::Sin(Ar))); }
+				M.Path.Add(M.Path.Last() - D * 80000.f); M.Step = 0;
+				ADP_LOG(TEXT("Traffic: %s test jump - %.0f m on along its climb track to %.0f m (10,000 ft is %.0f m), flying on there"), *M.Reg, Ahead, M.Height, TenK);
+			}
+			if (!M.bBelt && M.Height > TenK) { M.bBelt = true; ADP_LOG(TEXT("Traffic: %s passes 10,000 ft - the seatbelt announcement is due"), *M.Reg); }
+		}
 		else
 		{
+			// (the flare: below 30 ft the height follows a cubic of the 3 degree line's - same height and sink rate where it
+			//  starts, about 0.15 of the sink rate (some 0.5 m/s) at touchdown: no step in the height or its rate)
 			const float H = FMath::Max(0.f, FMath::Abs(M.Nose.X - M.Path.Last().X) * FMath::Tan(FMath::DegreesToRadians(Glide)));
-			M.Height = H < 12.f ? 12.f * FMath::Pow(H / 12.f, 1.6f) : H;
+			constexpr float A1 = 0.15f, C3 = (A1 - 1.f) / (FlareM * FlareM), B2 = 2.f * (1.f - A1) / FlareM;
+			if (H < FlareM && M.Height >= FlareM && M.NoseT < -0.5f) { M.NoseT = -0.25f; ADP_LOG(TEXT("Traffic: %s flare at 30 ft, %.0f kt, %.1f deg nose up"), *M.Reg, M.Speed / KtMs, M.Pitch); }
+			M.Height = H < FlareM ? FMath::Max(0.001f, H * (A1 + H * (B2 + H * C3))) : H;
 		}
 	}
 	Pose(M);
@@ -835,6 +896,9 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	case EPhase::Approach:
 		// touched down: the roll-out to the exit
 		M.Phase = EPhase::Rollout; M.Height = 0.f; M.Path = {FVector2f(81.f, RY)};
+		M.NoseT = 0.f; M.bNoseDown = false;
+		ADP_LOG(TEXT("Traffic: %s main gear touches down at %.0f kt, %.1f deg nose up - the struts compress, the wheels spin up"), *M.Reg, M.Speed / KtMs, M.Pitch);
+		TouchSmoke(M);
 		return false;
 	case EPhase::Rollout:
 	case EPhase::TaxiIn:
@@ -945,6 +1009,7 @@ void ASimTraffic::Tick(float Dt)
 {
 	Super::Tick(Dt);
 	ADP_PERF_SCOPE("the simulation's aircraft in 3D (each frame)", 2.f);
+	Smoke(FMath::Min(Dt, 0.1f));
 	if ((Poll += Dt) >= 2.f) { Poll = 0.f; bTurnDue = true; ADP_PERF_SCOPE("traffic: the flights followed (each 2 s)", 2.f); Sync(); }
 	else if (bTurnDue && Poll >= 1.f) { bTurnDue = false; ADP_PERF_SCOPE("traffic: the turnarounds (each 2 s)", 2.f); if (UADPSim* Sm = UADPSim::Get(this)) if (Sm->IsRunning()) ADPTurnaround::Tick(GetWorld(), Sm->Now()); }   // (each aircraft's turnaround: Turnaround.h)
 	// (the cinematic test: every jetway at a stand with an aircraft docked from the start - owner 2026-11-21: nothing may
@@ -982,6 +1047,9 @@ void ASimTraffic::Tick(float Dt)
 		{
 			ADPA320Snd::FIn Si; Si.bEngines = M.bEnginesOn; Si.Power = M.Power; Si.Rev = M.RevPos; Si.GearSt = uint8(M.GearSt); Si.Flap = M.FlapDeg;
 			Si.Height = M.Height; Si.Speed = M.Speed; Si.Stage = uint8(M.Phase);
+			// (normal play: the visible climb ends near 1,200 m - the 10,000 ft announcement goes with its last 15 s)
+			Si.bLeaving = M.Phase == EPhase::Climb && !M.b10k && M.Path.Num() && FVector2f::Distance(M.Nose, M.Path.Last()) < 15.f * FMath::Max(M.Speed, 1.f);
+			if (Si.bLeaving && !M.bBelt) { M.bBelt = true; ADP_LOG(TEXT("Traffic: %s leaves the visible climb at %.0f m - the seatbelt announcement is due"), *M.Reg, M.Height); }
 			ADPA320Snd::Moving(Bm, M.Reg, Si, FMath::Min(Dt, 0.1f));
 		}
 		if (M.bDeparture && M.Phase == EPhase::Push && M.Step == 0 && M.Speed <= 0.f && !M.bYouOff && SlipPoll <= 0.f)
@@ -1257,7 +1325,7 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 	if (M.Phase == EPhase::Roll && M.RotT >= 0.f && !bAir) { ESt = 1; EWant = -13.f; }
 	else if (M.Phase == EPhase::Roll && M.RotT >= 0.f) { ESt = 2; EWant = -6.f; }
 	else if (M.Phase == EPhase::Climb) { ESt = M.Pitch < 14.5f ? 2 : 3; EWant = M.Pitch < 14.5f ? -6.f : -2.f; }
-	else if (M.Phase == EPhase::Approach) { ESt = M.Height < 15.f ? 5 : 4; EWant = M.Height < 15.f ? -8.f : -1.f; }
+	else if (M.Phase == EPhase::Approach) { ESt = M.Height < FlareM ? 5 : 4; EWant = M.Height < FlareM ? -8.f : -1.f; }
 	else if (M.Phase == EPhase::Rollout && M.Pitch > 0.3f) { ESt = 6; EWant = -4.f; }
 	if (ESt != M.ElevSt)
 	{
@@ -1273,6 +1341,13 @@ void ASimTraffic::Surfaces(FMove& M, float Dt)
 	const float BankWant = bAir ? FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan(M.Speed * FMath::DegreesToRadians(M.TurnRate) / 9.81f)), -25.f, 25.f) : 0.f;
 	const float BankWas = M.Bank;
 	M.Bank = FMath::FInterpConstantTo(M.Bank, BankWant, Dt, 5.f);
+	if (FMath::Abs(M.Bank) > FMath::Abs(M.BankPeak)) M.BankPeak = M.Bank;
+	if (FMath::Abs(M.BankPeak) > 3.f && FMath::Abs(M.Bank) < 1.f)
+	{
+		ADP_LOG(TEXT("Traffic: %s turn flown - bank peak %.0f deg %s at %.0f m, %.0f kt"), *M.Reg, FMath::Abs(M.BankPeak), M.BankPeak > 0.f ? TEXT("right") : TEXT("left"), M.Height, M.Speed / KtMs);
+		M.BankPeak = 0.f;
+	}
+	else if (FMath::Abs(M.BankPeak) <= 3.f && FMath::Abs(M.Bank) < 1.f) M.BankPeak = 0.f;
 	float RollCmd = FMath::Clamp((M.Bank - BankWas) / Dt * 2.f, -15.f, 15.f);   // (+ rolls right: left aileron down, right up)
 	uint8 ASt = FMath::Abs(BankWant) > 3.f ? 3 : 0;
 	if (M.Phase == EPhase::Approach && M.Height < 15.f) { RollCmd += FMath::Clamp(Xw * 0.3f, -6.f, 6.f); if (FMath::Abs(Xw) > 2.f) ASt = 4; }
@@ -1555,7 +1630,6 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 		if (E <= 0.f) { E = 0.f; V = FMath::Max(V, 0.f); }
 	};
 	Strut(M.ExtM, M.ExtMV, ClearM); Strut(M.ExtN, M.ExtNV, ClearN);
-	if (bGround && !M.bGearPrev && M.Phase == EPhase::Rollout) ADP_LOG(TEXT("Traffic: %s touchdown - the main gear compresses, the wheels spin up"), *M.Reg);
 	M.bGearPrev = bGround;
 	M.PrevNose = M.Nose; M.PrevMain = M.Main;
 	// the retraction and extension (to-do 380) at FlightGear's rates: the doors, legs and doors again follow the
@@ -1650,4 +1724,69 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 		Link(LSlave + s, RM, TubeM, RM);
 	}
 	B->FlushMoves();
+}
+
+// tyre smoke at touchdown (to-do 377): the main wheels spin up from standstill and scrub - a short puff of white-grey smoke
+// at each main gear (the A320's track 7.6 m), none from the nose; it is dragged a little way along, then hangs, rises,
+// spreads and fades in 2-3 s. Every traffic type lands through here, so every one has it.
+void ASimTraffic::TouchSmoke(const FMove& M)
+{
+	const FVector2f D2 = (M.Nose - M.Main).GetSafeNormal();
+	const FVector Fwd(D2.X, -D2.Y, 0.f), Side(-Fwd.Y, Fwd.X, 0.f);
+	const float G = AAirfield::GroundAt(M.Main.X, M.Main.Y);
+	const FVector At = FTerminalPlan::ToWorld(M.Main.X, G + 0.5f, M.Main.Y);
+	for (const float S : {-1.f, 1.f})
+		for (int32 k = 0; k < 6; ++k)
+		{
+			FPuff P; P.Seed = FMath::FRand(); P.Span = FMath::FRandRange(2.1f, 3.f); P.Life = -0.04f * k;   // (a few cards in a quick row)
+			P.P = At + Side * (S * 380.f + FMath::FRandRange(-40.f, 40.f)) + Fwd * FMath::FRandRange(-60.f, 60.f);
+			P.V = Fwd * (M.Speed * 100.f * FMath::FRandRange(0.15f, 0.3f)) + Side * (S * FMath::FRandRange(20.f, 90.f)) + FVector(0.f, 0.f, FMath::FRandRange(30.f, 90.f));
+			Puffs.Add(P);
+		}
+	ADP_LOG(TEXT("Traffic: %s tyre smoke at both main gears (%d puffs), none from the nose"), *M.Reg, 12);
+}
+
+void ASimTraffic::Smoke(float Dt)
+{
+	UInstancedStaticMeshComponent* I = SmokeIsm.Get();
+	if (!Puffs.Num()) { if (I && I->GetInstanceCount() > 0) I->ClearInstances(); return; }
+	ADP_PERF_SCOPE("traffic: touchdown tyre smoke", 1.f);
+	if (!I)
+	{
+		static UStaticMesh* Plane = ADPKeep(LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane")));
+		static UMaterialInterface* Mist = ADPKeep(LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Truck/M_WaterMist.M_WaterMist")));
+		if (!Plane || !Mist) { ADP_WARN(TEXT("Traffic: tyre smoke - %s missing, no smoke"), !Plane ? TEXT("the plane mesh") : TEXT("M_WaterMist")); Puffs.Reset(); return; }
+		I = NewObject<UInstancedStaticMeshComponent>(this, TEXT("TyreSmoke"));
+		I->SetupAttachment(GetRootComponent());
+		I->SetStaticMesh(Plane); I->SetMaterial(0, Mist);
+		I->SetCollisionEnabled(ECollisionEnabled::NoCollision); I->SetCastShadow(false);
+		I->SetNumCustomDataFloats(2);
+		I->SetUsingAbsoluteLocation(true); I->SetUsingAbsoluteRotation(true); I->SetUsingAbsoluteScale(true);
+		I->SetWorldTransform(FTransform::Identity);
+		I->RegisterComponent();
+		SmokeIsm = I;
+	}
+	FVector Eye = FVector::ZeroVector;
+	if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr) if (PC->PlayerCameraManager) Eye = PC->PlayerCameraManager->GetCameraLocation();
+	TArray<FTransform> Shown; TArray<float> Data;
+	for (int32 i = Puffs.Num() - 1; i >= 0; --i)
+	{
+		FPuff& P = Puffs[i];
+		P.Life += Dt;
+		if (P.Life >= P.Span) { Puffs.RemoveAtSwap(i); continue; }
+		if (P.Life < 0.f) continue;
+		P.P += P.V * Dt; P.V *= FMath::Max(0.f, 1.f - 2.5f * Dt); P.V.Z = FMath::Max(P.V.Z, 25.f);   // (dragged along, then hanging, rising slowly)
+		const float K = P.Life / P.Span;
+		const FVector ToEye = (Eye - P.P).GetSafeNormal();
+		const FQuat Q = FQuat(ToEye, P.Seed * 2.f * PI) * FRotationMatrix::MakeFromZ(ToEye).ToQuat();
+		Shown.Add(FTransform(Q, P.P, FVector(1.2f + 4.f * FMath::Sqrt(K))));   // (1.2 m to about 5 m across)
+		Data.Add(P.Seed); Data.Add(0.6f * FMath::Square(1.f - K) * FMath::Min(1.f, P.Life * 10.f));
+	}
+	I->ClearInstances();
+	if (Shown.Num())
+	{
+		I->AddInstances(Shown, false, true, false);
+		for (int32 i = 0; i < Shown.Num(); ++i) I->SetCustomData(i, TArrayView<const float>(&Data[i * 2], 2), false);
+		I->MarkRenderStateDirty();
+	}
 }
