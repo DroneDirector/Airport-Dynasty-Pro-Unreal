@@ -179,7 +179,7 @@ UADPAircraftLights* UADPAircraftLights::Fit(AActor* Plane, const FString& Type)
 			UMaterialBillboardComponent* F = NewObject<UMaterialBillboardComponent>(Plane);
 			UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Glow, Plane);
 			M->SetVectorParameterValue(TEXT("Color"), L.Col); M->SetScalarParameterValue(TEXT("Brightness"), 0.f);
-			const float Half = L.Size * 100.f * 1.5f;   // (the halo fades to nothing well inside the disc's edge)
+			const float Half = L.Size * 100.f * 0.75f;   // (the lens itself and a faint edge: owner 11-28, the orbs were too big - the glow round it comes from the bloom)
 			F->AddElement(M, nullptr, false, Half, Half, Far);
 			F->SetCastShadow(false); F->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			F->SetupAttachment(Root); F->SetRelativeLocation(L.At);

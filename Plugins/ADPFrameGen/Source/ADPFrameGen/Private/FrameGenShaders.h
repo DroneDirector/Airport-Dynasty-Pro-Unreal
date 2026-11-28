@@ -90,14 +90,30 @@ float At(Texture2D<float4> t, int2 p) { return t[clamp(p, int2(0, 0), int2(Size)
 	// nothing changed here: exactly as it is (menus, boxes, still parts of the picture)
 	if (all(o == n)) { U0[id.xy] = float4(n, 1); return; }
 	float2 uv = (float2(id.xy) + 0.5) / float2(Size);
-	float2 f = T2.SampleLevel(S, uv, 0).xy * 4;     // the motion, in full-size pixels (new to old)
-	float2 h = 0.5 * f / float2(Size);
-	float3 a = T0.SampleLevel(S, uv + h, 0).rgb;    // the old frame, half-way forward
-	float3 b = T1.SampleLevel(S, uv - h, 0).rgb;    // the new frame, half-way back
-	// where the two disagree (something uncovered, or the motion guess doesn't fit: glass with its reflections, screens,
-	// text) the new frame as it is, not a blend of two misplaced copies - those read as flicker (owner, 2026-11-17);
-	// fully from a difference of 0.15 in brightness, half at 0.075
-	float k = saturate(abs(Luma(a) - Luma(b)) * 6.67);
-	U0[id.xy] = float4(lerp((a + b) * 0.5, b, k), 1);
+	// (owner 11-28: windows and lamps broke up while moving - one motion per 4x4 block gave a lamp or a window frame the
+	//  motion of the sky behind it, and the misfit fell back to raw blocks of the new frame. Now each point tries the
+	//  motion of its own block, of the 8 blocks round it and none at all, and keeps the one that lines the two frames up
+	//  best here, in full colour: a lamp or a frame moves with the aircraft or the building it is on)
+	uint fw, fh; T2.GetDimensions(fw, fh);
+	int2 q = int2(id.xy / 4);
+	float2 f0 = T2.SampleLevel(S, uv, 0).xy * 4;
+	float bestC = 1e9; float3 ba = n, bb = n;
+	[unroll] for (int c = 0; c < 11; c++)
+	{
+		float2 f;
+		if (c == 0) f = f0;
+		else if (c == 10) f = float2(0, 0);
+		else { uint k = uint(c - 1); int2 off = int2(int(k % 3) - 1, int(k / 3) - 1); f = T2[clamp(q + off, int2(0, 0), int2(fw, fh) - 1)].xy * 4; }
+		float2 h = 0.5 * f / float2(Size);
+		float3 a = T0.SampleLevel(S, uv + h, 0).rgb;    // the old frame, half-way forward
+		float3 b = T1.SampleLevel(S, uv - h, 0).rgb;    // the new frame, half-way back
+		float3 d = abs(a - b);
+		float cost = d.r + d.g + d.b + 0.002 * length(f - f0);
+		if (cost < bestC) { bestC = cost; ba = a; bb = b; }
+	}
+	// where even the best still disagrees (glass with its own moving reflections, screens) the new frame as it is,
+	// eased in from a colour difference of 0.1 to 0.3 so no block edge shows
+	float k = smoothstep(0.1, 0.3, bestC);
+	U0[id.xy] = float4(lerp((ba + bb) * 0.5, n, k), 1);
 }
 )HLSL";
