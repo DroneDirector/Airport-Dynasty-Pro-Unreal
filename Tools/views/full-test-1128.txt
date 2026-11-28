@@ -25,7 +25,7 @@ wait 2
 measure 10 bus-bay
 shot4k bus-bay
 # the coaches out on the road in, 500 m short of their stands and 25 m apart, so none stands outside the Grand Hall when they come in
-coach out 500 25
+coach out 2500 25
 # ===== 2 terminal landside, from near the car park
 shotcam land-whole
 wait 2
@@ -49,16 +49,20 @@ shot4k land-orbit-west
 shotcam land-orbit-east
 shot4k land-orbit-east
 shotcam land-orbit-home
-# ===== coaches arriving: from the hub, picked up on the road 500 m out, tracked in, parked on their own stands
+# ===== coaches arriving: from the hub, picked up on the road 2.5 km out (85 km/h open road, 50 inside the airport), tracked in, parked on their own stands
 # (coach terminal holds until the lead is off; the others follow as their way frees. The lead is tracked by one held look
 #  - from the road, through its slow-down to its stand, parked - static shots only before and after it)
 coach terminal
+shotcam coach-track
+wait 8
+measure 10 coach-track
+shot4k coach-track-open-road
+coachwait 240 near 500
 shotcam coach-road-wide
 wait 2
 shot4k coach-road
 shotcam coach-track
-wait 8
-measure 10 coach-track
+wait 4
 shot4k coach-track
 coachwait 240 near 120
 shot4k coach-turn-in
