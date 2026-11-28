@@ -18,10 +18,10 @@ jetway 4 dock
 wait 45
 jetway 4 cam wide
 # ===== 1 gate: the A320 at gate 4, its right side (the jetway is on its left), orbit then low and close
-orbit 38 60 60 g2.5 0 A320
+orbit 40 60 60 g7 0 A320
 wait 2
 sound record airplane-test
-orbit 38 60 165 g2.5 22 A320
+orbit 40 60 165 g7 22 A320
 wait 4
 shot4k gate-orbit-front
 wait 9
