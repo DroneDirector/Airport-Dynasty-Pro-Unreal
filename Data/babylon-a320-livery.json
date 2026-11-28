@@ -5,7 +5,8 @@
     "white": {},
     "adp": {
       "Fuse-Main_Fuse-Main": "/Game/Babylon/A320/Livery/MI_A320_Livery_ADP_Fuse",
-      "engine-CFM56_engine-CFM56": "/Game/Babylon/A320/Livery/MI_A320_Livery_ADP_Engine"
+      "engine-CFM56_engine-CFM56": "/Game/Babylon/A320/Livery/MI_A320_Livery_ADP_Engine",
+      "Fuse-Main_Fuse-Placards": "/Game/Babylon/A320/Livery/MI_A320_Livery_ADP_Fuse"
     }
   }
 }

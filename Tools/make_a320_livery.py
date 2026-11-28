@@ -22,7 +22,7 @@ DEST = '/Game/Babylon/A320/Livery'
 WHITE = '/Game/Babylon/A320/A320/Materials/'
 PARENT = '/Game/Babylon/Masters/MI_ClearCoat_Opaque_DS'
 # livery MI: (white MI it replaces, colour picture, gloss map)
-SETS = {'MI_A320_Livery_ADP_Fuse': ('Fuse-Main_Fuse-Main', 'ADP-Fuse-Main.png', 'ADP-Fuse-Main-MR.png', 'Fuse'),
+SETS = {'MI_A320_Livery_ADP_Fuse': ('Fuse-Main_Fuse-Placards', 'ADP-Fuse-Main.png', 'ADP-Fuse-Main-MR.png', 'Fuse'),
         'MI_A320_Livery_ADP_Engine': ('engine-CFM56_engine-CFM56', 'ADP-engine-CFM56.png', 'ADP-engine-CFM56-MR.png', 'Engine')}
 SCALARS = {'MetallicFactor': 1.0, 'RoughnessFactor': 1.0, 'ClearCoatFactor': 1.0, 'ClearCoatRoughnessFactor': 0.08,
            'IOR': 1.5, 'SpecularFactor': 1.0, 'EmissiveStrength': 1.0}
