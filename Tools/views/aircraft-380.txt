@@ -1,0 +1,68 @@
+# The aircraft changes in one start (2026-11-28): engine heat haze (379), gear up and down with the doors (380), the tower
+# radio at the holding point and the line-up (378). bash Tools/perf_views.sh Tools/views/aircraft-380.txt editor
+cmd r.VSync 0
+framegen on
+speed 1 1
+hour 13
+weather 2
+wait 25
+lives
+shots Tools/views/camera-shots-1128.txt
+park
+wait 5
+# ===== 1 taxi out: idle haze, the holding point exchange, the line-up and the take-off power haze
+flight taxiout a320
+shotcam haze-idle
+wait 8
+shot4k haze-idle
+flightwait 300 HB-TAXI hold
+shotcam radio-hold-close
+wait 3
+shot4k radio-hold
+wait 4
+shot4k radio-hold-2
+flightwait 90 HB-TAXI lineup
+shotcam lineup-side
+wait 2
+shot4k lineup
+flightwait 90 HB-TAXI roll
+shotcam haze-toga
+wait 6
+shot4k haze-toga
+# ===== 2 take-off: the gear going up after lift-off
+flightwait 120 HB-TAXI climb|away
+wait 2
+flight takeoff a320
+shotcam haze-toga
+wait 8
+shot4k haze-toga-roll
+flightwait 120 HB-TOFF climb
+shotcam gear-up-close
+wait 4
+shot4k gear-up-doors-open
+wait 3
+shot4k gear-up-folding
+wait 3
+shot4k gear-up-folding-2
+wait 4
+shot4k gear-up-locked
+# ===== 3 landing: from 640 m, the gear coming down at 600 m
+flightwait 60 HB-TOFF away
+flight land a320 175
+shotcam gear-down-close
+wait 6
+shot4k gear-down-before
+wait 8
+shot4k gear-down-doors-open
+wait 4
+shot4k gear-down-falling
+wait 6
+shot4k gear-down-falling-2
+wait 8
+shot4k gear-down-locked
+# ===== end
+lives
+parkoff
+hour live
+weather live
+quit

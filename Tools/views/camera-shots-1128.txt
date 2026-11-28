@@ -86,3 +86,9 @@ taxi-in-track look 70 130 6 HB-LAND
 taxi-out-track look 70 120 6 HB-TAXI
 hold-short-side look 60 60 4 HB-TAXI
 lineup-side look 90 90 5 HB-TAXI
+# --- 380 gear, 379 haze, 378 radio (2026-11-28): close on the test A320s
+gear-up-close look 45 110 3 HB-TOFF
+gear-down-close look 55 70 2 HB-LAND
+haze-idle look 30 150 3 HB-TAXI
+haze-toga look 35 150 3 HB-TOFF
+radio-hold-close look 20 60 3 HB-TAXI
