@@ -838,6 +838,25 @@ void UVehicleRiders::GoSeat(FRider& Rr, bool bAgain)
 	}
 }
 
+bool UVehicleRiders::SeatNow(AActor* Who, int32 BagBay, int32 BagKind)
+{
+	ADP_PERF_SCOPE("vehicle riders: a test passenger seated", 1.f);
+	if (IsDriving()) return false;
+	FRider* R = Join(Who); if (!R || R->bAboard || R->bDriver || R->Q.Num()) return false;
+	if (!PickSeat(*R)) { Leave(Who); return false; }
+	if (BagBay >= 0 && R->BagState == 0)
+	{
+		GiveBag(*R, BagKind);
+		if (R->BagHold) { R->BagAt = BagInBay(BagBay); R->BagState = 3; R->Bay = BagBay; R->BagBy = nullptr; TickBag(*R); }
+	}
+	const float Row = Spec.Num(TEXT("row_stand"), 0.33f) * 100.f, Ay = -Spec.Num(TEXT("aisle_y"), 0.f) * 100.f;
+	R->bAboard = true; R->Way = 0; R->At = FVector(R->SeatL.X + Row, Ay, FloorZ()); R->Yaw = 0.f;
+	ASeats::Sat(Who);
+	R->bSeated = true; R->Hold = [this, R](float, float PH) { return Passenger(*R, 1.f, PH); };
+	ADP_LOG(TEXT("Riders: %s sat down for the test (seat %d%s)"), *Who->GetName(), R->Seat, R->BagState == 3 ? *FString::Printf(TEXT(", bag in bay %d"), BagBay) : TEXT(""));
+	return true;
+}
+
 /** Off in the order they sit: nearest the front door first, in a row the aisle seat before the window; nobody up past anybody. */
 bool UVehicleRiders::MayLeave(const FRider& R) const
 {

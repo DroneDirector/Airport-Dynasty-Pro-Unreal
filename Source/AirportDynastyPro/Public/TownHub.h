@@ -55,6 +55,15 @@ public:
 	void Unbook(int32 Run, bool bBag, const FString& Why);
 	/** The arrival buffer before departure, minutes (adp.TownHubBufferMin). */
 	static float BufferMin();
+	/** Tests (PerfViews "coach out ... pax"): coach Ci, standing out on the way in, filled with N seated passengers (made out of
+	 *  sight, a few each think; bags in its door-side bays while they fit). Its next drive to its terminal stand is their run:
+	 *  parked square, its driver out and the door open, they get off one by one, take their bags and go into the Grand Hall
+	 *  (PaxFlow::FromCoach); the door shut once the last one is off. */
+	bool TestFill(int32 Ci, int32 N);
+	/** A test-filled coach: how many are off so far and how many still aboard. False: not one, or not parked yet. */
+	bool Unloading(int32 Ci, int32& Off, int32& Aboard) const;
+	/** The test-filled coach parked first (INDEX_NONE: none parked yet). */
+	int32 TestLead() const;
 	virtual void Tick(float Dt) override;
 
 private:
@@ -73,6 +82,8 @@ private:
 		TArray<int32> BagsIn;          // (bags in each of those)
 		int32 Fails = 0; bool bSlow = false;
 		bool bAtHub = false;           // (parked in hub bay Bay after an arrival run: waits there for a departure run, or drives back)
+		bool bTestRide = false, bRode = false, bParkSaid = false;   // (a test-filled coach: its next drive in is the run; it has driven)
+		int32 Fill = 0, OffN = 0, ParkSeq = 0;                       // (still to seat; off so far; the order it parked in)
 	};
 	struct FWaiter
 	{
@@ -83,6 +94,8 @@ private:
 		bool bArr = false; int32 Kind = 1;            // (an arrival, terminal to hub; its bag's model)   (Phase 9: walking to the stop on the walking map)
 	};
 	TArray<FHubCoach> Fleet; TArray<FWaiter> Waiters;
+	int32 ParkSeqN = 0; bool bTestAny = false;
+	void TestFills();
 	bool bLoaded = false, bDataOk = false;
 	TArray<FVector> Bays;                       // (hub coach bays: front bumper, world xy; nearest the shelter first)
 	FVector ShelterA = FVector::ZeroVector, ShelterB = FVector::ZeroVector;   // (the shelter's line, world xy)

@@ -25,7 +25,8 @@ wait 2
 measure 10 bus-bay
 shot4k bus-bay
 # the coaches out on the road in, 2 km short of their stands and 25 m apart (on AIRPORT-BACK-TO-TOWN, the 85 km/h open road, about 900 m before the airfield; clear of the CHABLAIS-LINK junction), so none stands outside the Grand Hall when they come in
-coach out 2000 25
+# (36 seated passengers in each, bags in the door-side bays: they get off at the Grand Hall bays and walk in)
+coach out 2000 25 36
 # ===== 2 terminal landside, from near the car park
 shotcam land-whole
 wait 2
@@ -69,6 +70,16 @@ shot4k coach-turn-in
 coachwait 300 near 3
 wait 4
 shot4k coach-lead-parked
+# the lead coach unloading: its door opened by the driver, one at a time down the steps, bags from the hold, into the hall
+coachwait 300 unload
+coachdoor
+wait 3
+measure 10 coach-unload
+shot4k coach-unload
+# the paving / lawn edge right in front of the Grand Hall main entrance, from 4 m up (a jagged grey strip there: judge by eye)
+view 75 4 -14 -90 -25
+wait 2
+shot4k entrance-edge
 coachwait 300 home
 shotcam coach-turn-crane
 wait 2

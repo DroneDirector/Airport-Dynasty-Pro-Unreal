@@ -882,7 +882,7 @@ int32 ACoaches::TestOut(float Metres, float GapM)
 		C.RootBase = Par ? Target.GetRelativeTransform(Par->GetComponentTransform()) : Target;
 		ApplyBody(C);
 		ASeats::Follow(M, true);
-		++Put;
+		++Put; TestOuts.Add(Out[r].Ci);
 		ADP_LOG(TEXT("Coaches: test - coach %d out on the way in at %.1f %.1f (%.0f m before its stand)"), Out[r].Ci, Root.X / 100.0, -Root.Y / 100.0, (Out[r].Len - Want) / 100.f);
 	}
 	return Put;

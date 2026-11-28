@@ -116,6 +116,14 @@ public:
 	bool TakeBag(AActor* Who);
 	/** Lets someone standing outside go (the town hub: handed back to PaxFlow) - their pose, seat and bag of this vehicle gone. */
 	bool Leave(AActor* Who);
+	/** Tests (PerfViews "coach out ... pax"): sat down at once on a free seat while the vehicle stands out of sight - the same
+	 *  seat claim and sitting IK as Board; BagBay >= 0: their bag (model BagKind) already lying in that luggage bay. */
+	bool SeatNow(AActor* Who, int32 BagBay, int32 BagKind = 1);
+	/** Bags lying in Bay now (four fit). */
+	int32 BagsInBay(int32 Bay) const { int32 N = 0; for (const TSharedPtr<FRider>& R : Riders) if (R->BagState == 3 && R->Bay == Bay) ++N; return N; }
+	/** The world point where the aisle starts (inside, by the front door). */
+	FVector AisleWorld() const { return Wo(Spec.At(TEXT("aisle_start"))); }
+	AActor* DriverActor() const { return Driver ? Driver->A.Get() : nullptr; }
 	bool IsSeated(const AActor* Who) const;
 	bool IsBusy(const AActor* Who) const;
 	bool IsAboard(const AActor* Who) const;

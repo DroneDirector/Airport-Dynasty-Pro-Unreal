@@ -90,6 +90,10 @@ public:
 	bool SendOnRoute(int32 Coach, bool bToTown, int32 Bay = INDEX_NONE, float LimitMs = 13.9f);   // (LimitMs: its top speed, m/s - the town hub's traffic)
 	/** Being sent (backing up, or its riders driving the loop)? */
 	bool OnRoute(int32 Coach) const { return RouteGo.Contains(Coach); }
+	/** Parked square in a terminal bay (its root within 1.5 m of the bay's, facing its way). */
+	bool ParkedSquare(int32 Coach) const { return InTermBay(Coach); }
+	/** Put out on the way in by TestOut (PerfViews "coach out"). */
+	bool IsTestOut(int32 Coach) const { return TestOuts.Contains(Coach); }
 	/** The loop's path from a root place (world cm, the front axle's way; tests). Empty, Why said, when there is none. */
 	TArray<FVector> RoutePath(int32 Coach, bool bToTown, int32 Bay, const FTransform& From, FString& Why) const;
 	/** Views test: every coach not yet driving put on the loop's way in, Metres short of the terminal, GapM apart (the
@@ -155,6 +159,7 @@ private:
 	mutable TArray<FTransform> TermBays; mutable bool bTermBaysMade = false;
 	mutable TArray<FVector> TermLane; mutable TArray<float> TermLaneS; mutable float TermInS0 = 0.f, TermInS1 = 0.f;   // the lane in past the bays; its stretch where a coach is given one
 	FTransform StandRel = FTransform::Identity; bool bStandRel = false;   // a parked coach's root seen from its actor (its stand)
+	TSet<int32> TestOuts;                  // the coaches TestOut put out on the way in
 	TMap<int32, int32> TermBayOf;          // the terminal bay a coach was given on arrival
 	struct FFreeMemo { double At = -1e9; bool bFree = false; FString Why; };
 	mutable TMap<int32, FFreeMemo> FreeMemo;   // RouteFree, worked out at most every half second

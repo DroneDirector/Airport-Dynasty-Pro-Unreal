@@ -39,7 +39,11 @@
 //                                         chase view; stopped and left again (camera steps are left out while in it)
 //   hangar <plan x> open|shut [speed]     the hangar nearest that x, its doors sent; speed: how many times the real 10 min
 //   coach town|terminal                   every coach sent to the town hub / back to its own stand (Coaches::SendOnRoute)
+//   coach out <m> <gap> [pax]            every coach out on the way in, m short of its stand; pax: that many seated passengers
+//                                         each (TownHub::TestFill) who get off at its stand and walk into the Grand Hall
 //   coachwait <seconds> hub|home|near <m> waits until no coach is on its way / one is that near its stand
+//   coachwait <seconds> unload           waits until the first test-filled coach to park has its first passenger off
+//   coachdoor                            the camera beside that coach's front door, 2.5 m up, looking at the door
 //   quit
 // Save points (owner 2026-11-28): "# ===== <tag> <name>" lines divide the file into sections (tag: 1, 5b, coaches, end).
 //   -UIPerfViewsFrom=<tag or a word of the name, _ for a space> starts at that section (perf_views.sh --from <..>);
@@ -78,6 +82,7 @@
 #include "FireTruck.h"
 #include "Hangar.h"
 #include "Coaches.h"
+#include "TownHub.h"
 #include "GraphicsMemory.h"
 #include "Sim/ADPSim.h"
 #include "Kismet/GameplayStatics.h"
@@ -746,6 +751,19 @@ namespace ADPPerfViewsInternal
 			CoachSend.Reset();
 			}
 		}
+		if (CoachMode == 4)   // (the first test-filled coach to park: its first passenger off)
+		{
+			const ATownHub* Hub = ATownHub::Get(W); const int32 Ci = Hub ? Hub->TestLead() : INDEX_NONE; int32 Off = 0, Ab = 0;
+			bool bDone = false;
+			if (Ci != INDEX_NONE && Hub->Unloading(Ci, Off, Ab))
+			{
+				if (Off >= 1) { ADP_LOG(TEXT("Views: coachwait done (unload: coach %d has %d off, %d still aboard)"), Ci, Off, Ab); bDone = true; }
+				else if (Ab == 0) { ADP_WARN(TEXT("Views: coachwait - coach %d parked with nobody aboard"), Ci); bDone = true; }
+			}
+			if (!bDone && Now >= CoachEnd) { ADP_WARN(TEXT("Views: coachwait timed out - no test coach unloading (lead %d, %d off, %d aboard)"), Ci, Off, Ab); bDone = true; }
+			if (bDone) CoachMode = 0;
+			return bDone;
+		}
 		if (CoachMode)
 		{
 			ACoaches* C = ACoaches::Find(); bool bDone = !C; float Best = 1e9f;
@@ -1108,6 +1126,13 @@ namespace ADPPerfViewsInternal
 				CoachHome.Reset(); for (int32 c = 0; c < C->Num(); ++c) CoachHome.Add(C->RootOf(c).GetLocation());
 				const int32 Out = C->TestOut(V.Num() > 1 ? FCString::Atof(*V[1]) : 500.f, V.Num() > 2 ? FCString::Atof(*V[2]) : 25.f);
 				ADP_LOG(TEXT("Views: %d of %d coaches out on the way in"), Out, C->Num());
+				const int32 Pax = V.Num() > 3 ? FCString::Atoi(*V[3]) : 0;
+				if (Pax > 0)
+				{
+					int32 Filled = 0; ATownHub* Hub = ATownHub::Get(W);
+					for (int32 c = 0; c < C->Num() && Hub; ++c) if (C->IsTestOut(c) && Hub->TestFill(c, Pax)) ++Filled;
+					ADP_LOG(TEXT("Views: %d coaches to be filled with %d passengers each"), Filled, Pax);
+				}
 				return true;
 			}
 			const bool bTown = V[0] == TEXT("town");
@@ -1122,9 +1147,34 @@ namespace ADPPerfViewsInternal
 			if (ASimTraffic::TestMove(W, bOff, V.Num() > 2 ? FCString::Atof(*V[2]) : 20.f, Reg)) ADP_LOG(TEXT("Views: %s %s (look at it by %s)"), *Reg, bOff ? TEXT("takes off") : TEXT("on final"), *Reg);
 			else ADP_WARN(TEXT("Views: %s left out"), *L);
 		}
+		else if (K == TEXT("coachdoor"))   // (beside the unloading coach's front door, 2.5 m up, the door and its steps in the middle)
+		{
+			ACoaches* C = ACoaches::Find(); const ATownHub* Hub = ATownHub::Get(W);
+			int32 Ci = Hub ? Hub->TestLead() : INDEX_NONE;
+			if (Ci == INDEX_NONE && C) for (int32 c = 0; c < C->Num(); ++c) if (C->ParkedSquare(c)) { Ci = c; break; }
+			bSub = bRel = false; bMissing = true; FreeFov(PC);
+			FVector DoorAt, Out;
+			if (!C || Ci == INDEX_NONE || !C->DoorSpot(Ci, 0, DoorAt, Out)) { ADP_WARN(TEXT("Views: subject missing: no parked coach for coachdoor")); return true; }
+			const FTransform Rt = C->RootOf(Ci); const FVector Fx = Rt.GetUnitAxis(EAxis::X).GetSafeNormal2D();
+			FVector SideOut = DoorAt - Rt.GetLocation(); SideOut -= Fx * FVector::DotProduct(SideOut, Fx); SideOut.Z = 0.0; SideOut = SideOut.GetSafeNormal();
+			if (SideOut.IsNearlyZero()) SideOut = Out.GetSafeNormal2D();
+			const FVector Aim = DoorAt + FVector(0.0, 0.0, 110.0) + SideOut * 120.0;
+			static const float Tries[][2] = { {600.f, 250.f}, {500.f, 350.f}, {750.f, 200.f}, {450.f, -250.f}, {650.f, 0.f} };
+			for (const auto& Tr : Tries)
+			{
+				FVector To = DoorAt + SideOut * Tr[0] + Fx * Tr[1]; To.Z = DoorAt.Z + 250.0;
+				AboveGround(W, To, PC->GetPawn(), TEXT("coachdoor"));
+				if (Solid(W, To, PC->GetPawn())) continue;
+				From = PC->PlayerCameraManager->GetCameraLocation(); RotFrom = Rot;
+				Want = To; Rot = (Aim - To).Rotation(); bHeld = true; bMissing = false; FlyLen = 0.0;
+				ADP_LOG(TEXT("Views: coachdoor - coach %d, camera %.0f m out, %.0f m along (%.1f %.1f %.1f)"), Ci, Tr[0] / 100.f, Tr[1] / 100.f, To.X / 100.0, To.Z / 100.0, -To.Y / 100.0);
+				break;
+			}
+			if (bMissing) ADP_WARN(TEXT("Views: subject missing: every spot beside coach %d's door is inside something"), Ci);
+		}
 		else if (K == TEXT("coachwait") && V.Num() > 1)
 		{
-			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
+			CoachMode = V[1] == TEXT("near") ? 3 : V[1] == TEXT("hub") ? 1 : V[1] == TEXT("unload") ? 4 : 2; CoachNear = V.Num() > 2 ? FCString::Atof(*V[2]) : 0.f;
 			CoachEnd = FPlatformTime::Seconds() + FCString::Atof(*V[0]); ADP_LOG(TEXT("Views: waiting for the coaches (%s)"), *A);
 		}
 		else if (K == TEXT("quit")) { ADP_LOG(TEXT("Views: done")); Finish(true); FPlatformMisc::RequestExit(false); return false; }

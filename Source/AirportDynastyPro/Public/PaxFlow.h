@@ -88,6 +88,9 @@ public:
 	/** The fixed-views run (PerfViews "board"): N passengers on free floor a few metres in front of the gate's jetway door,
 	 *  boarding called at once, one every Gap seconds through the door once the jetway is docked. False and Why if not. */
 	bool TestBoard(int32 Gate, int32 N, float Gap, FString& Why);
+	/** The fixed-views run (PerfViews "coach out ... pax"): one passenger for a test coach run (Trip), made at At out of sight,
+	 *  handed to the town hub the usual way (St Coach, HubKind) - null while their body is still loading or none can be made. */
+	AActor* TestCoachPax(const FVector& At, float Yaw, int32 Trip, bool bBag);
 	/** The gate's jetway (INDEX_NONE: none) and its jetway door in the world (false: no such gate). */
 	int32 GateJetway(int32 Gate) const { return JetwayFor(GateRoom(Gate)); }
 	bool GateDoor(int32 Gate, FVector& Door) const;
