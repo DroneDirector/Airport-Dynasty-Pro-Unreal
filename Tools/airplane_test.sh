@@ -3,12 +3,14 @@
 #   bash Tools/airplane_test.sh video    recorded: 60 fps ddagrab + h264_nvenc, the game's own sound (-RecordAudio), no pictures
 #   bash Tools/airplane_test.sh photos   the same run (Tools/views/airplane-test.txt), a PNG at every shot4k, no recording
 #   ... video|photos flight              only the part in the air: 10,000 ft and the landing (Tools/views/airplane-flight.txt)
+#   ADP_EXTRA="-FGOnlyGen" bash Tools/airplane_test.sh video flight   extra game switches; the file name gets -fgonly (other switches: -x)
 # Out: F:/ADP-Export/airplane-test/ (the video, its -recorder.txt, three frames to look at) and a short summary there:
 #   airplane-test-<mode>-summary.txt. His careers / saves and GameUserSettings are put aside and back (perf_views does the latter).
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 M="${1:-}"; case "$M" in video|photos) ;; *) echo "use: bash Tools/airplane_test.sh video|photos [flight]"; exit 2 ;; esac
 VF=Tools/views/airplane-test.txt; NM=airplane-test; [ "${2:-}" = flight ] && { VF=Tools/views/airplane-flight.txt; NM=airplane-flight; }
 OUT=/f/ADP-Export/airplane-test; mkdir -p "$OUT"
+EX="${ADP_EXTRA:-}"; [ -n "$EX" ] && { case "$EX" in *FGOnlyGen*) NM="$NM-fgonly" ;; *) NM="$NM-x" ;; esac; }
 [ -e /f/ADP-Export/gpu.lock ] && { echo "STOP: /f/ADP-Export/gpu.lock is taken (another run uses the graphics card)"; exit 1; }
 tasklist | grep -qiE "UnrealEditor.exe|AirportDynastyPro" && { echo "STOP: the game or editor is running"; exit 1; }
 echo "airplane-test $M $(date +%F_%T)" > /f/ADP-Export/gpu.lock
@@ -22,11 +24,11 @@ rm -f Saved/Logs/Views.log
 if [ "$M" = video ]; then
   VID="$OUT/$NM-$STAMP.mp4"
   python Tools/record_test.py "$(cygpath -w "$VID")" "$(cygpath -w "$R/Saved/Logs/Views.log")" 40 > "$OUT/recorder-console.txt" 2>&1 & RP=$!
-  bash Tools/perf_views.sh "$VF" editor -AirplaneTest -RecordAudio -ViewsNoShots "-RecordAudioDir=F:/ADP-Export/airplane-test" > "$OUT/views-console.txt" 2>&1
+  bash Tools/perf_views.sh "$VF" editor -AirplaneTest -RecordAudio -ViewsNoShots "-RecordAudioDir=F:/ADP-Export/airplane-test" $EX > "$OUT/views-console.txt" 2>&1
   wait $RP; REC=$?
 else
   T0=$(date +%s)
-  bash Tools/perf_views.sh "$VF" editor -AirplaneTest > "$OUT/views-console.txt" 2>&1
+  bash Tools/perf_views.sh "$VF" editor -AirplaneTest $EX > "$OUT/views-console.txt" 2>&1
 fi
 { echo "AIRPLANE TEST ($M, $VF) $(date '+%F %H:%M')"
   grep -m1 "game exit code" Saved/Logs/Views-Summary.txt

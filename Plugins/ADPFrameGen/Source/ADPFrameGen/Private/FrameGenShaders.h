@@ -97,7 +97,11 @@ float At(Texture2D<float4> t, int2 p) { return t[clamp(p, int2(0, 0), int2(Size)
 	uint fw, fh; T2.GetDimensions(fw, fh);
 	int2 q = int2(id.xy / 4);
 	float2 f0 = T2.SampleLevel(S, uv, 0).xy * 4;
-	float bestC = 1e9; float3 ba = n, bb = n;
+	// (11-28 run 2: a moving sun glint on the tail cone still shattered - each point chose alone, so next-door points
+	//  took different blocks' motions. Now each motion is judged on a small patch (the point and four round it, 2 px
+	//  out), so neighbours agree, and a near tie goes to the smooth motion)
+	float2 px = 1.0 / float2(Size);
+	float bestC = 1e9; float3 ba = n, bb = n; float3 sa = n, sb = n;
 	[unroll] for (int c = 0; c < 11; c++)
 	{
 		float2 f;
@@ -108,12 +112,20 @@ float At(Texture2D<float4> t, int2 p) { return t[clamp(p, int2(0, 0), int2(Size)
 		float3 a = T0.SampleLevel(S, uv + h, 0).rgb;    // the old frame, half-way forward
 		float3 b = T1.SampleLevel(S, uv - h, 0).rgb;    // the new frame, half-way back
 		float3 d = abs(a - b);
-		float cost = d.r + d.g + d.b + 0.002 * length(f - f0);
+		float cost = (d.r + d.g + d.b) * 2;
+		[unroll] for (int t = 0; t < 4; t++)
+		{
+			float2 o2 = float2(t == 0 ? -2 : (t == 1 ? 2 : 0), t == 2 ? -2 : (t == 3 ? 2 : 0)) * px;
+			float3 e = abs(T0.SampleLevel(S, uv + o2 + h, 0).rgb - T1.SampleLevel(S, uv + o2 - h, 0).rgb);
+			cost += (e.r + e.g + e.b) * 0.5;
+		}
+		cost = cost * 0.25 + 0.004 * length(f - f0);
+		if (c == 0) { sa = a; sb = b; }
 		if (cost < bestC) { bestC = cost; ba = a; bb = b; }
 	}
-	// where even the best still disagrees (glass with its own moving reflections, screens) the new frame as it is,
-	// eased in from a colour difference of 0.1 to 0.3 so no block edge shows
+	// where even the best still disagrees (a glint or a lamp with its own movement, glass reflections) no raw blocks:
+	// the smooth motion's blend, which reads as a little motion blur, eased in from 0.1 to 0.3
 	float k = smoothstep(0.1, 0.3, bestC);
-	U0[id.xy] = float4(lerp((ba + bb) * 0.5, n, k), 1);
+	U0[id.xy] = float4(lerp((ba + bb) * 0.5, (sa + sb) * 0.5, k), 1);
 }
 )HLSL";
