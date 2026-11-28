@@ -6,7 +6,7 @@
 #   jetway <gate> cam <wide|side|cab|cabin|gate> [seconds]   placed by the jetway as it stands then
 # Run one with: shotcam <name>.
 # --- 1 town bus station (bays A1-A12, plan 275.8 / -14.4)
-bus-wide view 276 14 -95 -90 -10
+bus-wide look 60 -40 14 AirportCoach
 bus-crane-down fly 276 6 -60 -90 -5 10
 bus-close look 0 0 25 BusStation
 town-station look 0 180 25 SM_TOWN_HUB_0
