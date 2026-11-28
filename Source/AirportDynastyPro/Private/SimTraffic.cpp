@@ -4,6 +4,7 @@
 #include "Tugs.h"
 #include "HangarTow.h"
 #include "Turnaround.h"
+#include "A320Parts.h"
 #include "GSE.h"
 #include "ParkedAircraft.h"
 #include "JetwayRigs.h"
@@ -1003,7 +1004,7 @@ namespace
 	const FVector NoseAxle(0.f, 0.f, 37.6f);                  // the nose wheels' axle
 	const FVector MainAxle[2] = {FVector(-387.1f, 1252.2f, 54.4f), FVector(385.f, 1252.2f, 54.4f)};
 	constexpr float NoseR = 37.6f, MainR = 54.4f;             // (tyre radii, cm)
-	constexpr float SteerSign = 1.f;                          // (the root's turn sense: checked in the pictures)
+	constexpr float SteerSign = -1.f;                         // (the steer angle is the plan's, + to the left; + about the root's z turns the wheel right)
 	// (11-28: the struts looked compressed in the air - they hung out 12/8 cm; make_a320_fg.py built them 30 cm in (STATIC_M):
 	//  fully out in the air is 30 cm, straight down, back to FlightGear's own length)
 	constexpr float StrutCm = 30.f;
@@ -1464,6 +1465,12 @@ namespace
 void ASimTraffic::Gear(FMove& M, float Dt)
 {
 	ABabylonModel* B = M.Model.Get(); if (!B || Dt <= 0.f) return;
+	// the doors shut, the RAT stowed, the flap mechanisms hidden; the APU's inlet flap open while the APU runs: on the ground
+	// with the engines off (at the gate after arrival, and on the push until the engines start)
+	{
+		ADPA320::FWant PW; PW.K[ADPA320::Apu] = M.Height < 0.05f && !M.bEnginesOn ? 1.f : 0.f;
+		ADPA320::Set(B, PW); ADPA320::Step(B, Dt);
+	}
 	if (!M.bGear)
 	{
 		M.bGear = true;
@@ -1521,7 +1528,12 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	else if (bGround) Want = M.Steer;              // (stopped: the wheel stays where it was)
 	M.Steer = FMath::FInterpTo(M.Steer, Want, Dt, 3.f);
 	// rolling by the distance (in the air they stop: spun up again at touchdown)
-	if (bGround) { M.RollN += FMath::RadiansToDegrees(DistN * 100.f / NoseR); M.RollM += FMath::RadiansToDegrees(DistM * 100.f / MainR); }
+	// (signed by the fuselage's line: backwards in the push; radii from the meshes: nose 0.376 m, mains 0.544 m)
+	if (bGround)
+	{
+		const float SgN = FVector2f::DotProduct(DN, Body) < 0.f ? -1.f : 1.f, SgM = FVector2f::DotProduct(M.Main - M.PrevMain, Body) < 0.f ? -1.f : 1.f;
+		M.RollN += SgN * FMath::RadiansToDegrees(DistN * 100.f / NoseR); M.RollM += SgM * FMath::RadiansToDegrees(DistM * 100.f / MainR);
+	}
 	// weight on wheels: each strut goes out only as far as its own wheels clear the ground (the main gear's height, the
 	// nose's that plus the wheelbase times the pitch's sine), with a damped spring under that - so the main legs compress
 	// first at touchdown, the nose strut extends first at rotation; never into the ground
@@ -1598,7 +1610,7 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 	const FTransform ST = About(SteerP, QDeg(SteerAx, SteerSign * M.Steer)) * RN;
 	const FTransform TubeN = FTransform(FVector(0.f, 0.f, -StrutCm * M.ExtN)) * ST;
 	Put(GgNoseUp, RN); Put(GgNoseLower, ST); Put(GgNoseLeg, TubeN);
-	Put(GgNoseW, About(NoseAxle, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollN))) * TubeN);
+	Put(GgNoseW, About(NoseAxle, FQuat(FVector::ForwardVector, FMath::DegreesToRadians(M.RollN))) * TubeN);
 	Link(LDrag, I, RN, I);
 	const FTransform Drag2 = T2;                  // (the nose lock stay rides the drag strut's lower bar)
 	Link(LNoseLock, Drag2, RN, I);
@@ -1614,7 +1626,7 @@ void ASimTraffic::Gear(FMove& M, float Dt)
 		Put(GgMainUp + s, RM);
 		Put(GgFair + s, About(FairingH[s].P, QDeg(FairingH[s].Ax, FairingH[s].Deg * GTab(TFairing, M.PosM))));
 		Put(GgMainLeg + s, TubeM);
-		Put(GgMainW + s, About(MainAxle[s], FQuat(FVector::ForwardVector, FMath::DegreesToRadians(-M.RollM))) * TubeM);
+		Put(GgMainW + s, About(MainAxle[s], FQuat(FVector::ForwardVector, FMath::DegreesToRadians(M.RollM))) * TubeM);
 		const FTransform BD = About(BayDoorH[s].P, QDeg(BayDoorH[s].Ax, BayDoorH[s].Deg * GTab(TDoor, M.PosM)));
 		Put(GgBay + s, BD);
 		// the bay door's actuator follows the door's fitting about its lock axis; the rod slides out by FlightGear's table

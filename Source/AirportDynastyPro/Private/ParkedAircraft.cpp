@@ -7,6 +7,7 @@
 #include "BabylonModel.h"
 #include "AircraftLights.h"
 #include "Turnaround.h"
+#include "A320Parts.h"
 #include "TerminalPlan.h"
 #include "Engine/World.h"
 #include "Misc/PackageName.h"
@@ -54,6 +55,7 @@ namespace ADPParked
 			// its lamps (to-do 243, AircraftLights.h): parked - beacon off, nav and logo at night while powered (the APU runs:
 			// the haze below); a career's own follow its turnaround (StartLive)
 			if (UADPAircraftLights* Lm = UADPAircraftLights::Fit(M, TEXT("A320"))) Lm->SetParked(true);
+			ADPA320::Rest(M);   // (RAT stowed, flap mechanisms hidden, doors shut: FlightGear's rest pose)
 			// heat haze behind the APU's exhaust at the tip of the tail cone (to-do 22b: the APU runs while it stands at the
 			// gate): a shimmer of hot air, rising (M_HeatHaze). The model's nose is the actor's +Y; the A320 is 37.6 m long,
 			// its nose tyre 5.1 m behind the nose, so the exhaust is about 32.5 m behind the nose tyre, 5 m up
@@ -168,7 +170,7 @@ namespace ADPParked
 			FActorSpawnParameters S; S.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			ABabylonModel* M = W->SpawnActor<ABabylonModel>(Mv.Path[0], FRotator::ZeroRotator, S);
 			if (!M || !M->Place(TEXT("A320"))) { if (M) M->Destroy(); break; }
-			M->Tags.Add(TEXT("TrafficTest"));
+			M->Tags.Add(TEXT("TrafficTest")); ADPA320::Rest(M);
 			Mv.M = M; Pose(Mv);
 			GMovers.Add(MoveTemp(Mv));
 			++Moving;
@@ -198,7 +200,7 @@ namespace ADPParked
 	namespace
 	{
 		TMap<FString, TPair<FString, TWeakObjectPtr<ABabylonModel>>> GLive;   // stand -> (registration, its model)
-		FTSTicker::FDelegateHandle GLiveTick;
+		FTSTicker::FDelegateHandle GLiveTick, GPartsTick;
 		bool GStaticGone = false;
 	}
 	TSet<FString> Coming;
@@ -232,6 +234,14 @@ namespace ADPParked
 		TArray<FAirfieldData::FStand> Stands = Field.Stands;
 		if (GLiveTick.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(GLiveTick);
 		GLive.Reset(); GStaticGone = false;
+		// the doors and the APU's inlet flap move every frame toward what the 5 s look below wants (A320Parts)
+		if (GPartsTick.IsValid()) FTSTicker::GetCoreTicker().RemoveTicker(GPartsTick);
+		GPartsTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WW](float Dt) -> bool
+		{
+			if (!WW.IsValid()) { GPartsTick.Reset(); return false; }
+			for (const auto& G : GLive) if (ABabylonModel* M = G.Value.Value.Get()) ADPA320::Step(M, FMath::Min(Dt, 0.1f));
+			return true;
+		}));
 		GLiveTick = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([WW, Stands](float) -> bool
 		{
 			UWorld* Wd = WW.Get();
@@ -270,11 +280,15 @@ namespace ADPParked
 			// (a night stop, a long stay) cold and dark: every lamp off until its departure's work powers it up again
 			const FDateTime TNow = ADPTurnaround::LastNow();
 			for (const auto& G : GLive)
-				if (ABabylonModel* M = G.Value.Value.Get()) if (UADPAircraftLights* Lm = M->FindComponentByClass<UADPAircraftLights>())
+				if (ABabylonModel* M = G.Value.Value.Get())
 				{
+					UADPAircraftLights* Lm = M->FindComponentByClass<UADPAircraftLights>();
 					const ADPTurnaround::FTurn* Tr = ADPTurnaround::All().FindByPredicate([&](const ADPTurnaround::FTurn& X) { return X.Reg == G.Value.Key; });
 					const bool bPower = !Tr || (Tr->bArrival && ((Tr->OffBlocks - Tr->OnBlocks).GetTotalHours() < 2.5 || (TNow - Tr->OnBlocks).GetTotalMinutes() < 45.0)) || (Tr->OffBlocks - TNow).GetTotalMinutes() < 75.0;   // (a night stop's OnBlocks is its work's start: Turnaround.cpp)
-					Lm->SetParked(bPower);
+					if (Lm) Lm->SetParked(bPower);
+					// its doors from the turnaround's tasks (jetway -> L1, catering -> R1/R4, holds -> cargo 1/2/3); the APU's
+					// inlet flap open while it is powered (the APU runs at the gate: FlightGear opens the flap with the APU)
+					ADPA320::Set(M, ADPA320::FromTurnaround(G.Value.Key, bPower));
 				}
 			return true;
 		}), 5.f);

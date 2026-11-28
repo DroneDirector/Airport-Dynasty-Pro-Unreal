@@ -165,6 +165,7 @@ for side in 'LR':
 #   "GEARCHK ..." the check: pivots against their meshes, the solved knees against the built links, rod ends on the door.
 # With a png whose name holds "gear": renders the gear down compressed, down extended, doors open, mid-retract and up.
 GEARPNG = 'gear' in PNG.lower()
+DOORPNG = 'doors' in PNG.lower()   # (the DOOR section's pictures: passenger and cargo doors, APU inlet flap, RAT)
 GA = []
 for a in ET.parse(FGM + 'Fuselage/fuselage.xml').getroot().iter('animation'):
     d = {'type': (a.findtext('type') or '').strip(), 'objs': [n.text.strip() for n in a.findall('object-name')]}
@@ -339,7 +340,7 @@ for pos, ext in ((1.0, 0.0), (1.0, 1.0), (0.5, 1.0), (0.0, 1.0)):
         pass
     print('GEARCHK pose pos %.1f ext %.0f: door rod end to its door fitting %+.3f / %+.3f m' % (pos, ext, M['_rodgap_L'], M['_rodgap_R']))
 
-if PNG and not GEARPNG:
+if PNG and not GEARPNG and not DOORPNG:
     full = {'Flap': 40, 'Slat': 27, 'AileronL': 20, 'AileronR': -25, 'Elevator': -30, 'Rudder': 25, 'Fairing': 22.5}
     for name, (a, ax, tr) in out.items():
         deg = next(v for k, v in full.items() if name.startswith(k))
@@ -406,3 +407,90 @@ if GEARPNG:
             sc.render.filepath = PNG.replace('.png', '-%s-%s.png' % (tag, vn)); bpy.ops.render.render(write_still=True)
     for k, o in built.items(): o.matrix_world = orig[k]
     print('GEAR rendered', PNG)
+
+# DOOR (owner 2026-11-28: the last moving parts as on the real aircraft), straight from FlightGear's fuselage.xml:
+#   passenger doors L1/R1/L4/R4: the hinge arm (DoorHinge*) turns about its upright and slides 15 cm forward; the door
+#   (with .Inner/.Placards) slides out 20-40 cm, then forward 1 m - a plug door out, then swung forward along the skin;
+#   cargo doors 1/2 turn 125 deg up about their top edge; the bulk door (3) 2.5-5 cm in, then 55 deg up inside;
+#   ApuFlap -10 deg x the inlet flap's position; Rat + RatSpinner: FlightGear's model has them deployed, its "RAT Deploy"
+#   turns them -90 x arm + 90 deg - stowed (arm 0) = 90 deg into their bay; FlapMechanismL/R hidden (FlightGear's select
+#   on /fdm/jsbsim/zero, never true; also MLGLockstayActuator* there).
+#   "DOOR <name> pivot <cm> axis <FQuat form> ..." and "DOORT <name> dir <game> table ..." for SimTraffic / A320Parts.cpp.
+def anims_of(obj):
+    return [d for d in GA if obj in d['objs'] and d['type'] in ('rotate', 'translate')]
+DR = {}
+for part in ('DoorHingeL1', 'DoorHingeR1', 'DoorHingeL2', 'DoorHingeR2', 'DoorL1', 'DoorR1', 'DoorL4', 'DoorR4', 'Cargo1', 'Cargo2', 'Cargo3', 'ApuFlap', 'Rat'):
+    seq = []
+    for d in anims_of(part):
+        if d['type'] == 'rotate':
+            p, ax = hinge(d)
+            seq.append(('R', p, ax, d['tab']))
+            print('DOOR %-12s rotate pivot %s axis %s tab %s near-mesh %.3f m' % (part, gv(p), ga_axis(ax), d['tab'], near_mesh(p, [part])))
+        else:
+            dv = (Rm @ d['dir']).normalized() if 'dir' in d else (place(d['p2']) - place(d['p1'])).normalized()
+            seq.append(('T', dv, d['tab']))
+            print('DOOR %-12s translate dir %s tab %s' % (part, gd(dv), d['tab']))
+    DR[part] = seq
+# factors (FlightGear <factor>, <offset-deg>) are not in GA: read them here
+FACT = {}
+for a in ET.parse(FGM + 'Fuselage/fuselage.xml').getroot().iter('animation'):
+    objs = [n.text.strip() for n in a.findall('object-name')]
+    for o in objs:
+        if o in DR and (a.findtext('type') or '').strip() == 'rotate':
+            FACT[o] = (float(a.findtext('factor') or 1.0), float(a.findtext('offset-deg') or 0.0))
+print('DOOR factors', FACT)
+def door_pose(k_pax, k_cargo, k_bulk, k_apu):
+    M = {}
+    def setm(n, m):
+        for kk in built:
+            if kk == n or kk.startswith(n + '.'): M[kk] = m
+    def chain(part, k):
+        m = Matrix()
+        for e in DR[part]:
+            if e[0] == 'R':
+                fac, off = FACT.get(part, (1.0, 0.0))
+                deg = gtab(e[3], k) if e[3] else fac * k + off
+                m = about(e[1], e[2], deg) @ m
+            else:
+                m = Matrix.Translation(e[1] * gtab(e[2], k)) @ m
+        return m
+    for h, dname in (('DoorHingeL1', 'DoorL1'), ('DoorHingeR1', 'DoorR1'), ('DoorHingeL2', 'DoorL4'), ('DoorHingeR2', 'DoorR4')):
+        setm(h, chain(h, k_pax)); setm(dname, chain(dname, k_pax))
+    setm('Cargo1', chain('Cargo1', k_cargo)); setm('Cargo2', chain('Cargo2', k_cargo)); setm('Cargo3', chain('Cargo3', k_bulk))
+    setm('ApuFlap', chain('ApuFlap', k_apu))
+    rs = chain('Rat', 0.0); setm('Rat', rs); setm('RatSpinner', rs)
+    for n in ('FlapMechanismL', 'FlapMechanismR'): setm(n, Matrix.Scale(0.0, 4))   # (hidden, as FlightGear)
+    return M
+if DOORPNG:
+    sc = bpy.context.scene
+    sc.render.engine = 'BLENDER_WORKBENCH'; sc.display.shading.light = 'STUDIO'; sc.display.shading.color_type = 'MATERIAL'
+    sc.display.shading.show_cavity = True
+    sc.render.resolution_x, sc.render.resolution_y = 800, 520
+    cam = bpy.data.objects.new('Cam', bpy.data.cameras.new('Cam')); sc.collection.objects.link(cam); sc.camera = cam
+    sc.world = sc.world or bpy.data.worlds.new('W')
+    orig = {k: o.matrix_world.copy() for k, o in built.items()}
+    def centre(n):
+        vs = pts(built[n]); return sum(vs, Vector()) / len(vs)
+    VIEWS = []
+    for n, side in (('DoorL1', -1), ('DoorR4', 1), ('Cargo1', 1), ('Cargo3', 1), ('ApuFlap', 0), ('Rat', 0)):
+        c = centre(n)
+        if side: at = c + Vector((side * 7.5, 5.0, 1.0))
+        elif n == 'ApuFlap': at = c + Vector((-5.0, -3.0, 2.5))
+        else: at = c + Vector((-6.0, 3.0, -1.2))
+        VIEWS.append((n, at, c))
+    for tag, kp, kc, kb, ka in (('closed', 0, 0, 0, 0), ('half', 0.5, 0.5, 0.5, 0.5), ('open', 1, 1, 1, 1)):
+        M = door_pose(kp, kc, kb, ka)
+        for k, o in built.items(): o.matrix_world = (M[k] @ orig[k]) if k in M else orig[k]
+        for vn, at, to in VIEWS:
+            if tag == 'half' and vn in ('Rat',): continue
+            cam.location = at; cam.data.lens = 40
+            cam.rotation_euler = (Vector(to) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+            sc.render.filepath = PNG.replace('.png', '-%s-%s.png' % (tag, vn)); bpy.ops.render.render(write_still=True)
+    # the gear up with the RAT stowed (the dangling part of a320-gear-up-mainside.png)
+    M = gear_pose(0.0, 1.0); M.update({k: v for k, v in door_pose(0, 0, 0, 0).items()})
+    for k, o in built.items(): o.matrix_world = (M[k] @ orig[k]) if k in M else orig[k]
+    cam.location = (-10.5, -10.0, 1.2); cam.data.lens = 40
+    cam.rotation_euler = (Vector((-3.4, -12.0, 1.6)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
+    sc.render.filepath = PNG.replace('.png', '-gearup-mainside.png'); bpy.ops.render.render(write_still=True)
+    for k, o in built.items(): o.matrix_world = orig[k]
+    print('DOOR rendered', PNG)
