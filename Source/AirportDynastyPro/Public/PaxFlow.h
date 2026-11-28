@@ -47,6 +47,7 @@ public:
 	 *  straight line through things); HubAt says when they stand there. False: not one of them. */
 	bool HubWalk(AActor* A, const FVector& To);
 	bool HubAt(AActor* A) const;
+	FString HubWhyNot(AActor* A) const;   // (why HubWalk refuses someone: for the log)
 	/** The coach's riders take them over now: PaxFlow lets go (its bag in hand handed over - the riders give the same model). */
 	void HubRelease(AActor* A);
 	/** The model kind (0..3) of the bag they carry to / from the coach. */

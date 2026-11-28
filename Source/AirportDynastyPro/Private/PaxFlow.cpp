@@ -922,6 +922,13 @@ bool APaxFlow::HubWalk(AActor* A, const FVector& To)
 	return true;
 }
 
+FString APaxFlow::HubWhyNot(AActor* A) const
+{
+	const FPx* P = Pax.FindByPredicate([A](const FPx& X) { return X.A.Get() == A; });
+	if (!P) return TEXT("not in the passenger list");
+	return FString::Printf(TEXT("listed as state %d ('%s'), not on the coach (%d)"), int32(P->St), *P->Stage, int32(EPx::Coach));
+}
+
 bool APaxFlow::HubAt(AActor* A) const
 {
 	const FPx* P = Pax.FindByPredicate([A](const FPx& X) { return X.St == EPx::Coach && X.A.Get() == A; });

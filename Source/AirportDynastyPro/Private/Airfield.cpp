@@ -772,14 +772,18 @@ void AAirfield::Aprons(bool bModelSite)
 			// wheel setbacks approximate, to be checked against each maker's airport planning document.)
 			struct FStopType { const TCHAR* Label; float NoseGear; };
 			static const FStopType Narrow[] = {{TEXT("E190"), 3.6f}, {TEXT("B737"), 4.4f}, {TEXT("A319 A320 A321 B757"), 5.1f}};
-			static const FStopType Wide[] = {{TEXT("B767"), 5.6f}, {TEXT("A330 A350 B787"), 6.5f}, {TEXT("B777 B747"), 7.6f}};
+			// (11-28 owner: the aircraft parks with its nose gear on the correct marking - a big stand takes the narrow types
+			// too, so it has their bars as well, as a real multi-type stand does; their names on the pilot's left there, clear
+			// of the wide ones' names half a metre away)
+			static const FStopType Wide[] = {{TEXT("E190"), 3.6f}, {TEXT("B737"), 4.4f}, {TEXT("A319 A320 A321 B757"), 5.1f}, {TEXT("B767"), 5.6f}, {TEXT("A330 A350 B787"), 6.5f}, {TEXT("B777 B747"), 7.6f}};
 			const TArrayView<const FStopType> Types = bBig ? TArrayView<const FStopType>(Wide) : TArrayView<const FStopType>(Narrow);
 			for (int32 t = 0; t < Types.Num(); ++t)
 			{
 				const float Stop = St.Nose + B * Types[t].NoseGear, HalfW = t == Types.Num() - 1 ? 3.f : 1.5f;
 				Quad("paintyellow", St.X - HalfW, Stop - 0.15f, St.X + HalfW, Stop + 0.15f, Base(FVector2f(St.X, Stop)) + 0.009f, 2.f);
 				// its types on the pilot's right of the line, small yellow letters
-				const float Tx = St.X + R.Dir * -(HalfW + 0.4f + 0.16f * FCString::Strlen(Types[t].Label));
+				const float Side = bBig && t < 3 ? -1.f : 1.f;   // (a big stand's narrow-type names: the pilot's left)
+				const float Tx = St.X + Side * R.Dir * -(HalfW + 0.4f + 0.16f * FCString::Strlen(Types[t].Label));
 				Text(Types[t].Label, Tx, Stop, 0.45f, R.Dir < 0 ? 90.f : -90.f, FColor(250, 205, 30));
 			}
 			// the stand's number on the lead-in line where the aircraft turns in, yellow on black (the pilot reads it

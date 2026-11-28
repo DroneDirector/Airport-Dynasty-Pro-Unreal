@@ -191,6 +191,24 @@ bool ASimTraffic::Ready(const FADPPlanned& P, const FDateTime& Now, FString& Why
 
 // The way an aircraft taxis off its stand's taxilane (+1: the plan's +x): where its push ends facing, and its first leg.
 // A cargo stand: along K to the link at the runway end's side; every other: along T to the connector it takes up to A.
+// (11-28 owner: take off from the end of the runway; the whole aircraft behind the hold-short marking)
+// the nose wheel stops 7.5 m short of the holding position's middle: the nose (5.1 m ahead of it) 1.6 m clear of the
+// solid lines. Lined up: a curved turn (20 m, the nose wheel's steering) off the end taxiway onto the centre line, the
+// nose wheel ending 20 m further on - the tail about 12 m inside the runway's end, the full length ahead
+constexpr float HoldStop = 107.5f + 7.5f, LineUpR = 20.f;
+static TArray<FVector2f> LineUpPath(float LineUp, float RY, float Dir, float Side)
+{
+	TArray<FVector2f> P;
+	const FVector2f C(LineUp + Dir * LineUpR, RY + Side * LineUpR);
+	for (int32 k = 0; k <= 9; ++k)
+	{
+		const float Th = HALF_PI * k / 9.f;
+		P.Add(C + FVector2f(-Dir * LineUpR * FMath::Cos(Th), -Side * LineUpR * FMath::Sin(Th)));
+	}
+	P.Add(FVector2f(LineUp + Dir * 1700.f, RY));
+	return P;
+}
+
 static float TaxiOutX(bool bToX1) { return bToX1 ? -130.f : 362.f; }   // (P1, P3)
 static float TaxiOutDir(const FAirfieldData::FStand& St, bool bToX1) { return St.bCargo ? (bToX1 ? -1.f : 1.f) : TaxiOutX(bToX1) >= St.X ? 1.f : -1.f; }
 
@@ -342,14 +360,21 @@ void ASimTraffic::Pose(FMove& M)
 	if (!B) return;
 	// the actor sits on the nose tyre (as on the stands: ParkedAircraft.cpp), the nose pointing from the main gear to it
 	const FVector2f D = (M.Nose - M.Main).GetSafeNormal();
-	const FVector World = FTerminalPlan::ToWorld(M.Nose.X, AAirfield::GroundAt(M.Nose.X, M.Nose.Y) + M.Height, M.Nose.Y);
+	// (11-28 owner: the nose wheel floated while taxiing - the aircraft was held level on the ground under its nose; now it lies
+	//  on the ground under both gears: tilted by the slope from the main gear to the nose, the nose tyre placed from the main gear)
+	const float GNose = AAirfield::GroundAt(M.Nose.X, M.Nose.Y), GMain = AAirfield::GroundAt(M.Main.X, M.Main.Y);
+	const float Slope = FMath::RadiansToDegrees(FMath::Atan2(GNose - GMain, Wheelbase));
+	const float Up = M.Pitch + Slope;   // (the rotation / flare on top of the ground's own tilt)
+	const FVector World = FTerminalPlan::ToWorld(M.Nose.X, GMain + M.Height + Wheelbase * FMath::Sin(FMath::DegreesToRadians(Up)), M.Nose.Y);
 	const FVector Dir(D.X, -D.Y, 0.f);   // (plan (x, y) -> world (x, -y))
 	// (2026-11-21: the moving aircraft drew nose-backwards - its nose away from the gate and the tug inside its body; the model is
 	//  created unturned here and turned after Place, unlike ParkedAircraft's: the half turn the other way)
 	const float Yaw = FMath::RadiansToDegrees(FMath::Atan2(Dir.X, -Dir.Y));
 	// the attitude: nose up about 8 degrees in the climb, about 3 on the approach (the model's nose is the actor's -Y, so
 	// nose-up is a roll about the actor's X axis); level on the ground
-	const float Up = M.Phase == EPhase::Climb ? 8.f : M.Phase == EPhase::Approach ? 3.f : (M.Phase == EPhase::Roll && M.Speed > Vr * 0.97f) ? 6.f : 0.f;
+	// (11-28 owner: it rotates gently as in real life, about 3 degrees a second, and lifts off about 4 s later; the nose comes up
+	//  round the main gear, so the nose tyre - where the actor sits - rises by the wheelbase times the sine of the pitch)
+	//  - the main gear stays on its ground while the nose comes up: the nose tyre's height above it is the wheelbase times the sine)
 	B->SetActorLocationAndRotation(World, FRotator(0.f, Yaw, Up));
 }
 
@@ -364,8 +389,8 @@ bool ASimTraffic::TestMove(UWorld* W, bool bTakeoff, float SecOut, FString& Reg)
 	if (bTakeoff)
 	{
 		const float LineUp = bToX1 ? T->F.RwyX0 + 20.f : T->F.RwyX1 - 20.f;
-		M.Phase = EPhase::Roll; M.Nose = FVector2f(LineUp, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);
-		M.Path = {FVector2f(LineUp, RY), FVector2f(LineUp + Dir * 1700.f, RY)};
+		M.Phase = EPhase::Roll; M.Nose = FVector2f(LineUp + Dir * LineUpR, RY); M.Main = M.Nose - FVector2f(Dir * Wheelbase, 0.f);   // (lined up at the end: LineUpPath)
+		M.Path = {M.Nose, FVector2f(LineUp + Dir * 1700.f, RY)};
 	}
 	else
 	{
@@ -432,7 +457,7 @@ void ASimTraffic::TaxiOutPath(FMove& M)
 {
 	// the tug has let go; taxi along T to the connector, up to A, along A to the holding point of the runway end in use
 	const bool bToX1 = RunwayToX1();
-	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, Hold = 107.5f, LineUp = bToX1 ? F.RwyX0 + 20.f : F.RwyX1 - 20.f;
+	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, LineUp = bToX1 ? F.RwyX0 + 20.f : F.RwyX1 - 20.f;
 	const FAirfieldData::FStand* MySt = F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; });
 	const bool bCargoSt = MySt && MySt->bCargo;
 	M.Step = 0; M.Path.Reset();
@@ -445,7 +470,7 @@ void ASimTraffic::TaxiOutPath(FMove& M)
 		if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-B-B1") : TEXT("CURVE-B-B3")))
 			for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
 		else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.BY));
-		M.Path.Add(FVector2f(LineUp, RY + Hold));
+		M.Path.Add(FVector2f(LineUp, RY + HoldStop));
 		return;
 	}
 	{
@@ -458,11 +483,41 @@ void ASimTraffic::TaxiOutPath(FMove& M)
 	if (const FAirfieldData::FTwy* Cv = F.Find(bToX1 ? TEXT("CURVE-A-A1") : TEXT("CURVE-A-A3")))
 		for (int32 i = Cv->Pts.Num() - 1; i >= 0; --i) M.Path.Add(FVector2f(Cv->Pts[i].X, Cv->Pts[i].Y));
 	else M.Path.Add(FVector2f(LineUp - Dir * 40.f, F.AY));
-	M.Path.Add(FVector2f(LineUp, RY - Hold));
+	M.Path.Add(FVector2f(LineUp, RY - HoldStop));
+}
+
+// (11-28 owner: gentle smooth taxi turns) each corner of a taxi path becomes an arc of about 40 m radius - the curved
+// centre line a pilot follows - instead of a kink where the nose wheel snapped to the next leg; the ends stay exact
+static void RoundCorners(const FVector2f& From, TArray<FVector2f>& Path)
+{
+	constexpr float R = 40.f;
+	if (Path.Num() < 2) return;
+	TArray<FVector2f> Out; Out.Reserve(Path.Num() * 4);
+	for (int32 i = 0; i < Path.Num(); ++i)
+	{
+		const FVector2f A = i ? Path[i - 1] : From, B = Path[i];
+		if (i == Path.Num() - 1) { Out.Add(B); break; }
+		const FVector2f C = Path[i + 1];
+		const float L1 = FVector2f::Distance(A, B), L2 = FVector2f::Distance(B, C);
+		if (L1 < 0.5f || L2 < 0.5f) { Out.Add(B); continue; }
+		const FVector2f U1 = (B - A) / L1, U2 = (C - B) / L2;
+		const float Th = FMath::Acos(FMath::Clamp(FVector2f::DotProduct(U1, U2), -1.f, 1.f));
+		if (Th < FMath::DegreesToRadians(3.f)) { Out.Add(B); continue; }
+		const float D = FMath::Min3(R * FMath::Tan(Th * 0.5f), 0.45f * L1, 0.45f * L2);
+		const FVector2f S = B - U1 * D, E = B + U2 * D;
+		const int32 N = FMath::Clamp(FMath::CeilToInt(FMath::RadiansToDegrees(Th) / 6.f), 2, 24);
+		for (int32 k = 0; k <= N; ++k) { const float T = float(k) / N; Out.Add((1.f - T) * (1.f - T) * S + 2.f * (1.f - T) * T * B + T * T * E); }
+	}
+	Path = MoveTemp(Out);
 }
 
 bool ASimTraffic::Advance(FMove& M, float Dt)
 {
+	if ((M.Phase == EPhase::Taxi || M.Phase == EPhase::TaxiIn || M.Phase == EPhase::Rollout) && M.Step == 0 && M.Path.Num() > 1 && (M.Path.Num() != M.RoundedNum || M.Path.Last() != M.RoundedEnd))
+	{
+		RoundCorners(M.Nose, M.Path);
+		M.RoundedNum = M.Path.Num(); M.RoundedEnd = M.Path.Last();
+	}
 	const bool bToX1 = RunwayToX1();
 	const float Dir = bToX1 ? 1.f : -1.f, RY = F.RwyY, X0 = F.RwyX0, X1 = F.RwyX1, Hold = 107.5f;
 	const FAirfieldData::FStand* MySt = M.bDeparture ? F.Stands.FindByPredicate([&](const FAirfieldData::FStand& S) { return S.Id == M.Stand; }) : nullptr;
@@ -579,7 +634,14 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 	// the target speed: by the phase, the turn coming (the heading change over the next 60 m) and the stand
 	float Want = MaxTaxi;
 	if (M.Phase == EPhase::Push) Want = PushSpeed;
-	else if (M.Phase == EPhase::Roll) Want = M.Step == 0 && M.Path.Num() ? FMath::Min(TurnTaxi, 0.3f + FMath::Sqrt(1.2f * FVector2f::Distance(M.Nose, M.Path[0]))) : M.Clock < 4.f ? 0.f : Vr * 1.1f;   // (onto the centre line at turn speed, a moment lined up, then the take-off power)
+	else if (M.Phase == EPhase::Roll && M.Step < M.Path.Num() - 1)
+	{
+		// (up to the hold's end and round the line-up turn at turn speed, slowing to a stop lined up on the centre line)
+		float Rem = FVector2f::Distance(M.Nose, M.Path[M.Step]);
+		for (int32 i = M.Step + 1; i < M.Path.Num() - 1; ++i) Rem += FVector2f::Distance(M.Path[i - 1], M.Path[i]);
+		Want = FMath::Min(TurnTaxi, 0.3f + FMath::Sqrt(1.2f * Rem));
+	}
+	else if (M.Phase == EPhase::Roll) Want = M.Clock < 4.f ? 0.f : Vr * 1.1f;   // (a moment lined up, then the take-off power)
 	else if (M.Phase == EPhase::Climb) Want = 160.f * KtMs;
 	else if (M.Phase == EPhase::Approach) Want = Vapp;
 	else if (M.Phase == EPhase::Rollout) Want = FMath::Abs(M.Nose.X - 81.f) < 80.f ? TurnTaxi : 20.f * KtMs;   // (about 10 kt for the turn off at the exit)
@@ -635,12 +697,31 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		Left -= Go;
 		if (D <= Go + 1e-3f) ++M.Step;
 	}
-	if (M.Phase == EPhase::Roll && M.Step >= 1) M.Clock += Dt;
+	if (M.Phase == EPhase::Roll && M.Step >= M.Path.Num() - 1) M.Clock += Dt;   // (from lined up)
+	// the attitude, as a real A320 flies it: rotation at VR about 3 deg/s, lift-off about 4 s later near 10 deg, then up to the
+	// climb's 15 deg; on the approach about 3 deg, a gentle flare to about 6 deg in the last 15 m, after touchdown the nose
+	// lowered slowly onto its wheel
+	float PitchWant = 0.f, PitchRate = 3.f;
+	if (M.Phase == EPhase::Roll && M.Step >= 1 && (M.RotT >= 0.f || M.Speed >= Vr)) { M.RotT = FMath::Max(0.f, M.RotT) + Dt; PitchWant = 15.f; }
+	else if (M.Phase == EPhase::Climb) { M.RotT += Dt; PitchWant = 15.f; }
+	else if (M.Phase == EPhase::Approach) { PitchWant = M.Height < 15.f ? 6.f : 3.f; PitchRate = M.Height < 15.f ? 1.5f : 1.f; }
+	else if (M.Phase == EPhase::Rollout) { PitchWant = 0.f; PitchRate = 1.5f; }
+	M.Pitch = FMath::FInterpConstantTo(M.Pitch, PitchWant, Dt, PitchRate);
+	if (M.Phase == EPhase::Roll && M.RotT >= 4.f && M.Step < M.Path.Num())
+	{
+		ADP_LOG(TEXT("Traffic: %s lifts off at %.0f kt, %.1f deg nose up, %.1f s after rotating"), *M.Reg, M.Speed / KtMs, M.Pitch, M.RotT);
+		M.Step = M.Path.Num();   // (the roll ends here: off the ground, not at the end of a fixed run)
+	}
 	if (M.Phase == EPhase::Climb || M.Phase == EPhase::Approach)
 	{
-		// the climb (about 8 degrees) and the 3 degree approach down to the touchdown zone
-		if (M.Phase == EPhase::Climb) M.Height += M.Speed * Dt * FMath::Tan(FMath::DegreesToRadians(8.f));
-		else M.Height = FMath::Max(0.f, FMath::Abs(M.Nose.X - M.Path.Last().X) * FMath::Tan(FMath::DegreesToRadians(Glide)));
+		// the climb's path angle grows from level to about 8 deg over the first seconds; the 3 degree approach down to the
+		// touchdown zone, its last 12 m rounded off so it sinks slower and touches gently
+		if (M.Phase == EPhase::Climb) { M.Gamma = FMath::FInterpConstantTo(M.Gamma, 8.f, Dt, 2.f); M.Height += M.Speed * Dt * FMath::Tan(FMath::DegreesToRadians(M.Gamma)); }
+		else
+		{
+			const float H = FMath::Max(0.f, FMath::Abs(M.Nose.X - M.Path.Last().X) * FMath::Tan(FMath::DegreesToRadians(Glide)));
+			M.Height = H < 12.f ? 12.f * FMath::Pow(H / 12.f, 1.6f) : H;
+		}
 	}
 	Pose(M);
 	if (M.Phase == EPhase::Push)
@@ -669,7 +750,7 @@ bool ASimTraffic::Advance(FMove& M, float Dt)
 		if (AHangarTow::OnRunway(GetWorld())) bBusy = true;   // (a hangar tow crossing, to-do 311)
 		if (bBusy || (M.Clock += Dt) < 20.f) { M.Speed = 0.f; M.Path = {M.Nose}; M.Step = 0; return false; }
 		M.Clock = 0.f;
-		M.Phase = EPhase::Roll; M.Path = {FVector2f(LineUp, RY), FVector2f(LineUp + Dir * 1700.f, RY)};
+		M.Phase = EPhase::Roll; M.Path = LineUpPath(LineUp, RY, Dir, M.Nose.Y > RY ? 1.f : -1.f); M.Step = 0;
 		return false;
 	}
 	case EPhase::Roll:

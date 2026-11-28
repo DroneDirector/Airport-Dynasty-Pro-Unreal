@@ -322,6 +322,7 @@ bool ATownHub::DriverFor(FHubCoach& C)
 	ACoaches* K = Co(); UVehicleRiders* R = K ? K->Riders(C.Ci) : nullptr;
 	if (!R) return false;
 	if (C.Driver.IsValid()) return true;
+	if (AActor* Was = R->DriverActor()) { C.Driver = Was; Say(C, FString::Printf(TEXT("keeps the driver already on it (%s)"), *Was->GetName())); return true; }   // (a new one was refused every 0.25 s while the last run's driver still held the wheel, 11-28)
 	AADPPeople* P = AADPPeople::Get(GetWorld()); if (!P) return false;
 	const FTransform Root = K->RootOf(C.Ci);
 	FVector At = Root.TransformPosition(FVector(320.f, 460.f, 0.f)); At.Z = GroundAt(At);
@@ -449,7 +450,7 @@ void ATownHub::Step(FHubCoach& C, float Dt)
 				{
 					int32 S = 0; while (Taken.Contains(S)) ++S;
 					// (to their place by the door on the walking map - round things and people, never straight through)
-					if (!PF || !PF->HubWalk(A, R->StopPoint(S))) break;
+					if (!PF || !PF->HubWalk(A, R->StopPoint(S))) { if (!W.bSaidNoWalk) { W.bSaidNoWalk = true; ADP_WARN(TEXT("TownHub: coach %d (run %d): %s can't start the walk to the door - %s"), C.Ci, C.Trip, *A->GetName(), PF ? *PF->HubWhyNot(A) : TEXT("no passenger flow")); } break; }
 					W.Slot = S; Taken.Add(S); ++Busy; W.Phase = 9;
 				}
 				break;

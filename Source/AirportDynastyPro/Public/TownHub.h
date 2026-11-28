@@ -100,7 +100,7 @@ private:
 	{
 		TWeakObjectPtr<AActor> A; bool bBag = false; FString Flight; int32 Coach = INDEX_NONE;
 		uint8 Phase = 0;   // 0 at the shelter, 1 walking to the coach's stop, 2 bag going in, 3 boarding, 4 aboard, 5 getting off, 6 taking the bag, 7 handed back
-		int32 Bay = INDEX_NONE; bool bTaxi = false; int32 Trip = INDEX_NONE; double DepT = 0.0;
+		int32 Bay = INDEX_NONE; bool bTaxi = false; bool bSaidNoWalk = false; int32 Trip = INDEX_NONE; double DepT = 0.0;
 		int32 Slot = INDEX_NONE; bool bIn = false;   // (its place by the coach's door; its bag in the bay)
 		bool bArr = false; int32 Kind = 1;            // (an arrival, terminal to hub; its bag's model)   (Phase 9: walking to the stop on the walking map)
 	};

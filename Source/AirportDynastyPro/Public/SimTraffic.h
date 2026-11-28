@@ -70,6 +70,8 @@ private:
 		int32 Step = 0;
 		FVector2f Nose, Main;               // the nose wheel and the main gear's middle (plan m)
 		float Speed = 0.f, Height = 0.f, Clock = 0.f;
+		int32 RoundedNum = -1; FVector2f RoundedEnd = FVector2f::ZeroVector;   // (the taxi path whose corners were rounded last: a new one is rounded once)
+		float Pitch = 0.f, RotT = -1.f, Gamma = 0.f;   // (nose-up degrees as drawn; seconds since rotation began (-1 not yet); the climb's path angle - all eased, never jumping)
 		bool bYou = false, bYouOff = false; int32 YouRe = INDEX_NONE; float YouBar = 0.f; TArray<FVector2f> YouFwd;   // (pushed by you: off blocks, where the crew's path goes on, the bar's angle)
 		TWeakObjectPtr<ABabylonModel> Model;
 		// its lights (to-do 243: the type's table, Data/aircraft-lights.json; switched in Blink by the real procedure)
